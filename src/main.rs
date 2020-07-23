@@ -27,7 +27,7 @@ fn main() {
         } else {
             let error = Error::Input(
                 "Internal error reading the file".to_string(),
-                "did you use 'rlox [filename]'?".to_string(),
+                "did you use 'bethon [filename]'?".to_string(),
             );
             error.show_error(None);
             exit(64);
@@ -35,14 +35,14 @@ fn main() {
     } else if argv_len > 2 {
         let error = Error::Input(
             "Too many arguments!".to_string(),
-            "Usage: rlox [path to script]".to_string(),
+            "Usage: bethon [path to script]".to_string(),
         );
         error.show_error(None);
         exit(65);
     } else if argv_len < 2 {
         let error = Error::Input(
             "Too few arguments!".to_string(),
-            "Usage: rlox [path to script]".to_string(),
+            "Usage: bethon [path to script]".to_string(),
         );
         error.show_error(None);
         exit(65);

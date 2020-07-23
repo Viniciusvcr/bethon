@@ -5,9 +5,9 @@ pub enum Error {
 impl Error {
     pub fn show_error(&self, file: Option<&str>) {
         if let Some(filename) = file {
-            eprintln!("Rlox Error in file --> {}:", filename)
+            eprintln!("Bethon Error in file --> {}:", filename)
         } else {
-            eprintln!("Rlox Error:")
+            eprintln!("Bethon Error:")
         }
         eprintln!("| {}", self.format_error());
     }
