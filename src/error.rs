@@ -3,6 +3,7 @@ pub enum Error {
 }
 
 impl Error {
+    // TODO Colors in errors
     pub fn show_error(&self, file: Option<&str>) {
         if let Some(filename) = file {
             eprintln!("Bethon Error in file --> {}:", filename)
