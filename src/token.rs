@@ -1,15 +1,16 @@
-#![allow(dead_code)] // TODO remove this
-
+#[derive(Debug)]
 pub enum NumberType {
     Float(f64),
     Integer(isize), // FIXME change to bigint
 }
 
+#[derive(Debug)]
 pub enum TokenType {
     // Not interpret, spaces ou markers
     Comment,
     Newline,
     Blank,
+    Space,
     Eof,
 
     // Types
@@ -52,6 +53,8 @@ pub enum TokenType {
     Else,
     Return,
     Def,
+    PythonSelf,
+    Print,
 
     // Logical Operators
     Not,
@@ -59,6 +62,7 @@ pub enum TokenType {
     And,
 }
 
+#[derive(Debug)]
 // Abstracts the data of the position of a Token on the source code
 pub struct Placement {
     pub line: usize,
@@ -76,6 +80,7 @@ impl Placement {
     }
 }
 
+#[derive(Debug)]
 pub struct Token {
     tt: TokenType,
     placement: Placement,
