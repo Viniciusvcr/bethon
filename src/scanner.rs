@@ -108,6 +108,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn string(&mut self) -> Result<TokenType, Error> {
+        let starting_line = self.current_line;
         while self.peek_char() != '"' && !self.is_at_end() {
             if self.peek_char() == '\n' {
                 self.current_line += 1;
@@ -118,7 +119,7 @@ impl<'a> Scanner<'a> {
 
         if self.is_at_end() {
             return Err(Error::Scanner(ScannerError::UnterminatedString(
-                self.current_line,
+                starting_line,
             )));
         } else {
             self.advance()?;
