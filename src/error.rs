@@ -60,9 +60,10 @@ impl Error {
 
         match self {
             Input(reason, note) => format!(
-                "{}Input error: {}\n{} {}",
+                "{}Input error: {}\n{}\n{} {}",
                 Color::White,
                 reason,
+                self.blue_pipe(),
                 self.blue_pipe(),
                 note
             ),
