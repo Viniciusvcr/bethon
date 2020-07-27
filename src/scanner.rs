@@ -52,8 +52,7 @@ impl<'a> Scanner<'a> {
                 Ok(true)
             }
         } else {
-            // TODO change to Error::UnexpectedFail
-            panic!("Unexpected fail: Something went wrong while parsing the file");
+            Err(Error::UnexpectedFail)
         }
     }
     fn is_digit(&self, c: char) -> bool {
@@ -80,8 +79,7 @@ impl<'a> Scanner<'a> {
         } else {
             match self.source_code.chars().nth(self.current_char) {
                 Some(c) => c,
-                // TODO change to Error::UnexpectedFail
-                None => panic!("Lexer::match_char failed"),
+                None => panic!("Scanner::peek_char failed while getting source code's nth char"),
             }
         }
     }
@@ -92,8 +90,9 @@ impl<'a> Scanner<'a> {
         } else {
             match self.source_code.chars().nth(self.current_char + 1) {
                 Some(c) => c,
-                // TODO change to Error::UnexpectedFail
-                None => panic!("Lexer::match_char failed"),
+                None => {
+                    panic!("Scanner::peek_next_char failed while getting source code's nth char")
+                }
             }
         }
     }

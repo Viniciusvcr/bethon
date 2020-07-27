@@ -35,8 +35,6 @@ pub enum Error {
 }
 
 impl Error {
-    // TODO Colors in errors
-
     fn blue_pipe(&self) -> String {
         format!("{}|{}", Color::Blue, Color::Reset)
     }
