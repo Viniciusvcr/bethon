@@ -294,3 +294,41 @@ impl<'a> Scanner<'a> {
         Ok(&self.tokens)
     }
 }
+
+#[test]
+fn empty_source_code() {
+    let empty = "";
+    let mut scanner = Scanner::new(empty);
+
+    match scanner.scan_tokens() {
+        Ok(vec) => assert_eq!(vec.len(), 1), // EOF
+        Err(_) => assert!(false),
+    }
+}
+
+#[test]
+fn hello_world() {
+    let string = "print(\"Hello, world!\")";
+    let mut scanner = Scanner::new(string);
+
+    match scanner.scan_tokens() {
+        Ok(vec) => assert_eq!(vec.len(), 5), // print, (, "Hello, World", ), EOF
+        Err(_) => assert!(false),
+    }
+}
+
+#[test]
+fn unterminated_string() {
+    let string = "\"Hello, world!";
+    let mut scanner = Scanner::new(string);
+
+    assert_eq!(scanner.scan_tokens().is_err(), true)
+}
+
+#[test]
+fn accentuation() {
+    let string = "print(Olá, mundo!)";
+    let mut scanner = Scanner::new(string);
+
+    assert_eq!(scanner.scan_tokens().is_ok(), true)
+}
