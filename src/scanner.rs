@@ -1,11 +1,13 @@
 use crate::error::{Error, ScannerError};
 use crate::token::{NumberType, Token, TokenType};
+use std::str::Chars;
 
 pub struct Scanner<'a> {
     start: usize,
     current_char: usize,
     current_line: usize,
     source_code: &'a str,
+    chars: Chars<'a>,
     tokens: Vec<Token>,
 }
 
@@ -16,24 +18,32 @@ impl<'a> Scanner<'a> {
             current_char: 0,
             current_line: 1,
             source_code,
+            chars: source_code.chars(),
             tokens: vec![],
         }
     }
-    fn is_at_end(&self) -> bool {
-        self.current_char >= self.source_code.len()
-    }
 
-    fn advance(&mut self) -> Result<char, Error> {
-        if let Some(c) = self.source_code.chars().nth(self.current_char) {
-            self.current_char += 1;
-            Ok(c)
-        } else {
-            Err(Error::UnexpectedFail)
+    fn take_while(&mut self, fun: impl Fn(char) -> bool) {
+        while self.peek().map(&fun).unwrap_or(false) {
+            self.advance();
         }
     }
 
-    fn source_substring(&self, start: usize, finish: usize) -> &str {
-        &self.source_code[start..finish]
+    fn consumed(&self) -> &'a str {
+        let mut iter = self.source_code.chars();
+        let mut len = 0;
+        while !std::ptr::eq(iter.as_str(), self.chars.as_str()) {
+            len += iter.next().map(char::len_utf8).unwrap_or(0);
+        }
+        &self.source_code[..len]
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.chars.clone().next().is_none()
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        self.chars.next()
     }
 
     fn add_token(&mut self, tt: TokenType) {
@@ -42,139 +52,72 @@ impl<'a> Scanner<'a> {
     }
 
     fn match_char(&mut self, expected: char) -> Result<bool, Error> {
-        if let Some(c) = self.source_code.chars().nth(self.current_char) {
-            if self.is_at_end() {
-                Ok(false)
-            } else if c != expected {
+        if let Some(c) = self.peek() {
+            if self.is_at_end() || c != expected {
                 Ok(false)
             } else {
-                self.advance()?;
+                self.advance();
                 Ok(true)
             }
         } else {
             Err(Error::UnexpectedFail)
         }
     }
-    fn is_digit(&self, c: char) -> bool {
-        c >= '0' && c <= '9'
-    }
-
-    fn is_alpha(&self, c: char) -> bool {
-        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
-    }
-
-    fn is_alphanumeric(&self, c: char) -> bool {
-        self.is_alpha(c) || self.is_digit(c)
-    }
 
     fn newline(&mut self) -> TokenType {
         self.current_line += 1;
+        // self.source_code = self.chars.as_str();
 
         TokenType::Newline
     }
 
-    fn peek_char(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            match self.source_code.chars().nth(self.current_char) {
-                Some(c) => c,
-                None => panic!("Scanner::peek_char failed while getting source code's nth char"),
-            }
-        }
-    }
-
-    fn peek_next_char(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            match self.source_code.chars().nth(self.current_char + 1) {
-                Some(c) => c,
-                None => {
-                    panic!("Scanner::peek_next_char failed while getting source code's nth char")
-                }
-            }
-        }
+    fn peek(&mut self) -> Option<char> {
+        self.chars.clone().next()
     }
 
     fn comment(&mut self) -> Result<TokenType, Error> {
-        self.advance()?;
-        while self.peek_char() != '\n' && !self.is_at_end() {
-            self.advance()?;
-        }
+        self.take_while(|c| c != '\n');
 
         Ok(TokenType::Comment)
     }
 
     fn string(&mut self) -> Result<TokenType, Error> {
         let starting_line = self.current_line;
-        while self.peek_char() != '"' && !self.is_at_end() {
-            if self.peek_char() == '\n' {
-                self.current_line += 1;
-            }
-
-            self.advance()?;
-        }
-
-        if self.is_at_end() {
-            return Err(Error::Scanner(ScannerError::UnterminatedString(
-                starting_line,
-            )));
+        self.take_while(|ch| ch != '"');
+        if self.peek() == Some('"') {
+            let string = TokenType::String(self.consumed()[1..].into());
+            self.advance();
+            Ok(string)
         } else {
-            self.advance()?;
+            Err(Error::Scanner(ScannerError::UnterminatedString(
+                starting_line,
+            )))
         }
-
-        let string_value = self.source_substring(self.start + 1, self.current_char - 1);
-        Ok(TokenType::String(String::from(string_value)))
     }
 
     fn number(&mut self) -> Result<TokenType, Error> {
-        while self.is_digit(self.peek_char()) {
-            self.advance()?;
-        }
-
-        // Look for a fractional part
-        if self.peek_char() == '.' && self.is_digit(self.peek_next_char()) {
-            self.advance()?;
-            while self.is_digit(self.peek_char()) {
-                self.advance()?;
-            }
-
-            if self.peek_char() == '.' {
-                self.advance()?;
-                while self.is_digit(self.peek_char()) {
-                    self.advance()?;
-                }
+        // FIXME: should not accept 123.
+        self.take_while(is_digit);
+        if Some('.') == self.peek() {
+            self.advance();
+            self.take_while(is_digit);
+            if Some('.') == self.peek() {
+                self.advance();
+                self.take_while(is_digit);
                 return Err(Error::Scanner(ScannerError::InvalidToken(
                     self.current_line,
                     0,
                     0,
-                    format!(
-                        "Failed parsing number {}",
-                        self.source_substring(self.start, self.current_char)
-                    ),
+                    format!("Failed parsing number {}", &self.consumed()),
                 )));
+            } else {
+                Ok(TokenType::Number(NumberType::Float(
+                    self.consumed().parse::<f64>().unwrap(),
+                )))
             }
-        } else if self.peek_char() == ',' {
-            return Err(Error::Scanner(ScannerError::InvalidToken(
-                self.current_line,
-                0,
-                0,
-                "Numbers are formatted with '.' instead of ','".to_string(),
-            )));
-        }
-
-        let str_number = self.source_substring(self.start, self.current_char);
-        if let Ok(number) = str_number.parse::<isize>() {
-            Ok(TokenType::Number(NumberType::Integer(number)))
-        } else if let Ok(number) = str_number.parse::<f64>() {
-            Ok(TokenType::Number(NumberType::Float(number)))
         } else {
-            Err(Error::Scanner(ScannerError::InvalidToken(
-                self.current_line,
-                0,
-                0,
-                format!("Failed parsing number {}", str_number),
+            Ok(TokenType::Number(NumberType::Integer(
+                self.consumed().parse::<isize>().unwrap(),
             )))
         }
     }
@@ -206,12 +149,10 @@ impl<'a> Scanner<'a> {
     }
 
     fn identifier(&mut self) -> Result<TokenType, Error> {
-        while self.is_alphanumeric(self.peek_char()) {
-            self.advance()?;
-        }
+        self.take_while(is_alphanumeric);
 
         // Check if the text is a reserved word
-        let text = self.source_substring(self.start, self.current_char);
+        let text = self.consumed();
         if let Some(tt) = self.is_keyword(&text) {
             Ok(tt)
         } else {
@@ -221,48 +162,48 @@ impl<'a> Scanner<'a> {
 
     fn scan_token(&mut self) -> Result<TokenType, Error> {
         use TokenType::*;
-        let c = self.advance()?;
+        let c = self.advance();
 
         match c {
-            '(' => Ok(LeftParen),
-            ')' => Ok(RightParen),
-            '[' => Ok(LeftSqBracket),
-            ']' => Ok(RightSqBracket),
-            ',' => Ok(Comma),
-            '.' => Ok(Dot),
-            '-' => match self.match_char('>') {
+            Some('(') => Ok(LeftParen),
+            Some(')') => Ok(RightParen),
+            Some('[') => Ok(LeftSqBracket),
+            Some(']') => Ok(RightSqBracket),
+            Some(',') => Ok(Comma),
+            Some('.') => Ok(Dot),
+            Some('-') => match self.match_char('>') {
                 Ok(true) => Ok(Arrow),
                 Ok(false) => Ok(Minus),
                 Err(err) => Err(err),
             },
-            '+' => Ok(Plus),
-            '/' => Ok(Slash),
-            '*' => Ok(Star),
-            '=' => match self.match_char('=') {
+            Some('+') => Ok(Plus),
+            Some('/') => Ok(Slash),
+            Some('*') => Ok(Star),
+            Some('=') => match self.match_char('=') {
                 Ok(true) => Ok(EqualEqual),
                 Ok(false) => Ok(Equal),
                 Err(err) => Err(err),
             },
-            '<' => match self.match_char('=') {
+            Some('<') => match self.match_char('=') {
                 Ok(true) => Ok(LessEqual),
                 Ok(false) => Ok(Less),
                 Err(err) => Err(err),
             },
-            '>' => match self.match_char('=') {
+            Some('>') => match self.match_char('=') {
                 Ok(true) => Ok(GreaterEqual),
                 Ok(false) => Ok(Greater),
                 Err(err) => Err(err),
             },
-            ':' => Ok(Colon),
-            '#' => self.comment(),
-            ' ' | '\t' => Ok(Space),
-            '\r' => Ok(Blank),
-            '\n' => Ok(self.newline()),
-            '"' => self.string(),
-            _ => {
-                if self.is_digit(c) {
+            Some(':') => Ok(Colon),
+            Some('#') => self.comment(),
+            Some(' ') | Some('\t') => Ok(Space),
+            Some('\r') => Ok(Blank),
+            Some('\n') => Ok(self.newline()),
+            Some('"') => self.string(),
+            Some(_) => {
+                if is_digit(c.unwrap()) {
                     self.number()
-                } else if self.is_alpha(c) {
+                } else if is_alpha(c.unwrap()) {
                     self.identifier()
                 } else {
                     // FIXME counters
@@ -274,6 +215,7 @@ impl<'a> Scanner<'a> {
                     )))
                 }
             }
+            None => panic!(),
         }
     }
 
@@ -288,11 +230,23 @@ impl<'a> Scanner<'a> {
                 },
                 Err(error) => return Err(error),
             }
+            self.source_code = self.chars.as_str();
         }
-
         self.add_token(Eof);
         Ok(&self.tokens)
     }
+}
+
+fn is_digit(c: char) -> bool {
+    c >= '0' && c <= '9'
+}
+
+fn is_alpha(c: char) -> bool {
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}
+
+fn is_alphanumeric(c: char) -> bool {
+    is_digit(c) || is_alpha(c)
 }
 
 #[test]
@@ -327,7 +281,7 @@ fn unterminated_string() {
 
 #[test]
 fn accentuation() {
-    let string = "print(Olá, mundo!)";
+    let string = "print(\"Olá, mundo!\")";
     let mut scanner = Scanner::new(string);
 
     assert_eq!(scanner.scan_tokens().is_ok(), true)

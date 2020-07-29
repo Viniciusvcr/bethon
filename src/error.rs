@@ -39,7 +39,7 @@ impl Error {
         format!("{}|{}", Color::Blue, Color::Reset)
     }
 
-    pub fn show_error(&self, file: Option<&str>, source_vec: Option<&[&str]>) {
+    pub fn show_error(&self, file: Option<&str>, source_vec: Option<&[String]>) {
         if let Some(filename) = file {
             eprintln!(
                 "{}Bethon Error in file {}'{}':",
@@ -53,7 +53,7 @@ impl Error {
         eprintln!("{} {}", self.blue_pipe(), self.format_error(source_vec));
     }
 
-    fn format_error(&self, source_vec: Option<&[&str]>) -> String {
+    fn format_error(&self, source_vec: Option<&[String]>) -> String {
         use Error::*;
 
         match self {
@@ -74,7 +74,7 @@ impl Error {
         }
     }
 
-    fn format_scanner_error(&self, error: &ScannerError, source_vec: &[&str]) -> String {
+    fn format_scanner_error(&self, error: &ScannerError, source_vec: &[String]) -> String {
         use ScannerError::*;
         match error {
             InvalidToken(line, line_start, line_end, note) => format!(

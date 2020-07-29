@@ -5,26 +5,22 @@ mod token;
 use error::Error;
 use scanner::Scanner;
 
-fn create_code_vec(source_code: &str) -> std::vec::Vec<&str> {
-    let source_code_len = source_code.len();
-    let mut current_char = 0;
-    let mut line_start = 0;
+fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
+    let source_code_len = source_code.chars().count();
 
+    let mut line: String = "".to_string();
     if source_code_len > 0 {
-        let mut vec_lines: std::vec::Vec<&str> = vec![];
-        while current_char < source_code_len {
-            if let Some(c) = source_code.chars().nth(current_char) {
-                if c == '\n' {
-                    vec_lines.push(&source_code[line_start..current_char]);
-                    line_start = current_char + 1;
-                }
+        let mut vec_lines: std::vec::Vec<String> = vec![];
+        for c in source_code.chars() {
+            if c == '\n' {
+                vec_lines.push(line.clone());
+                line = "".to_string();
+            } else {
+                line.push(c);
             }
-            current_char += 1;
         }
-        if let Some(c) = source_code.chars().nth(source_code_len - 1) {
-            if c != '\n' {
-                vec_lines.push(&source_code[line_start..current_char])
-            }
+        if line != "" {
+            vec_lines.push(line.clone());
         }
         vec_lines
     } else {
