@@ -1,32 +1,5 @@
-mod error;
-mod scanner;
-mod token;
-
-use error::Error;
-use scanner::Scanner;
-
-fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
-    let source_code_len = source_code.chars().count();
-
-    let mut line: String = "".to_string();
-    if source_code_len > 0 {
-        let mut vec_lines: std::vec::Vec<String> = vec![];
-        for c in source_code.chars() {
-            if c == '\n' {
-                vec_lines.push(line.clone());
-                line = "".to_string();
-            } else {
-                line.push(c);
-            }
-        }
-        if line != "" {
-            vec_lines.push(line.clone());
-        }
-        vec_lines
-    } else {
-        vec![]
-    }
-}
+use bethon::error::Error;
+use bethon::scanner::{create_code_vec, Scanner};
 
 #[allow(unused_variables)]
 fn run(filename: &str, source_code: &str) {
