@@ -35,6 +35,7 @@ pub enum TokenType {
     Minus,
     Plus,
     Slash,
+    Mod,
     Star,
     Arrow,
     EqualEqual,

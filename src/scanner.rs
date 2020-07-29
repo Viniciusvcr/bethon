@@ -176,6 +176,7 @@ impl<'a> Scanner<'a> {
                 Ok(false) => Ok(Minus),
                 Err(err) => Err(err),
             },
+            Some('%') => Ok(Mod),
             Some('+') => Ok(Plus),
             Some('/') => Ok(Slash),
             Some('*') => Ok(Star),
