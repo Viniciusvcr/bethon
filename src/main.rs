@@ -53,39 +53,3 @@ fn create_code_vec_hello_world() {
 
     assert_eq!(create_code_vec(hello_word), ["print(\"Hello, world!\")"]);
 }
-
-#[test]
-fn create_code_vec_three_lines() {
-    let three_lines = "print(\"Hello, world!\")\n2 + 2\n2";
-
-    assert_eq!(
-        create_code_vec(three_lines),
-        ["print(\"Hello, world!\")", "2 + 2", "2"]
-    );
-}
-
-#[test]
-fn create_code_vec_three_lines_with_empty_line() {
-    let three_lines = "print(\"Hello, world!\")\n2 + 2\n2\n\n";
-
-    assert_eq!(
-        create_code_vec(three_lines),
-        ["print(\"Hello, world!\")", "2 + 2", "2", ""]
-    );
-}
-
-#[test]
-fn create_code_vec_three_lines_with_endline() {
-    let three_lines = "print(\"Hello, world!\")\n2 + 2\n2\n";
-
-    assert_eq!(
-        create_code_vec(three_lines),
-        ["print(\"Hello, world!\")", "2 + 2", "2"]
-    );
-}
-
-#[test]
-fn create_code_vec_empty() {
-    let empty_vec: std::vec::Vec<&str> = vec![];
-    assert_eq!(create_code_vec(""), empty_vec);
-}
