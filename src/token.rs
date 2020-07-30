@@ -1,10 +1,19 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NumberType {
     Float(f64),
     Integer(isize), // FIXME change to bigint
 }
 
-#[derive(Debug)]
+impl std::fmt::Display for NumberType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NumberType::Float(n) => write!(f, "{}", n),
+            NumberType::Integer(n) => write!(f, "{}", n),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Not interpret, spaces ou markers
     Comment,
@@ -63,7 +72,7 @@ pub enum TokenType {
     And,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 // Abstracts the data of the position of a Token on the source code
 pub struct Placement {
     pub line: usize,
@@ -81,7 +90,7 @@ impl Placement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     tt: TokenType,
     placement: Placement,
