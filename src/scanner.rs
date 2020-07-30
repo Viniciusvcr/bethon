@@ -119,23 +119,31 @@ impl<'a> Scanner<'a> {
     }
 
     fn number(&mut self) -> Result<TokenType, Error> {
-        // FIXME: should not accept 123.
         self.take_while(is_digit);
         if Some('.') == self.peek() {
             self.advance();
-            self.take_while(is_digit);
-            if Some('.') == self.peek() {
-                self.advance();
+            if is_digit(self.peek().unwrap_or(' ')) {
                 self.take_while(is_digit);
-                return Err(Error::Scanner(ScannerError::InvalidToken(
+                if Some('.') == self.peek() {
+                    self.advance();
+                    self.take_while(is_digit);
+                    return Err(Error::Scanner(ScannerError::InvalidToken(
+                        self.current_line,
+                        0,
+                        0,
+                        format!("Failed parsing number {}", &self.consumed()),
+                    )));
+                } else {
+                    Ok(TokenType::Number(NumberType::Float(
+                        self.consumed().parse::<f64>().unwrap(),
+                    )))
+                }
+            } else {
+                Err(Error::Scanner(ScannerError::InvalidToken(
                     self.current_line,
                     0,
                     0,
                     format!("Failed parsing number {}", &self.consumed()),
-                )));
-            } else {
-                Ok(TokenType::Number(NumberType::Float(
-                    self.consumed().parse::<f64>().unwrap(),
                 )))
             }
         } else {
