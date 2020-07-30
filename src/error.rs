@@ -1,7 +1,19 @@
+use crate::token::TokenType;
+
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
     UnterminatedString(usize),
+}
+
+#[allow(dead_code)]
+pub enum ParserError {
+    // MissingToken, Note
+    Missing(TokenType, Option<String>),
+    // Note
+    MissingExpression(Option<String>),
+    // Expected, Found, Note
+    MismatchedTypes(String, String, Option<String>), // REFACTOR change Expected and Found to enums?
 }
 
 #[allow(dead_code)]
