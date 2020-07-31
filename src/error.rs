@@ -103,7 +103,7 @@ impl Error {
         use ScannerError::*;
         match error {
             InvalidToken(line, token_start, token_end, note) => format!(
-                "{}Syntax error in line {} from column {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: {}{}",
+                "{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: {}{}",
                 Color::White,
                 line,
                 token_start,
