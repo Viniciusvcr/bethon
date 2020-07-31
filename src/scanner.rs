@@ -26,8 +26,8 @@ pub fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
 }
 
 pub struct Scanner<'a> {
-    start: usize,
-    current_char: usize,
+    start_token: usize,
+    end_token: usize,
     current_line: usize,
     source_code: &'a str,
     chars: Chars<'a>,
@@ -37,10 +37,10 @@ pub struct Scanner<'a> {
 impl<'a> Scanner<'a> {
     pub fn new(source_code: &'a str) -> Self {
         Self {
-            start: 0,
-            current_char: 0,
             current_line: 1,
             source_code,
+            start_token: 0,
+            end_token: 0,
             chars: source_code.chars(),
             tokens: vec![],
         }
@@ -66,12 +66,17 @@ impl<'a> Scanner<'a> {
     }
 
     fn advance(&mut self) -> Option<char> {
+        self.end_token += 1;
         self.chars.next()
     }
 
     fn add_token(&mut self, tt: TokenType) {
-        // TODO starts_at and ends_at
-        self.tokens.push(Token::new(tt, self.current_line, 0, 0));
+        self.tokens.push(Token::new(
+            tt,
+            self.current_line,
+            self.start_token,
+            self.end_token,
+        ));
     }
 
     fn match_char(&mut self, expected: char) -> Result<bool, Error> {
@@ -129,8 +134,8 @@ impl<'a> Scanner<'a> {
                     self.take_while(is_digit);
                     return Err(Error::Scanner(ScannerError::InvalidToken(
                         self.current_line,
-                        0,
-                        0,
+                        self.start_token,
+                        self.end_token,
                         format!("Failed parsing number {}", &self.consumed()),
                     )));
                 } else {
@@ -141,8 +146,8 @@ impl<'a> Scanner<'a> {
             } else {
                 Err(Error::Scanner(ScannerError::InvalidToken(
                     self.current_line,
-                    0,
-                    0,
+                    self.start_token,
+                    self.end_token,
                     format!("Failed parsing number {}", &self.consumed()),
                 )))
             }
@@ -238,12 +243,11 @@ impl<'a> Scanner<'a> {
                 } else if is_alpha(c.unwrap()) {
                     self.identifier()
                 } else {
-                    // FIXME counters
                     Err(Error::Scanner(ScannerError::InvalidToken(
                         self.current_line,
-                        0,
-                        0,
-                        "".to_string(),
+                        self.start_token,
+                        self.end_token,
+                        "Invalid character".to_string(),
                     )))
                 }
             }
@@ -254,10 +258,14 @@ impl<'a> Scanner<'a> {
     pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, Error> {
         use TokenType::*;
         while !self.is_at_end() {
-            self.start = self.current_char;
+            self.start_token = self.end_token;
             match self.scan_token() {
                 Ok(token) => match token {
-                    Newline | Blank | Comment => (),
+                    Newline => {
+                        self.start_token = 0;
+                        self.end_token = 0
+                    }
+                    Blank | Comment => (),
                     _ => self.add_token(token),
                 },
                 Err(error) => return Err(error),

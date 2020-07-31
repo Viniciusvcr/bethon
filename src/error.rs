@@ -3,6 +3,7 @@ use crate::token::TokenType;
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
+    // Line, token_start
     UnterminatedString(usize),
 }
 
@@ -51,6 +52,18 @@ impl Error {
         format!("{}|{}", Color::Blue, Color::Reset)
     }
 
+    fn print_marker(&self, start: usize, end: usize) -> String {
+        let mut arrow: String = "  ".to_string();
+        for i in 0..end {
+            if i >= start {
+                arrow.push('^');
+            } else {
+                arrow.push(' ');
+            }
+        }
+        arrow
+    }
+
     pub fn show_error(&self, file: Option<&str>, source_vec: Option<&[String]>) {
         if let Some(filename) = file {
             eprintln!(
@@ -89,28 +102,29 @@ impl Error {
     fn format_scanner_error(&self, error: &ScannerError, source_vec: &[String]) -> String {
         use ScannerError::*;
         match error {
-            InvalidToken(line, line_start, line_end, note) => format!(
-                "{}Syntax error in line {} from column {} to {}: \n{}\n{} '{}'\n{}\n{} {}Reason: {}{}",
+            InvalidToken(line, token_start, token_end, note) => format!(
+                "{}Syntax error in line {} from column {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: {}{}",
                 Color::White,
                 line,
-                line_start,
-                line_end,
+                token_start,
+                token_end,
                 self.blue_pipe(),
                 self.blue_pipe(),
                 source_vec.get(*line - 1).unwrap(),
                 self.blue_pipe(),
+                self.print_marker(*token_start, *token_end),
                 self.blue_pipe(),
                 Color::Yellow,
                 note,
                 Color::Reset
             ),
             UnterminatedString(line) => format!(
-                "{}Unterminated String error from line {} to the end of file:\n{} \n{}'{}'\n{}\n{} {}Note: Maybe you forgot a '\"'?{}",
+                "{}Unterminated String from line {} to the end of file:\n{} \n{}'{}'\n{}\n{} {}Note: Every string must start and finish with a quotation mark, (e.g \"Lorem ipsum\"). Maybe you forgot a '\"'?{}",
                 Color::White,
                 line,
                 self.blue_pipe(),
                 self.blue_pipe(),
-                source_vec.get(*line - 1).expect(""),
+                source_vec.get(*line - 1).unwrap(),
                 self.blue_pipe(),
                 self.blue_pipe(),
                 Color::Yellow,
