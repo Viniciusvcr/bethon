@@ -1,14 +1,30 @@
 use bethon::error::Error;
+use bethon::parser::Parser;
 use bethon::scanner::{create_code_vec, Scanner};
 
 #[allow(unused_variables)]
 fn run(filename: &str, source_code: &str) {
-    let code_vec = create_code_vec(source_code);
     let mut lexer = Scanner::new(source_code);
 
     match lexer.scan_tokens() {
-        Ok(vec) => println!("{:?}", vec),
-        Err(err) => err.show_error(Some(filename), Some(&code_vec)),
+        Ok(vec) => {
+            let mut parser = Parser::new(vec);
+
+            println!("{:?}\n\n", vec);
+            match parser.parse() {
+                Ok(stmts) => println!("{:?}", stmts),
+                Err(errors) => {
+                    let code_vec = create_code_vec(source_code);
+                    for error in errors {
+                        error.show_error(Some(filename), Some(&code_vec))
+                    }
+                }
+            }
+        }
+        Err(err) => {
+            let code_vec = create_code_vec(source_code);
+            err.show_error(Some(filename), Some(&code_vec))
+        }
     }
 }
 
@@ -45,11 +61,4 @@ fn main() {
         error.show_error(None, None);
         exit(65);
     }
-}
-
-#[test]
-fn create_code_vec_hello_world() {
-    let hello_word = "print(\"Hello, world!\")";
-
-    assert_eq!(create_code_vec(hello_word), ["print(\"Hello, world!\")"]);
 }

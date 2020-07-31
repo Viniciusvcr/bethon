@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum NumberType {
     Float(f64),
     Integer(isize), // FIXME change to bigint
@@ -97,6 +97,14 @@ pub struct Token {
 }
 
 impl Token {
+    pub fn tt(&self) -> &TokenType {
+        &self.tt
+    }
+
+    pub fn placement(&self) -> &Placement {
+        &self.placement
+    }
+
     pub fn new(tt: TokenType, line: usize, starts_at: usize, ends_at: usize) -> Self {
         let placement = Placement::new(line, starts_at, ends_at);
         Self { tt, placement }

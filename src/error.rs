@@ -1,5 +1,3 @@
-use crate::token::TokenType;
-
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
@@ -9,12 +7,12 @@ pub enum ScannerError {
 
 #[allow(dead_code)]
 pub enum ParserError {
-    // MissingToken, Note
-    Missing(TokenType, Option<String>),
+    // MissingToken, line, Note
+    Missing(usize, Option<String>),
     // Note
-    MissingExpression(Option<String>),
+    MissingExpression(Option<usize>),
     // Expected, Found, Note
-    MismatchedTypes(String, String, Option<String>), // REFACTOR change Expected and Found to enums?
+    // MismatchedTypes(String, String, Option<String>), // REFACTOR change Expected and Found to enums?
 }
 
 #[allow(dead_code)]
@@ -45,6 +43,7 @@ pub enum Error {
     UnexpectedFail,
     Input(String, String),
     Scanner(ScannerError),
+    Parser(ParserError),
 }
 
 impl Error {
@@ -96,6 +95,7 @@ impl Error {
                 Color::Reset
             ),
             Scanner(scanner_error) => self.format_scanner_error(scanner_error, source_vec.unwrap()),
+            Parser(parser_error) => self.format_parser_error(parser_error, source_vec.unwrap()),
         }
     }
 
@@ -125,6 +125,48 @@ impl Error {
                 self.blue_pipe(),
                 self.blue_pipe(),
                 source_vec.get(*line - 1).unwrap(),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                Color::Yellow,
+                Color::Reset
+            ),
+        }
+    }
+
+    fn format_parser_error(&self, error: &ParserError, source_vec: &[String]) -> String {
+        use ParserError::*;
+        match error {
+            Missing(line, string) => {
+                if string.is_some() {
+                    format!(
+                        "{}Syntax error in line {}: {}{}{}\n{}\n{} '{}'\n",
+                        Color::White,
+                        line,
+                        Color::Yellow,
+                        string.as_ref().unwrap(),
+                        Color::Reset,
+                        self.blue_pipe(),
+                        self.blue_pipe(),
+                        source_vec.get(*line - 1).unwrap()
+                    )
+                } else {
+                    format!(
+                        "{}Syntax error in line {}: \n{}\n{} '{}'\n",
+                        Color::White,
+                        line,
+                        self.blue_pipe(),
+                        self.blue_pipe(),
+                        source_vec.get(*line - 1).unwrap()
+                    )
+                }
+            }
+            MissingExpression(line) => format!(
+                "{}Syntax error in line {}:\n{}\n{} '{}'\n{}\n{}{} Reason: Missing an expression{}",
+                Color::White,
+                line.as_ref().unwrap(),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(*line.as_ref().unwrap() - 1).unwrap(),
                 self.blue_pipe(),
                 self.blue_pipe(),
                 Color::Yellow,

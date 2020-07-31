@@ -106,3 +106,10 @@ fn integer_ok() {
     let mut scanner = Scanner::new(string);
     assert_eq!(scanner.scan_tokens().is_ok(), true)
 }
+
+#[test]
+fn create_code_vec_hello_world() {
+    let hello_word = "print(\"Hello, world!\")";
+
+    assert_eq!(create_code_vec(hello_word), ["print(\"Hello, world!\")"]);
+}

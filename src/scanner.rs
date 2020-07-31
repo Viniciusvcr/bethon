@@ -265,7 +265,7 @@ impl<'a> Scanner<'a> {
                         self.start_token = 0;
                         self.end_token = 0
                     }
-                    Blank | Comment => (),
+                    Space | Blank | Comment => (), // FIXME Spaces will be used in identation
                     _ => self.add_token(token),
                 },
                 Err(error) => return Err(error),
