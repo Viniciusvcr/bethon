@@ -164,8 +164,8 @@ impl<'a> Scanner<'a> {
         match token {
             "and" => Some(And),
             "class" => Some(Class),
-            "false" => Some(False),
-            "true" => Some(True),
+            "False" => Some(False),
+            "True" => Some(True),
             "def" => Some(Def),
             "if" => Some(If),
             "elif" => Some(Elif),
