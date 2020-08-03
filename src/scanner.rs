@@ -204,8 +204,8 @@ impl<'a> Scanner<'a> {
                 '/' => Slash,
                 '*' => Star,
                 '=' => self.match_or_else('=', TokenType::EqualEqual, TokenType::Equal),
-                '<' => self.match_or_else('<', TokenType::LessEqual, TokenType::Less),
-                '>' => self.match_or_else('>', TokenType::GreaterEqual, TokenType::Greater),
+                '<' => self.match_or_else('=', TokenType::LessEqual, TokenType::Less),
+                '>' => self.match_or_else('=', TokenType::GreaterEqual, TokenType::Greater),
                 ':' => Colon,
                 '#' => self.comment(),
                 ' ' | '\t' => Space,
@@ -262,7 +262,7 @@ impl<'a> Scanner<'a> {
                         self.start_token = 0;
                         self.end_token = 0
                     }
-                    Space | Blank | Comment => (), // FIXME Spaces will be used in identation
+                    Blank | Comment => (),
                     _ => self.add_token(token),
                 }
             } else {

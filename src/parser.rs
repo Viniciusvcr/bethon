@@ -64,6 +64,12 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn ignore_spaces(&mut self) {
+        while *self.peek().tt() == Space {
+            self.advance();
+        }
+    }
+
     fn primary(&mut self) -> ParserResult {
         if let Some(value_and_token) = self.next_is(|tt| match tt {
             False => Some(Value::Bool(false)),
@@ -92,6 +98,8 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> ParserResult {
+        self.ignore_spaces();
+
         if let Some(op_and_token) = self.next_is(|tt| match tt {
             Minus => Some(UnaryOp::Minus),
             Plus => Some(UnaryOp::Plus),
@@ -105,6 +113,8 @@ impl<'a> Parser<'a> {
 
     fn multiplication(&mut self) -> ParserResult {
         let mut expr = self.unary()?;
+
+        self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Slash => Some(BinaryOp::Div),
@@ -123,6 +133,8 @@ impl<'a> Parser<'a> {
     fn addition(&mut self) -> ParserResult {
         let mut expr = self.multiplication()?;
 
+        self.ignore_spaces();
+
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Minus => Some(BinaryOp::Sub),
             Plus => Some(BinaryOp::Add),
@@ -138,6 +150,8 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> ParserResult {
         let mut expr = self.addition()?;
+
+        self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Greater => Some(BinaryOp::GreaterThan),
@@ -156,6 +170,8 @@ impl<'a> Parser<'a> {
     fn equality(&mut self) -> ParserResult {
         let mut expr = self.comparison()?;
 
+        self.ignore_spaces();
+
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             EqualEqual => Some(BinaryOp::Equal),
             _ => None,
@@ -168,10 +184,6 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&mut self) -> ParserResult {
-        if *self.peek().tt() == Space {
-            self.advance();
-        }
-
         self.equality()
     }
 
