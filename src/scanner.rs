@@ -61,13 +61,13 @@ impl<'a> Scanner<'a> {
         &self.source_code[..len]
     }
 
-    fn is_at_end(&self) -> bool {
-        self.chars.clone().next().is_none()
-    }
-
     fn advance(&mut self) -> Option<char> {
-        self.end_token += 1;
-        self.chars.next()
+        if let Some(ch) = self.chars.next() {
+            self.end_token += 1;
+            Some(ch)
+        } else {
+            None
+        }
     }
 
     fn add_token(&mut self, tt: TokenType) {
@@ -79,16 +79,12 @@ impl<'a> Scanner<'a> {
         ));
     }
 
-    fn match_char(&mut self, expected: char) -> Result<bool, Error> {
-        if let Some(c) = self.peek() {
-            if self.is_at_end() || c != expected {
-                Ok(false)
-            } else {
-                self.advance();
-                Ok(true)
-            }
+    fn match_char(&mut self, expected: char) -> bool {
+        if Some(expected) == self.peek() {
+            self.advance();
+            true
         } else {
-            Err(Error::UnexpectedFail)
+            false
         }
     }
 
@@ -103,27 +99,24 @@ impl<'a> Scanner<'a> {
         self.chars.clone().next()
     }
 
-    fn comment(&mut self) -> Result<TokenType, Error> {
+    fn comment(&mut self) -> TokenType {
         self.take_while(|c| c != '\n');
 
-        Ok(TokenType::Comment)
+        TokenType::Comment
     }
 
-    fn string(&mut self) -> Result<TokenType, Error> {
-        let starting_line = self.current_line;
+    fn string(&mut self) -> Option<TokenType> {
         self.take_while(|ch| ch != '"');
         if self.peek() == Some('"') {
             let string = TokenType::String(self.consumed()[1..].into());
             self.advance();
-            Ok(string)
+            Some(string)
         } else {
-            Err(Error::Scanner(ScannerError::UnterminatedString(
-                starting_line,
-            )))
+            None
         }
     }
 
-    fn number(&mut self) -> Result<TokenType, Error> {
+    fn number(&mut self) -> Option<TokenType> {
         self.take_while(is_digit);
         if Some('.') == self.peek() {
             self.advance();
@@ -132,27 +125,17 @@ impl<'a> Scanner<'a> {
                 if Some('.') == self.peek() {
                     self.advance();
                     self.take_while(is_digit);
-                    return Err(Error::Scanner(ScannerError::InvalidToken(
-                        self.current_line,
-                        self.start_token,
-                        self.end_token,
-                        format!("Failed parsing number {}", &self.consumed()),
-                    )));
+                    None
                 } else {
-                    Ok(TokenType::Number(NumberType::Float(
+                    Some(TokenType::Number(NumberType::Float(
                         self.consumed().parse::<f64>().unwrap(),
                     )))
                 }
             } else {
-                Err(Error::Scanner(ScannerError::InvalidToken(
-                    self.current_line,
-                    self.start_token,
-                    self.end_token,
-                    format!("Failed parsing number {}", &self.consumed()),
-                )))
+                None
             }
         } else {
-            Ok(TokenType::Number(NumberType::Integer(
+            Some(TokenType::Number(NumberType::Integer(
                 self.consumed().parse::<isize>().unwrap(),
             )))
         }
@@ -184,94 +167,110 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn identifier(&mut self) -> Result<TokenType, Error> {
+    fn identifier(&mut self) -> TokenType {
         self.take_while(is_alphanumeric);
 
         // Check if the text is a reserved word
         let text = self.consumed();
         if let Some(tt) = self.is_keyword(&text) {
-            Ok(tt)
+            tt
         } else {
-            Ok(TokenType::Identifier(String::from(text)))
+            TokenType::Identifier(String::from(text))
         }
     }
 
-    fn scan_token(&mut self) -> Result<TokenType, Error> {
-        use TokenType::*;
-        let c = self.advance();
+    fn match_or_else(&mut self, expected: char, tt: TokenType, default: TokenType) -> TokenType {
+        if self.match_char(expected) {
+            tt
+        } else {
+            default
+        }
+    }
 
-        match c {
-            Some('(') => Ok(LeftParen),
-            Some(')') => Ok(RightParen),
-            Some('[') => Ok(LeftSqBracket),
-            Some(']') => Ok(RightSqBracket),
-            Some(',') => Ok(Comma),
-            Some('.') => Ok(Dot),
-            Some('-') => match self.match_char('>') {
-                Ok(true) => Ok(Arrow),
-                Ok(false) => Ok(Minus),
-                Err(err) => Err(err),
-            },
-            Some('%') => Ok(Mod),
-            Some('+') => Ok(Plus),
-            Some('/') => Ok(Slash),
-            Some('*') => Ok(Star),
-            Some('=') => match self.match_char('=') {
-                Ok(true) => Ok(EqualEqual),
-                Ok(false) => Ok(Equal),
-                Err(err) => Err(err),
-            },
-            Some('<') => match self.match_char('=') {
-                Ok(true) => Ok(LessEqual),
-                Ok(false) => Ok(Less),
-                Err(err) => Err(err),
-            },
-            Some('>') => match self.match_char('=') {
-                Ok(true) => Ok(GreaterEqual),
-                Ok(false) => Ok(Greater),
-                Err(err) => Err(err),
-            },
-            Some(':') => Ok(Colon),
-            Some('#') => self.comment(),
-            Some(' ') | Some('\t') => Ok(Space),
-            Some('\r') => Ok(Blank),
-            Some('\n') => Ok(self.newline()),
-            Some('"') => self.string(),
-            Some(_) => {
-                if is_digit(c.unwrap()) {
-                    self.number()
-                } else if is_alpha(c.unwrap()) {
-                    self.identifier()
-                } else {
-                    Err(Error::Scanner(ScannerError::InvalidToken(
-                        self.current_line,
-                        self.start_token,
-                        self.end_token,
-                        "Invalid character".to_string(),
-                    )))
+    fn scan_token(&mut self) -> Result<Option<TokenType>, Error> {
+        use TokenType::*;
+
+        if let Some(c) = self.advance() {
+            let token = match c {
+                '(' => LeftParen,
+                ')' => RightParen,
+                '[' => LeftSqBracket,
+                ']' => RightSqBracket,
+                ',' => Comma,
+                '.' => Dot,
+                '-' => self.match_or_else('>', TokenType::Arrow, TokenType::Minus),
+                '%' => Mod,
+                '+' => Plus,
+                '/' => Slash,
+                '*' => Star,
+                '=' => self.match_or_else('=', TokenType::EqualEqual, TokenType::Equal),
+                '<' => self.match_or_else('<', TokenType::LessEqual, TokenType::Less),
+                '>' => self.match_or_else('>', TokenType::GreaterEqual, TokenType::Greater),
+                ':' => Colon,
+                '#' => self.comment(),
+                ' ' | '\t' => Space,
+                '\r' => Blank,
+                '\n' => self.newline(),
+                '"' => {
+                    if let Some(string) = self.string() {
+                        string
+                    } else {
+                        return Err(Error::Scanner(ScannerError::UnterminatedString(
+                            self.current_line,
+                        )));
+                    }
                 }
-            }
-            None => panic!(),
+                c => {
+                    if is_digit(c) {
+                        if let Some(number) = self.number() {
+                            number
+                        } else {
+                            return Err(Error::Scanner(ScannerError::InvalidToken(
+                                self.current_line,
+                                self.start_token,
+                                self.end_token,
+                                format!("Failed parsing number {}", &self.consumed()),
+                            )));
+                        }
+                    } else if is_alpha(c) {
+                        self.identifier()
+                    } else {
+                        return Err(Error::Scanner(ScannerError::InvalidToken(
+                            self.current_line,
+                            self.start_token,
+                            self.end_token,
+                            "Invalid character".to_string(),
+                        )));
+                    }
+                }
+            };
+            Ok(Some(token))
+        } else {
+            Ok(None)
         }
     }
 
     pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, Error> {
         use TokenType::*;
-        while !self.is_at_end() {
+
+        loop {
             self.start_token = self.end_token;
-            match self.scan_token() {
-                Ok(token) => match token {
+
+            if let Some(token) = self.scan_token()? {
+                match token {
                     Newline => {
                         self.start_token = 0;
                         self.end_token = 0
                     }
                     Space | Blank | Comment => (), // FIXME Spaces will be used in identation
                     _ => self.add_token(token),
-                },
-                Err(error) => return Err(error),
+                }
+            } else {
+                break;
             }
             self.source_code = self.chars.as_str();
         }
+
         self.add_token(Eof);
         Ok(&self.tokens)
     }
