@@ -1,7 +1,102 @@
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, PartialOrd)]
 pub enum NumberType {
     Float(f64),
     Integer(isize), // FIXME change to bigint
+}
+
+impl std::ops::Sub for NumberType {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        use NumberType::*;
+        match self {
+            Float(a) => match rhs {
+                Float(b) => Float(a - b),
+                Integer(b) => Float(a - b as f64),
+            },
+            Integer(a) => match rhs {
+                Float(b) => Float(a as f64 - b),
+                Integer(b) => Integer(a - b),
+            },
+        }
+    }
+}
+
+impl std::ops::Add for NumberType {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        use NumberType::*;
+        match self {
+            Float(a) => match rhs {
+                Float(b) => Float(a + b),
+                Integer(b) => Float(a + b as f64),
+            },
+            Integer(a) => match rhs {
+                Float(b) => Float(a as f64 + b),
+                Integer(b) => Integer(a + b),
+            },
+        }
+    }
+}
+
+impl std::ops::Mul for NumberType {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        use NumberType::*;
+        match self {
+            Float(a) => match rhs {
+                Float(b) => Float(a * b),
+                Integer(b) => Float(a * b as f64),
+            },
+            Integer(a) => match rhs {
+                Float(b) => Float(a as f64 * b),
+                Integer(b) => Integer(a * b),
+            },
+        }
+    }
+}
+
+impl std::ops::Div for NumberType {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        use NumberType::*;
+        match self {
+            Float(a) => match rhs {
+                Float(b) => Float(a / b),
+                Integer(b) => Float(a / b as f64),
+            },
+            Integer(a) => match rhs {
+                Float(b) => Float(a as f64 / b),
+                Integer(b) => Integer(a / b),
+            },
+        }
+    }
+}
+
+impl std::ops::Rem for NumberType {
+    type Output = Self;
+    fn rem(self, rhs: Self) -> Self::Output {
+        use NumberType::*;
+        match self {
+            Float(a) => match rhs {
+                Float(b) => Float(a % b),
+                Integer(b) => Float(a % b as f64),
+            },
+            Integer(a) => match rhs {
+                Float(b) => Float(a as f64 % b),
+                Integer(b) => Integer(a % b),
+            },
+        }
+    }
+}
+
+impl std::ops::Neg for NumberType {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        match self {
+            NumberType::Integer(a) => NumberType::Integer(-a),
+            NumberType::Float(a) => NumberType::Float(-a),
+        }
+    }
 }
 
 impl std::fmt::Display for NumberType {

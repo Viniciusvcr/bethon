@@ -1,6 +1,6 @@
 use crate::token::{NumberType, Token};
 
-type OpWithToken<Op> = (Op, Token);
+pub type OpWithToken<Op> = (Op, Token);
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum UnaryOp {
@@ -38,12 +38,13 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn show(&self) -> String {
+    pub fn to_string(&self) -> String {
         use Value::*;
 
         match self {
             PythonNone => "None".to_string(),
-            Bool(value) => format!("{}", value),
+            Bool(false) => format!("False"),
+            Bool(true) => format!("True"),
             Number(value) => format!("{}", value),
             Str(value) => value.to_string(),
         }

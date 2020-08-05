@@ -5,6 +5,10 @@ pub enum ScannerError {
     UnterminatedString(usize),
 }
 
+pub enum RuntimeError {
+    DivisionByZero(usize, usize, usize),
+}
+
 #[allow(dead_code)]
 pub enum ParserError {
     // MissingToken, line, Note
@@ -44,6 +48,7 @@ pub enum Error {
     Input(String, String),
     Scanner(ScannerError),
     Parser(ParserError),
+    Runtime(RuntimeError),
 }
 
 impl Error {
@@ -96,6 +101,17 @@ impl Error {
             ),
             Scanner(scanner_error) => self.format_scanner_error(scanner_error, source_vec.unwrap()),
             Parser(parser_error) => self.format_parser_error(parser_error, source_vec.unwrap()),
+            Runtime(runtime_error) => self.format_runtime_error(runtime_error, source_vec.unwrap()),
+        }
+    }
+
+    fn format_runtime_error(&self, error: &RuntimeError, source_vec: &[String]) -> String {
+        use RuntimeError::*;
+
+        match error {
+            DivisionByZero(line, token_starts, token_ends) => {
+                format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends), self.blue_pipe(), Color::Yellow, Color::Reset)
+            }
         }
     }
 

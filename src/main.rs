@@ -1,4 +1,5 @@
 use bethon::error::Error;
+use bethon::interpreter::Interpreter;
 use bethon::parser::Parser;
 use bethon::scanner::{create_code_vec, Scanner};
 
@@ -12,7 +13,21 @@ fn run(filename: &str, source_code: &str) {
 
             println!("{:?}\n\n", vec);
             match parser.parse() {
-                Ok(stmts) => println!("{:?}", stmts),
+                Ok(stmts) => {
+                    println!("{:?}", stmts);
+                    let mut interpreter = Interpreter::new();
+
+                    match interpreter.interpret(&stmts) {
+                        Ok(results) => {
+                            for result in results {
+                                println!("{}", result)
+                            }
+                        }
+                        Err(error) => {
+                            error.show_error(Some(filename), Some(&create_code_vec(source_code)))
+                        }
+                    }
+                }
                 Err(errors) => {
                     let code_vec = create_code_vec(source_code);
                     for error in errors {
