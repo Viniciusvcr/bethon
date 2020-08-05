@@ -7,31 +7,42 @@ type ParserResult = std::result::Result<Expr, ParserError>;
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
-    current: usize,
+    current_line: usize,
 }
 
 use TokenType::*;
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, current: 0 }
+        Self {
+            tokens,
+            current_line: 1,
+        }
     }
 
-    fn peek(&self) -> &Token {
-        &self.tokens[0]
+    fn peek(&self) -> Option<&Token> {
+        self.tokens.first()
     }
 
     fn is_at_end(&self) -> bool {
-        *self.peek().tt() == TokenType::Eof
+        if let Some(token) = self.peek() {
+            *token.tt() == TokenType::Eof
+        } else {
+            true
+        }
     }
 
-    fn advance(&mut self) -> &Token {
-        self.tokens = &self.tokens[1..];
-
-        &self.tokens[0]
+    fn advance(&mut self) -> Option<&Token> {
+        if let Some((first, rest)) = self.tokens.split_first() {
+            self.tokens = rest;
+            self.current_line = first.placement().line;
+            Some(first)
+        } else {
+            None
+        }
     }
 
     fn next_is<T>(&mut self, fun: impl Fn(&TokenType) -> Option<T>) -> Option<(T, Token)> {
-        if let Some(token) = self.tokens.get(self.current) {
+        if let Some(token) = self.tokens.first() {
             if let Some(t) = fun(token.tt()) {
                 self.advance();
                 return Some((t, token.clone()));
@@ -40,34 +51,27 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn check_type(&self, tt: TokenType) -> bool {
-        if self.is_at_end() {
-            false
+    fn check_type(&mut self, tt: TokenType) -> bool {
+        if let Some(token) = self.peek() {
+            *token.tt() == tt
         } else {
-            *self.peek().tt() == tt
+            false
         }
     }
 
-    fn consume(
-        &mut self,
-        tt: TokenType,
-        error_message: std::string::String,
-    ) -> Result<&Token, ParserError> {
+    fn consume(&mut self, tt: TokenType) -> Option<&Token> {
         if self.check_type(tt) {
-            Ok(self.advance())
+            self.advance()
         } else {
-            let token = self.peek();
-            Err(ParserError::Missing(
-                token.placement().line,
-                Some(error_message.to_string()),
-            ))
+            None
         }
     }
 
     fn ignore_spaces(&mut self) {
-        while *self.peek().tt() == Space {
-            self.advance();
-        }
+        while let Some(_) = self.next_is(|tt| match tt {
+            TokenType::Space => Some(()),
+            _ => None,
+        }) {}
     }
 
     fn primary(&mut self) -> ParserResult {
@@ -80,20 +84,21 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(Expr::Literal(value_and_token))
-        } else if let Some(_) = self.next_is(|tt| match tt {
+        } else if let Some((_, token)) = self.next_is(|tt| match tt {
             LeftParen => Some(LeftParen),
             _ => None,
         }) {
             let expr = self.expression()?;
 
-            match self.consume(RightParen, "Expect ')' after this expression".to_string()) {
-                Ok(_) => Ok(Expr::Grouping(expr.into())),
-                Err(error) => Err(error),
+            match self.consume(RightParen) {
+                Some(_) => Ok(Expr::Grouping(expr.into())),
+                None => Err(ParserError::Missing(
+                    token.placement().line,
+                    Some("Expected a ')' after this expression.".to_string()),
+                )),
             }
         } else {
-            Err(ParserError::MissingExpression(Some(
-                self.peek().placement().line,
-            )))
+            Err(ParserError::MissingExpression(Some(self.current_line)))
         }
     }
 

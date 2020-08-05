@@ -155,15 +155,17 @@ impl Error {
             Missing(line, string) => {
                 if string.is_some() {
                     format!(
-                        "{}Syntax error in line {}: {}{}{}\n{}\n{} '{}'\n",
+                        "{}Syntax error in line {}: \n{}\n{} '{}'\n{}\n{} {}{}{}",
                         Color::White,
                         line,
+                        self.blue_pipe(),
+                        self.blue_pipe(),
+                        source_vec.get(*line - 1).unwrap(),
+                        self.blue_pipe(),
+                        self.blue_pipe(),
                         Color::Yellow,
                         string.as_ref().unwrap(),
                         Color::Reset,
-                        self.blue_pipe(),
-                        self.blue_pipe(),
-                        source_vec.get(*line - 1).unwrap()
                     )
                 } else {
                     format!(
