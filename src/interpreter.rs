@@ -82,46 +82,77 @@ impl Interpreter {
     fn eval_binary_expr(
         &self,
         left: &Expr,
-        binary_op_and_token: &OpWithToken<BinaryOp>,
+        op_and_token: &OpWithToken<BinaryOp>,
         right: &Expr,
     ) -> InterpreterResult {
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
-        self.binary_op(&eval_left, binary_op_and_token, &eval_right)
+        self.binary_op(&eval_left, op_and_token, &eval_right)
+    }
+
+    fn unary_op(&self, op_and_token: &OpWithToken<UnaryOp>, right: &Value) -> InterpreterResult {
+        use UnaryOp::*;
+        use Value::*;
+
+        let (op, _token) = op_and_token;
+
+        // FIXME these errors should be catched by the parser, therefore, shouldn't appear here
+        match (op, right) {
+            (Minus, PythonNone) => Err(RuntimeError::NotAllowed),
+            (Minus, Bool(_)) => Err(RuntimeError::NotAllowed),
+            (Minus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(-*a))),
+            (Minus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(-*a))),
+            (Minus, Str(_)) => Err(RuntimeError::NotAllowed),
+            (Plus, PythonNone) => Err(RuntimeError::NotAllowed),
+            (Plus, Bool(_)) => Err(RuntimeError::NotAllowed),
+            (Plus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(*a))),
+            (Plus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(*a))),
+            (Plus, Str(_)) => Err(RuntimeError::NotAllowed),
+        }
+    }
+
+    fn eval_unary_expr(
+        &self,
+        op_and_token: &OpWithToken<UnaryOp>,
+        right: &Expr,
+    ) -> InterpreterResult {
+        let eval_right = self.eval_expr(right)?;
+
+        self.unary_op(op_and_token, &eval_right)
     }
 
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         use Expr::*;
         match expr {
             Binary(left, op_and_token, right) => self.eval_binary_expr(left, op_and_token, right),
-            Unary(_op_and_token, _right) => {
-                unimplemented!("eval of unary expression not implemented yet")
-            }
+            Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Grouping(new_expr) => self.eval_expr(new_expr),
             Literal(value_and_token) => Ok(value_and_token.clone().0),
-            _ => unimplemented!("Logical expressions not implemented yet"),
         }
     }
 
-    fn eval(&self, stmt: &Stmt) -> Result<String, Error> {
+    fn eval(&self, stmt: &Stmt) -> Option<Error> {
         use Stmt::*;
         match stmt {
             ExprStmt(expr) => match self.eval_expr(expr) {
-                Ok(value) => Ok(value.to_string()),
-                Err(error) => Err(Error::Runtime(error)),
+                Ok(value) => {
+                    println!("{}", value.to_string());
+                    None
+                }
+                Err(error) => Some(Error::Runtime(error)),
             },
         }
     }
 
-    pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<Vec<String>, Error> {
-        let mut results: Vec<String> = vec![];
-
+    pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Option<Error> {
         for stmt in stmts {
-            results.push(self.eval(stmt)?);
+            if let Some(evaluation) = self.eval(stmt) {
+                return Some(evaluation);
+            }
         }
 
-        Ok(results)
+        None
     }
 
     pub fn new() -> Self {

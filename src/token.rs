@@ -89,16 +89,6 @@ impl std::ops::Rem for NumberType {
     }
 }
 
-impl std::ops::Neg for NumberType {
-    type Output = Self;
-    fn neg(self) -> Self::Output {
-        match self {
-            NumberType::Integer(a) => NumberType::Integer(-a),
-            NumberType::Float(a) => NumberType::Float(-a),
-        }
-    }
-}
-
 impl std::fmt::Display for NumberType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -17,15 +17,8 @@ fn run(filename: &str, source_code: &str) {
                     println!("{:?}", stmts);
                     let mut interpreter = Interpreter::new();
 
-                    match interpreter.interpret(&stmts) {
-                        Ok(results) => {
-                            for result in results {
-                                println!("{}", result)
-                            }
-                        }
-                        Err(error) => {
-                            error.show_error(Some(filename), Some(&create_code_vec(source_code)))
-                        }
+                    if let Some(error) = interpreter.interpret(&stmts) {
+                        error.show_error(Some(filename), Some(&create_code_vec(source_code)))
                     }
                 }
                 Err(errors) => {

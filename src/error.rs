@@ -7,6 +7,7 @@ pub enum ScannerError {
 
 pub enum RuntimeError {
     DivisionByZero(usize, usize, usize),
+    NotAllowed, // REFACTOR
 }
 
 #[allow(dead_code)]
@@ -109,9 +110,8 @@ impl Error {
         use RuntimeError::*;
 
         match error {
-            DivisionByZero(line, token_starts, token_ends) => {
-                format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends), self.blue_pipe(), Color::Yellow, Color::Reset)
-            }
+            DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends), self.blue_pipe(), Color::Yellow, Color::Reset),
+            NotAllowed => format!("{}Runtime error: Operation not allowed.", Color::White)
         }
     }
 

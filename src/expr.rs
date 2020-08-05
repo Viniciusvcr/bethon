@@ -57,35 +57,4 @@ pub enum Expr {
     Unary(OpWithToken<UnaryOp>, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(OpWithToken<Value>),
-    Logical(OpWithToken<LogicalOp>, Box<Expr>),
-}
-
-pub trait Visitor<T> {
-    fn accept(&mut self, expr: &Expr) -> T {
-        use Expr::*;
-
-        match expr {
-            Binary(left, (binary_op, token), right) => {
-                self.visit_binary_expr(left, (binary_op, token), right)
-            }
-            Unary((unary_op, token), right) => self.visit_unary_expr((unary_op, token), right),
-            Grouping(expr) => self.visit_grouping_expr(expr),
-            Literal((value, token)) => self.visit_literal_expr((value, token)),
-            Logical((logical_op, token), right) => {
-                self.visit_logical_expr((logical_op, token), right)
-            }
-        }
-    }
-
-    fn visit_binary_expr(
-        &mut self,
-        left: &Expr,
-        binary_op_and_token: (&BinaryOp, &Token),
-        right: &Expr,
-    ) -> T;
-    fn visit_grouping_expr(&mut self, expr: &Expr) -> T;
-    fn visit_literal_expr(&mut self, value_and_token: (&Value, &Token)) -> T;
-    fn visit_unary_expr(&mut self, unary_op_and_token: (&UnaryOp, &Token), right: &Expr) -> T;
-    fn visit_logical_expr(&mut self, logical_op_and_token: (&LogicalOp, &Token), right: &Expr)
-        -> T;
 }
