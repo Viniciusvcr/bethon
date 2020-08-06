@@ -1,5 +1,6 @@
 use crate::error::{Error, ScannerError};
 use crate::token::{NumberType, Token, TokenType};
+use num_bigint::BigInt;
 use std::str::Chars;
 
 pub fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
@@ -90,7 +91,6 @@ impl<'a> Scanner<'a> {
 
     fn newline(&mut self) -> TokenType {
         self.current_line += 1;
-        // self.source_code = self.chars.as_str();
 
         TokenType::Newline
     }
@@ -136,7 +136,7 @@ impl<'a> Scanner<'a> {
             }
         } else {
             Some(TokenType::Number(NumberType::Integer(
-                self.consumed().parse::<isize>().unwrap(),
+                self.consumed().parse::<BigInt>().unwrap(),
             )))
         }
     }

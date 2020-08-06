@@ -1,7 +1,10 @@
-#[derive(Debug, Clone, PartialEq, Copy, PartialOrd)]
+use num_bigint::BigInt;
+use num_traits::cast::ToPrimitive;
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum NumberType {
     Float(f64),
-    Integer(isize), // FIXME change to bigint
+    Integer(BigInt),
 }
 
 impl std::ops::Sub for NumberType {
@@ -11,10 +14,10 @@ impl std::ops::Sub for NumberType {
         match self {
             Float(a) => match rhs {
                 Float(b) => Float(a - b),
-                Integer(b) => Float(a - b as f64),
+                Integer(b) => Float(a - b.to_f64().unwrap()),
             },
             Integer(a) => match rhs {
-                Float(b) => Float(a as f64 - b),
+                Float(b) => Float(a.to_f64().unwrap() - b),
                 Integer(b) => Integer(a - b),
             },
         }
@@ -28,10 +31,10 @@ impl std::ops::Add for NumberType {
         match self {
             Float(a) => match rhs {
                 Float(b) => Float(a + b),
-                Integer(b) => Float(a + b as f64),
+                Integer(b) => Float(a + b.to_f64().unwrap()),
             },
             Integer(a) => match rhs {
-                Float(b) => Float(a as f64 + b),
+                Float(b) => Float(a.to_f64().unwrap() + b),
                 Integer(b) => Integer(a + b),
             },
         }
@@ -45,10 +48,10 @@ impl std::ops::Mul for NumberType {
         match self {
             Float(a) => match rhs {
                 Float(b) => Float(a * b),
-                Integer(b) => Float(a * b as f64),
+                Integer(b) => Float(a * b.to_f64().unwrap()),
             },
             Integer(a) => match rhs {
-                Float(b) => Float(a as f64 * b),
+                Float(b) => Float(a.to_f64().unwrap() * b),
                 Integer(b) => Integer(a * b),
             },
         }
@@ -62,10 +65,10 @@ impl std::ops::Div for NumberType {
         match self {
             Float(a) => match rhs {
                 Float(b) => Float(a / b),
-                Integer(b) => Float(a / b as f64),
+                Integer(b) => Float(a / b.to_f64().unwrap()),
             },
             Integer(a) => match rhs {
-                Float(b) => Float(a as f64 / b),
+                Float(b) => Float(a.to_f64().unwrap() / b),
                 Integer(b) => Integer(a / b),
             },
         }
@@ -79,10 +82,10 @@ impl std::ops::Rem for NumberType {
         match self {
             Float(a) => match rhs {
                 Float(b) => Float(a % b),
-                Integer(b) => Float(a % b as f64),
+                Integer(b) => Float(a % b.to_f64().unwrap()),
             },
             Integer(a) => match rhs {
-                Float(b) => Float(a as f64 % b),
+                Float(b) => Float(a.to_f64().unwrap() % b),
                 Integer(b) => Integer(a % b),
             },
         }

@@ -4,6 +4,7 @@ use crate::{
     stmt::*,
     token::NumberType,
 };
+use num_traits::ToPrimitive;
 
 type InterpreterResult = std::result::Result<Value, RuntimeError>;
 
@@ -22,10 +23,10 @@ impl Interpreter {
         let (op, token) = op_and_token;
 
         match (op, left, right) {
-            (Sub, Number(a), Number(b)) => Ok(Number(*a - *b)),
-            (Add, Number(a), Number(b)) => Ok(Number(*a + *b)),
+            (Sub, Number(a), Number(b)) => Ok(Number(a.clone() - b.clone())),
+            (Add, Number(a), Number(b)) => Ok(Number(a.clone() + b.clone())),
             (Div, Number(NumberType::Integer(a)), Number(NumberType::Integer(b))) => {
-                if *b != 0 {
+                if *b != num_bigint::BigInt::from(0) {
                     Ok(Value::Number(NumberType::Integer(a / b)))
                 } else {
                     Err(RuntimeError::DivisionByZero(
@@ -36,8 +37,8 @@ impl Interpreter {
                 }
             }
             (Div, Number(NumberType::Float(a)), Number(NumberType::Integer(b))) => {
-                if *b != 0 {
-                    Ok(Value::Number(NumberType::Float(a / *b as f64)))
+                if *b != num_bigint::BigInt::from(0) {
+                    Ok(Value::Number(NumberType::Float(a / b.to_f64().unwrap())))
                 } else {
                     Err(RuntimeError::DivisionByZero(
                         token.placement().line,
@@ -48,7 +49,7 @@ impl Interpreter {
             }
             (Div, Number(NumberType::Integer(a)), Number(NumberType::Float(b))) => {
                 if *b != 0.0 {
-                    Ok(Value::Number(NumberType::Float(*a as f64 / b)))
+                    Ok(Value::Number(NumberType::Float(a.to_f64().unwrap() / b)))
                 } else {
                     Err(RuntimeError::DivisionByZero(
                         token.placement().line,
@@ -68,8 +69,8 @@ impl Interpreter {
                     ))
                 }
             }
-            (Mul, Number(a), Number(b)) => Ok(Number(*a * *b)),
-            (Mod, Number(a), Number(b)) => Ok(Number(*a % *b)),
+            (Mul, Number(a), Number(b)) => Ok(Number(a.clone() * b.clone())),
+            (Mod, Number(a), Number(b)) => Ok(Number(a.clone() % b.clone())),
             (GreaterThan, Number(a), Number(b)) => Ok(Bool(a > b)),
             (GreaterEqual, Number(a), Number(b)) => Ok(Bool(a >= b)),
             (LessThan, Number(a), Number(b)) => Ok(Bool(a < b)),
@@ -101,12 +102,12 @@ impl Interpreter {
         match (op, right) {
             (Minus, PythonNone) => Err(RuntimeError::NotAllowed),
             (Minus, Bool(_)) => Err(RuntimeError::NotAllowed),
-            (Minus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(-*a))),
+            (Minus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(-a.clone()))),
             (Minus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(-*a))),
             (Minus, Str(_)) => Err(RuntimeError::NotAllowed),
             (Plus, PythonNone) => Err(RuntimeError::NotAllowed),
             (Plus, Bool(_)) => Err(RuntimeError::NotAllowed),
-            (Plus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(*a))),
+            (Plus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(a.clone()))),
             (Plus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(*a))),
             (Plus, Str(_)) => Err(RuntimeError::NotAllowed),
         }

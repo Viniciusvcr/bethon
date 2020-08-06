@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
             False => Some(Value::Bool(false)),
             True => Some(Value::Bool(true)),
             PythonNone => Some(Value::PythonNone),
-            Number(number) => Some(Value::Number(*number)),
+            Number(number) => Some(Value::Number(number.clone())),
             String(string) => Some(Value::Str(string.to_string())),
             _ => None,
         }) {
