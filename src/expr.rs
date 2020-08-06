@@ -10,11 +10,6 @@ pub enum UnaryOp {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum BinaryOp {
-    Equal,
-    LessThan,
-    LessEqual,
-    GreaterThan,
-    GreaterEqual,
     Add,
     Sub,
     Mul,
@@ -23,8 +18,16 @@ pub enum BinaryOp {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum LogicalOp {
-    Not,
+pub enum BinaryCompOp {
+    Equal,
+    LessThan,
+    LessEqual,
+    GreaterThan,
+    GreaterEqual,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum BinaryLogicOp {
     And,
     Or,
 }
@@ -53,7 +56,10 @@ impl Value {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Expr {
-    Binary(Box<Expr>, OpWithToken<BinaryOp>, Box<Expr>), // TODO: separar logico, aritmetica e comparação
+    BinaryArith(Box<Expr>, OpWithToken<BinaryOp>, Box<Expr>),
+    BinaryComp(Box<Expr>, OpWithToken<BinaryCompOp>, Box<Expr>),
+    BinaryLogic(Box<Expr>, OpWithToken<BinaryLogicOp>, Box<Expr>),
+    LogicNot((Box<Expr>, Token)),
     Unary(OpWithToken<UnaryOp>, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(OpWithToken<Value>),

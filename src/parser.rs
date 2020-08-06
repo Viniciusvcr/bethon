@@ -97,6 +97,13 @@ impl<'a> Parser<'a> {
                     Some("Expected a ')' after this expression.".to_string()),
                 )),
             }
+        } else if let Some((_, token)) = self.next_is(|tt| match tt {
+            Not => Some(()),
+            _ => None,
+        }) {
+            let expr = self.expression()?;
+
+            Ok(Expr::LogicNot((expr.into(), token)))
         } else {
             Err(ParserError::MissingExpression(Some(self.current_line)))
         }
@@ -129,7 +136,7 @@ impl<'a> Parser<'a> {
         }) {
             let right = self.unary()?;
 
-            expr = Expr::Binary(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryArith(expr.into(), op_and_token, right.into());
         }
 
         Ok(expr)
@@ -147,7 +154,7 @@ impl<'a> Parser<'a> {
         }) {
             let right = self.multiplication()?;
 
-            expr = Expr::Binary(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryArith(expr.into(), op_and_token, right.into());
         }
 
         Ok(expr)
@@ -159,37 +166,39 @@ impl<'a> Parser<'a> {
         self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
-            Greater => Some(BinaryOp::GreaterThan),
-            GreaterEqual => Some(BinaryOp::GreaterEqual),
-            Less => Some(BinaryOp::LessThan),
-            LessEqual => Some(BinaryOp::LessEqual),
+            EqualEqual => Some(BinaryCompOp::Equal),
+            Greater => Some(BinaryCompOp::GreaterThan),
+            GreaterEqual => Some(BinaryCompOp::GreaterEqual),
+            Less => Some(BinaryCompOp::LessThan),
+            LessEqual => Some(BinaryCompOp::LessEqual),
             _ => None,
         }) {
             let right = self.addition()?;
-            expr = Expr::Binary(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryComp(expr.into(), op_and_token, right.into());
         }
 
         Ok(expr)
     }
 
-    fn equality(&mut self) -> ParserResult {
+    fn binary_logic(&mut self) -> ParserResult {
         let mut expr = self.comparison()?;
 
         self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
-            EqualEqual => Some(BinaryOp::Equal),
+            Or => Some(BinaryLogicOp::Or),
+            And => Some(BinaryLogicOp::And),
             _ => None,
         }) {
             let right = self.comparison()?;
-            expr = Expr::Binary(Box::new(expr), op_and_token, Box::new(right));
+            expr = Expr::BinaryLogic(Box::new(expr), op_and_token, Box::new(right));
         }
 
         Ok(expr)
     }
 
     fn expression(&mut self) -> ParserResult {
-        self.equality()
+        self.binary_logic()
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParserError> {

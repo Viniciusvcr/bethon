@@ -11,7 +11,7 @@ type InterpreterResult = std::result::Result<Value, RuntimeError>;
 pub struct Interpreter {}
 
 impl Interpreter {
-    fn binary_op(
+    fn binary_arith_op(
         &self,
         left: &Value,
         op_and_token: &OpWithToken<BinaryOp>,
@@ -71,16 +71,11 @@ impl Interpreter {
             }
             (Mul, Number(a), Number(b)) => Ok(Number(a.clone() * b.clone())),
             (Mod, Number(a), Number(b)) => Ok(Number(a.clone() % b.clone())),
-            (GreaterThan, Number(a), Number(b)) => Ok(Bool(a > b)),
-            (GreaterEqual, Number(a), Number(b)) => Ok(Bool(a >= b)),
-            (LessThan, Number(a), Number(b)) => Ok(Bool(a < b)),
-            (LessEqual, Number(a), Number(b)) => Ok(Bool(a <= b)),
-            (Equal, _, _) => Ok(Bool(left == right)),
-            _ => panic!(),
+            _ => panic!(), // FIXME shouldn`t happen
         }
     }
 
-    fn eval_binary_expr(
+    fn eval_binary_arith_expr(
         &self,
         left: &Expr,
         op_and_token: &OpWithToken<BinaryOp>,
@@ -89,7 +84,7 @@ impl Interpreter {
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
-        self.binary_op(&eval_left, op_and_token, &eval_right)
+        self.binary_arith_op(&eval_left, op_and_token, &eval_right)
     }
 
     fn unary_op(&self, op_and_token: &OpWithToken<UnaryOp>, right: &Value) -> InterpreterResult {
@@ -126,10 +121,13 @@ impl Interpreter {
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         use Expr::*;
         match expr {
-            Binary(left, op_and_token, right) => self.eval_binary_expr(left, op_and_token, right),
+            BinaryArith(left, op_and_token, right) => {
+                self.eval_binary_arith_expr(left, op_and_token, right)
+            }
             Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Grouping(new_expr) => self.eval_expr(new_expr),
             Literal(value_and_token) => Ok(value_and_token.clone().0),
+            _ => unimplemented!(),
         }
     }
 
