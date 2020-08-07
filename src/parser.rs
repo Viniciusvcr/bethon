@@ -181,13 +181,12 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
-    fn binary_logic(&mut self) -> ParserResult {
+    fn and(&mut self) -> ParserResult {
         let mut expr = self.comparison()?;
 
         self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
-            Or => Some(BinaryLogicOp::Or),
             And => Some(BinaryLogicOp::And),
             _ => None,
         }) {
@@ -198,8 +197,24 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
+    fn or(&mut self) -> ParserResult {
+        let mut expr = self.and()?;
+
+        self.ignore_spaces();
+
+        while let Some(op_and_token) = self.next_is(|tt| match tt {
+            Or => Some(BinaryLogicOp::Or),
+            _ => None,
+        }) {
+            let right = self.and()?;
+            expr = Expr::BinaryLogic(Box::new(expr), op_and_token, Box::new(right));
+        }
+
+        Ok(expr)
+    }
+
     fn expression(&mut self) -> ParserResult {
-        self.binary_logic()
+        self.or()
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
