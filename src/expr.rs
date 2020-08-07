@@ -19,6 +19,7 @@ pub enum BinaryOp {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum BinaryCompOp {
+    NotEqual,
     Equal,
     LessThan,
     LessEqual,

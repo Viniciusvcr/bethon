@@ -135,6 +135,7 @@ pub enum TokenType {
     Mod,
     Star,
     Arrow,
+    BangEqual,
     EqualEqual,
     Greater,
     GreaterEqual,

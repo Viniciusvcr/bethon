@@ -220,6 +220,18 @@ impl<'a> Scanner<'a> {
                         )));
                     }
                 }
+                '!' => {
+                    if self.match_char('=') {
+                        BangEqual
+                    } else {
+                        return Err(Error::Scanner(ScannerError::InvalidToken(
+                            self.current_line,
+                            self.start_token,
+                            self.end_token,
+                            format!("Invalid syntax. Did you mean '!='?"),
+                        )));
+                    }
+                }
                 c => {
                     if is_digit(c) {
                         if let Some(number) = self.number() {

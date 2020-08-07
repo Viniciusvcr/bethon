@@ -166,6 +166,7 @@ impl<'a> Parser<'a> {
         self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
+            BangEqual => Some(BinaryCompOp::NotEqual),
             EqualEqual => Some(BinaryCompOp::Equal),
             Greater => Some(BinaryCompOp::GreaterThan),
             GreaterEqual => Some(BinaryCompOp::GreaterEqual),
