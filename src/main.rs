@@ -22,12 +22,11 @@ fn run(filename: &str, source_code: &str) {
                         // TODO error.show_error()
                         println!("PASS ERROR");
                     } else {
+                        let mut interpreter = Interpreter::new();
 
-                        // let mut interpreter = Interpreter::new();
-
-                        // if let Some(error) = interpreter.interpret(&stmts) {
-                        //     error.show_error(Some(filename), Some(&create_code_vec(source_code)))
-                        // }
+                        if let Some(error) = interpreter.interpret(&stmts) {
+                            error.show_error(Some(filename), Some(&create_code_vec(source_code)))
+                        }
                     }
                 }
                 Err(errors) => {

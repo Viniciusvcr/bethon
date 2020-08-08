@@ -42,16 +42,14 @@ pub enum Value {
     Str(String),
 }
 
-impl Value {
-    pub fn to_string(&self) -> String {
-        use Value::*;
-
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PythonNone => "None".to_string(),
-            Bool(false) => format!("False"),
-            Bool(true) => format!("True"),
-            Number(value) => format!("{}", value),
-            Str(value) => value.to_string(),
+            Value::PythonNone => write!(f, "None"),
+            Value::Bool(false) => write!(f, "False"),
+            Value::Bool(true) => write!(f, "True"),
+            Value::Number(value) => write!(f, "{}", value),
+            Value::Str(value) => write!(f, "{}", value),
         }
     }
 }
