@@ -68,10 +68,13 @@ impl<'a> Parser<'a> {
     }
 
     fn ignore_spaces(&mut self) {
-        while let Some(_) = self.next_is(|tt| match tt {
-            TokenType::Space => Some(()),
-            _ => None,
-        }) {}
+        while self
+            .next_is(|tt| match tt {
+                TokenType::Space => Some(()),
+                _ => None,
+            })
+            .is_some()
+        {}
     }
 
     fn primary(&mut self) -> ParserResult {

@@ -22,7 +22,7 @@ fn run(filename: &str, source_code: &str) {
                         // TODO error.show_error()
                         println!("PASS ERROR");
                     } else {
-                        let mut interpreter = Interpreter::new();
+                        let mut interpreter = Interpreter::default();
 
                         if let Some(error) = interpreter.interpret(&stmts) {
                             error.show_error(Some(filename), Some(&create_code_vec(source_code)))
@@ -45,36 +45,51 @@ fn run(filename: &str, source_code: &str) {
 }
 
 fn main() {
-    use std::process::exit;
+    use std::{cmp::Ordering, process::exit};
     let mut argv = std::env::args();
     let argv_len = argv.len();
 
-    if argv_len == 2 {
-        if let Some(path) = argv.nth(1) {
-            if let Ok(source_code) = std::fs::read_to_string(&path) {
-                run(&path, &source_code);
+    match argv_len.cmp(&2) {
+        Ordering::Equal => {
+            if let Some(path) = argv.nth(1) {
+                match std::fs::read_to_string(&path) {
+                    Ok(source_code) => {
+                        run(&path, &source_code);
+                    }
+                    Err(_) => {
+                        let error = Error::Input(
+                            format!("Cannot find file '{}'", path),
+                            "Make sure you provided the right path to the program.".to_string(),
+                        );
+
+                        error.show_error(None, None);
+                        exit(64);
+                    }
+                }
+            } else {
+                let error = Error::Input(
+                    "Internal error reading the file".to_string(),
+                    "did you use 'bethon [filename]'?".to_string(),
+                );
+                error.show_error(None, None);
+                exit(64);
             }
-        } else {
+        }
+        Ordering::Greater => {
             let error = Error::Input(
-                "Internal error reading the file".to_string(),
-                "did you use 'bethon [filename]'?".to_string(),
+                "Too many arguments!".to_string(),
+                "Usage: bethon [path to script]".to_string(),
             );
             error.show_error(None, None);
-            exit(64);
+            exit(65);
         }
-    } else if argv_len > 2 {
-        let error = Error::Input(
-            "Too many arguments!".to_string(),
-            "Usage: bethon [path to script]".to_string(),
-        );
-        error.show_error(None, None);
-        exit(65);
-    } else if argv_len < 2 {
-        let error = Error::Input(
-            "Too few arguments!".to_string(),
-            "Usage: bethon [path to script]".to_string(),
-        );
-        error.show_error(None, None);
-        exit(65);
+        Ordering::Less => {
+            let error = Error::Input(
+                "Too few arguments!".to_string(),
+                "Usage: bethon [path to script]".to_string(),
+            );
+            error.show_error(None, None);
+            exit(65);
+        }
     }
 }

@@ -153,7 +153,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    pub fn analyze(&mut self, stmts: &'a Vec<Stmt>) -> Result<(), ()> {
+    pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), ()> {
         for stmt in stmts {
             match stmt {
                 Stmt::ExprStmt(exp) => match self.analyze_one(&exp) {

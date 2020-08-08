@@ -8,6 +8,7 @@ use num_traits::ToPrimitive;
 
 type InterpreterResult = std::result::Result<Value, RuntimeError>;
 
+#[derive(Default)]
 pub struct Interpreter {}
 
 impl Interpreter {
@@ -144,7 +145,7 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Option<Error> {
+    pub fn interpret(&mut self, stmts: &[Stmt]) -> Option<Error> {
         for stmt in stmts {
             if let Some(evaluation) = self.eval(stmt) {
                 return Some(evaluation);
@@ -152,9 +153,5 @@ impl Interpreter {
         }
 
         None
-    }
-
-    pub fn new() -> Self {
-        Self {}
     }
 }

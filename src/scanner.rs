@@ -18,7 +18,7 @@ pub fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
             }
         }
         if line != "" {
-            vec_lines.push(line.clone());
+            vec_lines.push(line);
         }
         vec_lines
     } else {
@@ -228,7 +228,7 @@ impl<'a> Scanner<'a> {
                             self.current_line,
                             self.start_token,
                             self.end_token,
-                            format!("Invalid syntax. Did you mean '!='?"),
+                            "Invalid syntax. Did you mean '!='?".to_string(),
                         )));
                     }
                 }
