@@ -2,6 +2,7 @@ use bethon::error::Error;
 use bethon::interpreter::Interpreter;
 use bethon::parser::Parser;
 use bethon::scanner::{create_code_vec, Scanner};
+use bethon::smntc_analyzer::SemanticAnalyzer;
 
 #[allow(unused_variables)]
 fn run(filename: &str, source_code: &str) {
@@ -11,14 +12,22 @@ fn run(filename: &str, source_code: &str) {
         Ok(vec) => {
             let mut parser = Parser::new(vec);
 
-            println!("{:?}\n\n", vec);
+            println!("{:?}\n\n", vec); // TODO remove
             match parser.parse() {
                 Ok(stmts) => {
-                    println!("{:?}", stmts);
-                    let mut interpreter = Interpreter::new();
+                    println!("{:?}\n\n", stmts); // TODO remove
+                    let mut pass = SemanticAnalyzer::default();
 
-                    if let Some(error) = interpreter.interpret(&stmts) {
-                        error.show_error(Some(filename), Some(&create_code_vec(source_code)))
+                    if let Err(error) = pass.analyze(&stmts) {
+                        // TODO error.show_error()
+                        println!("PASS ERROR");
+                    } else {
+
+                        // let mut interpreter = Interpreter::new();
+
+                        // if let Some(error) = interpreter.interpret(&stmts) {
+                        //     error.show_error(Some(filename), Some(&create_code_vec(source_code)))
+                        // }
                     }
                 }
                 Err(errors) => {
