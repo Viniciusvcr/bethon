@@ -1,3 +1,8 @@
+use crate::{
+    expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
+    smntc_analyzer::Type,
+};
+
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
@@ -10,14 +15,20 @@ pub enum RuntimeError {
     NotAllowed, // REFACTOR
 }
 
-#[allow(dead_code)]
 pub enum ParserError {
     // MissingToken, line, Note
     Missing(usize, Option<String>),
     // Note
     MissingExpression(Option<usize>),
-    // Expected, Found, Note
-    // MismatchedTypes(String, String, Option<String>), // REFACTOR change Expected and Found to enums?
+}
+
+pub enum SmntcError {
+    MismatchedTypes(Type, Type, Option<String>), // Expected, Found, Note
+    IncompatibleBinArith(BinaryOp, Type, Type),  // Operation, Left, Right
+    IncompatibleComparation(BinaryCompOp, Type, Type, Option<String>),
+    IncompatibleLogicOp(BinaryLogicOp, Type, Type),
+    IncompatibleLogicNot(Type),
+    IncompatibleUnaryOp(UnaryOp, Type),
 }
 
 #[allow(dead_code)]
@@ -49,6 +60,7 @@ pub enum Error {
     Input(String, String),
     Scanner(ScannerError),
     Parser(ParserError),
+    Smntc(SmntcError),
     Runtime(RuntimeError),
 }
 
@@ -102,7 +114,67 @@ impl Error {
             ),
             Scanner(scanner_error) => self.format_scanner_error(scanner_error, source_vec.unwrap()),
             Parser(parser_error) => self.format_parser_error(parser_error, source_vec.unwrap()),
+            Smntc(smntc_error) => self.format_smntc_error(smntc_error, source_vec.unwrap()),
             Runtime(runtime_error) => self.format_runtime_error(runtime_error, source_vec.unwrap()),
+        }
+    }
+
+    fn format_smntc_error(&self, error: &SmntcError, _source_vec: &[String]) -> String {
+        match error {
+            SmntcError::MismatchedTypes(expected, found, note) => {
+                if note.is_some() {
+                    format!(
+                        "{}Mismatched types error: Expected {}{}{}, found {}{}{}\n{}\n{} {}",
+                        Color::White,
+                        Color::Yellow,
+                        expected,
+                        Color::White,
+                        Color::Yellow,
+                        found,
+                        Color::White,
+                        self.blue_pipe(),
+                        self.blue_pipe(),
+                        note.as_ref().unwrap()
+                    )
+                } else {
+                    format!(
+                        "{}Mismatched types error: Expected {}{}{}, found {}{}{}",
+                        Color::White,
+                        Color::Yellow,
+                        expected,
+                        Color::White,
+                        Color::Yellow,
+                        found,
+                        Color::White,
+                    )
+                }
+            }
+            SmntcError::IncompatibleBinArith(op, left, right) => {
+                format!(
+                    "{}Incompatible operation error: Cannot use the {}'{}'{} binary operator with {}{}{} and {}{}{}.",
+                    Color::White,
+                    Color::Yellow,
+                    op,
+                    Color::White,
+                    Color::Yellow,
+                    left,
+                    Color::White,
+                    Color::Yellow,
+                    right,
+                    Color::Reset
+                )
+            },
+            SmntcError::IncompatibleLogicNot(t) => format!("{} The 'not' operator expects the following expression to be of type {}{}{}, but the expression evaluates to {}{}{}.", Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, t, Color::Reset),
+            SmntcError::IncompatibleUnaryOp(op, t) => format!("{} The unary '{}' operator expects the following expression to be of type {}{}{}, but the expression evaluates to {}{}{}.", Color::White, op, Color::Yellow, Type::Num, Color::White, Color::Yellow, t, Color::Reset),
+            SmntcError::IncompatibleComparation(op, l, r, note) => {
+                if note.is_some() {
+                    format!("{}Incompatible comparation: Cannot compare using the {}'{}'{} operator with {}{}{} and {}{}{}\n{}\n{} {}", Color::White, Color::Yellow, op, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::Reset, self.blue_pipe(), self.blue_pipe(), note.as_ref().unwrap())
+                } else {
+                    format!("{}Incompatible comparation: Cannot compare using the {}'{}'{} operator with {}{}{} and {}{}{}", Color::White, Color::Yellow, op, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::Reset)
+
+                }
+            }
+            SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White)
         }
     }
 

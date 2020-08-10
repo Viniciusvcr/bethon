@@ -3,13 +3,22 @@ use std::hash::{Hash, Hasher};
 
 pub type OpWithToken<Op> = (Op, Token);
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum UnaryOp {
     Minus,
     Plus,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+impl std::fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOp::Plus => write!(f, "+"),
+            UnaryOp::Minus => write!(f, "-"),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -18,7 +27,19 @@ pub enum BinaryOp {
     Mod,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Mod => write!(f, "%"),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum BinaryCompOp {
     NotEqual,
     Equal,
@@ -28,10 +49,32 @@ pub enum BinaryCompOp {
     GreaterEqual,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+impl std::fmt::Display for BinaryCompOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryCompOp::NotEqual => write!(f, "!="),
+            BinaryCompOp::Equal => write!(f, "=="),
+            BinaryCompOp::LessThan => write!(f, "<"),
+            BinaryCompOp::LessEqual => write!(f, "<="),
+            BinaryCompOp::GreaterThan => write!(f, ">"),
+            BinaryCompOp::GreaterEqual => write!(f, ">="),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum BinaryLogicOp {
     And,
     Or,
+}
+
+impl std::fmt::Display for BinaryLogicOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryLogicOp::And => write!(f, "and"),
+            BinaryLogicOp::Or => write!(f, "or"),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
