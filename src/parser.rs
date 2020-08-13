@@ -95,10 +95,7 @@ impl<'a> Parser<'a> {
 
             match self.consume(RightParen) {
                 Some(_) => Ok(Expr::Grouping(expr.into())),
-                None => Err(ParserError::Missing(
-                    token.placement().line,
-                    Some("Expected a ')' after this expression.".to_string()),
-                )),
+                None => Err(ParserError::MissingRightParen(token.placement().line)),
             }
         } else if let Some((_, token)) = self.next_is(|tt| match tt {
             Not => Some(()),

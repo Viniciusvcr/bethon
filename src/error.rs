@@ -20,8 +20,8 @@ pub enum RuntimeError {
 }
 
 pub enum ParserError {
-    // MissingToken, line, Note
-    Missing(usize, Option<String>),
+    // Line
+    MissingRightParen(usize),
     // Note
     MissingExpression(Option<usize>),
 }
@@ -256,32 +256,17 @@ impl Error {
     fn format_parser_error(&self, error: &ParserError, source_vec: &[String]) -> String {
         use ParserError::*;
         match error {
-            Missing(line, string) => {
-                if string.is_some() {
-                    format!(
-                        "{}Syntax error in line {}: \n{}\n{} '{}'\n{}\n{} {}{}{}",
-                        Color::White,
-                        line,
-                        self.blue_pipe(),
-                        self.blue_pipe(),
-                        source_vec.get(*line - 1).unwrap(),
-                        self.blue_pipe(),
-                        self.blue_pipe(),
-                        Color::Yellow,
-                        string.as_ref().unwrap(),
-                        Color::Reset,
-                    )
-                } else {
-                    format!(
-                        "{}Syntax error in line {}: \n{}\n{} '{}'\n",
-                        Color::White,
-                        line,
-                        self.blue_pipe(),
-                        self.blue_pipe(),
-                        source_vec.get(*line - 1).unwrap()
-                    )
-                }
-            }
+            MissingRightParen(line) => format!("{}Syntax error in line {}: \n{}\n{} '{}'\n{}\n{} {}Expected a ')' after this expression{}",
+                Color::White,
+                line,
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(*line - 1).unwrap(),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                Color::Yellow,
+                Color::Reset,
+            ),
             MissingExpression(line) => format!(
                 "{}Syntax error in line {}:\n{}\n{} '{}'\n{}\n{}{} Reason: Missing an expression{}",
                 Color::White,
