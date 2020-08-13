@@ -224,11 +224,10 @@ impl<'a> Scanner<'a> {
                     if self.match_char('=') {
                         BangEqual
                     } else {
-                        return Err(Error::Scanner(ScannerError::InvalidToken(
+                        return Err(Error::Scanner(ScannerError::LonelyBangSign(
                             self.current_line,
                             self.start_token,
                             self.end_token,
-                            "Invalid syntax. Did you mean '!='?".to_string(),
                         )));
                     }
                 }
@@ -247,11 +246,10 @@ impl<'a> Scanner<'a> {
                     } else if is_alpha(c) {
                         self.identifier()
                     } else {
-                        return Err(Error::Scanner(ScannerError::InvalidToken(
+                        return Err(Error::Scanner(ScannerError::InvalidCharacter(
                             self.current_line,
                             self.start_token,
                             self.end_token,
-                            "Invalid character".to_string(),
                         )));
                     }
                 }

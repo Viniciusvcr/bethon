@@ -6,7 +6,11 @@ use crate::{
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
-    // Line, token_start
+    // Line, line, line
+    InvalidCharacter(usize, usize, usize),
+    // Line, line, line
+    LonelyBangSign(usize, usize, usize),
+    // Line
     UnterminatedString(usize),
 }
 
@@ -190,6 +194,34 @@ impl Error {
     fn format_scanner_error(&self, error: &ScannerError, source_vec: &[String]) -> String {
         use ScannerError::*;
         match error {
+            InvalidCharacter(line, token_start, token_end) => format!("{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: Invalid character{}", 
+                Color::White,
+                line,
+                token_start,
+                token_end,
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(*line - 1).unwrap(),
+                self.blue_pipe(),
+                self.print_marker(*token_start, *token_end),
+                self.blue_pipe(),
+                Color::Yellow,
+                Color::Reset
+            ),
+            LonelyBangSign(line, token_start, token_end) => format!("{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: Invalid syntax. Did you mean '!='?{}", 
+                Color::White,
+                line,
+                token_start,
+                token_end,
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(*line - 1).unwrap(),
+                self.blue_pipe(),
+                self.print_marker(*token_start, *token_end),
+                self.blue_pipe(),
+                Color::Yellow,
+                Color::Reset
+            ),
             InvalidToken(line, token_start, token_end, note) => format!(
                 "{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: {}{}",
                 Color::White,
