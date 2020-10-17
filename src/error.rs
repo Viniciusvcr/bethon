@@ -24,6 +24,9 @@ pub enum ParserError {
     MissingRightParen(usize),
     // Note
     MissingExpression(Option<usize>),
+    AssignmentExpected,
+    TypeNotDefined,
+    ColonExpected,
 }
 
 pub enum SmntcError {

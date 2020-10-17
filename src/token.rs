@@ -102,6 +102,15 @@ impl std::fmt::Display for NumberType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum VarType {
+    Boolean,
+    Integer,
+    Float,
+    Str,
+    PythonNone,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Not interpret, spaces ou markers
     Comment,

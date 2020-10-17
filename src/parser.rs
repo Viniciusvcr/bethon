@@ -1,7 +1,7 @@
 use crate::error::{Error, ParserError};
 use crate::expr::*;
 use crate::stmt::Stmt;
-use crate::token::{Token, TokenType};
+use crate::token::{Token, TokenType, VarType};
 
 type ParserResult = std::result::Result<Expr, ParserError>;
 
@@ -226,6 +226,49 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         self.expression_statement()
+    }
+
+    fn var_declaration(&mut self, id_tt: &str) -> Result<Stmt, ParserError> {
+        if let Some(_) = self.consume(Colon) {
+            if let Some(x) = self.next_is(|tt| match tt {
+                PythonNone => Some(VarType::PythonNone),
+                Int => Some(VarType::Integer),
+                Float => Some(VarType::Float),
+                Str => Some(VarType::Str),
+                Bool => Some(VarType::Boolean),
+                _ => None,
+            }) {
+                if let Some(_) = self.consume(Equal) {
+                    let expr = self.expression()?;
+
+                    Ok(Stmt::VarStmt(id_tt.to_string(), expr))
+                } else {
+                    // TODO Error => Expected an assignment
+                }
+            } else {
+                // TODO Error => Expected a Type
+            }
+        } else {
+            if let Some(token) = self.next_is(|tt| match tt {
+                Equal => Some(Equal),
+                _ => None,
+            }) {
+                // TODO Error => Expected a type declaration
+            } else {
+                // TODO Error => Expected Colon
+            }
+        }
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParserError> {
+        if let Some((identifier, token)) = self.next_is(|tt| match tt {
+            Identifier(x) => Some(x),
+            _ => None,
+        }) {
+            self.var_declaration(identifier)
+        } else {
+            self.statement()
+        }
     }
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<Error>> {
