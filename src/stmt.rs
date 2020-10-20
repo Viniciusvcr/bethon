@@ -5,5 +5,5 @@ use crate::token::VarType;
 pub enum Stmt {
     Assert(Expr),
     ExprStmt(Expr),
-    VarStmt(String, VarType, Expr),
+    VarStmt(String, Option<VarType>, Expr),
 }

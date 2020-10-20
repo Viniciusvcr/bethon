@@ -77,6 +77,16 @@ impl<'a> Parser<'a> {
         {}
     }
 
+    fn sync(&mut self, current_line: usize) {
+        while let Some(token) = self.peek() {
+            if token.placement().line == current_line + 1 || self.is_at_end() {
+                return;
+            } else {
+                self.advance();
+            }
+        }
+    }
+
     fn primary(&mut self) -> ParserResult {
         if let Some(value_and_token) = self.next_is(|tt| match tt {
             False => Some(Value::Bool(false)),
@@ -237,7 +247,7 @@ impl<'a> Parser<'a> {
     }
 
     fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
-        if let Some(_) = self.consume(Colon) {
+        if self.consume(Colon).is_some() {
             self.ignore_spaces();
             if let Some((var_type, _)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
@@ -248,25 +258,30 @@ impl<'a> Parser<'a> {
                 _ => None,
             }) {
                 self.ignore_spaces();
-                if let Some(_) = self.consume(Equal) {
+                if self.consume(Equal).is_some() {
                     let expr = self.expression()?;
 
-                    Ok(Stmt::VarStmt(id_tt.to_string(), var_type, expr))
+                    Ok(Stmt::VarStmt(id_tt.to_string(), Some(var_type), expr))
                 } else {
                     // Happens when: "x: int" is detecte, i.e
                     Err(ParserError::AssignmentExpected(line))
                 }
             } else {
                 // Happens when the type is not valid
-                Err(ParserError::TypeNotDefined(line))
+                return Err(ParserError::TypeNotDefined(line));
             }
         } else {
-            if let Some(_) = self.next_is(|tt| match tt {
-                Equal => Some(Equal),
-                _ => None,
-            }) {
+            if self
+                .next_is(|tt| match tt {
+                    Equal => Some(Equal),
+                    _ => None,
+                })
+                .is_some()
+            {
+                let expr = self.expression()?;
+
                 // Happens when the user skipped the type declaration
-                Err(ParserError::ExpectedTypeDecl(line))
+                Ok(Stmt::VarStmt(id_tt.to_string(), None, expr))
             } else {
                 Err(ParserError::ExpectedColon(line))
             }
@@ -292,7 +307,10 @@ impl<'a> Parser<'a> {
         while !self.is_at_end() {
             match self.declaration() {
                 Ok(statement) => statements.push(statement),
-                Err(error) => errors.push(Error::Parser(error)), // TODO sync on error
+                Err(error) => {
+                    errors.push(Error::Parser(error));
+                    self.sync(self.current_line);
+                }
             }
         }
 

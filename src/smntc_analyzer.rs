@@ -178,11 +178,12 @@ impl<'a> SemanticAnalyzer<'a> {
                 },
                 Stmt::VarStmt(_id, var_type, expr) => match self.analyze_one(expr) {
                     Ok(t) => match (var_type, t) {
-                        (VarType::Boolean, Type::Bool) => {}
-                        (VarType::Integer, Type::Num) => {}
-                        (VarType::Float, Type::Num) => {}
-                        (VarType::Str, Type::Str) => {}
-                        (VarType::PythonNone, Type::Null) => {}
+                        (Some(VarType::Boolean), Type::Bool) => {}
+                        (Some(VarType::Integer), Type::Num) => {}
+                        (Some(VarType::Float), Type::Num) => {}
+                        (Some(VarType::Str), Type::Str) => {}
+                        (Some(VarType::PythonNone), Type::Null) => {}
+                        (None, _) => {}
                         (_, _) => return Err(Error::Smntc(SmntcError::IncompatibleDeclaration)),
                     },
                     Err(err) => return Err(Error::Smntc(err)),
