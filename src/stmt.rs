@@ -3,6 +3,7 @@ use crate::token::VarType;
 
 #[derive(Debug)]
 pub enum Stmt {
+    Assert(Expr),
     ExprStmt(Expr),
     VarStmt(String, VarType, Expr),
 }

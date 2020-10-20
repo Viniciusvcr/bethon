@@ -135,6 +135,14 @@ impl Interpreter {
     fn eval(&self, stmt: &Stmt) -> Option<Error> {
         use Stmt::*;
         match stmt {
+            Assert(expr) => match self.eval_expr(expr) {
+                Ok(val) if val != Value::Bool(true) => {
+                    // TODO: add line number
+                    Some(Error::Runtime(RuntimeError::AssertionFailed))
+                }
+                Err(error) => Some(Error::Runtime(error)),
+                _ => None,
+            }
             ExprStmt(expr) => match self.eval_expr(expr) {
                 Ok(value) => {
                     println!("{}", value);

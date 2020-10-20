@@ -224,8 +224,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn assert(&mut self) -> Result<Stmt, ParserError> {
+        self.expression().map(Stmt::Assert)
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
-        self.expression_statement()
+        if self.consume(Assert).is_some() {
+            self.assert()
+        } else {
+            self.expression_statement()
+        }
     }
 
     fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
