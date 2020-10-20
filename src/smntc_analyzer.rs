@@ -162,12 +162,16 @@ impl<'a> SemanticAnalyzer<'a> {
         for stmt in stmts {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
-                    Ok(t) if t != Type::Bool =>  {
-                        return Err(Error::Smntc(SmntcError::MismatchedTypes(Type::Bool, t, None)))
-                    },
+                    Ok(t) if t != Type::Bool => {
+                        return Err(Error::Smntc(SmntcError::MismatchedTypes(
+                            Type::Bool,
+                            t,
+                            None,
+                        )))
+                    }
                     Err(err) => return Err(Error::Smntc(err)),
                     _ => {}
-                }
+                },
                 Stmt::ExprStmt(exp) => match self.analyze_one(exp) {
                     Ok(t) => self.insert(&exp, t),
                     Err(err) => return Err(Error::Smntc(err)),

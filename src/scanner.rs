@@ -172,7 +172,8 @@ impl<'a> Scanner<'a> {
         self.take_while(is_alphanumeric);
 
         let text = self.consumed();
-        self.get_keyword(&text).unwrap_or_else(|| TokenType::Identifier(String::from(text)))
+        self.get_keyword(&text)
+            .unwrap_or_else(|| TokenType::Identifier(String::from(text)))
     }
 
     fn match_or_else(&mut self, expected: char, tt: TokenType, default: TokenType) -> TokenType {

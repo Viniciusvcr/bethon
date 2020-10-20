@@ -142,7 +142,7 @@ impl Interpreter {
                 }
                 Err(error) => Some(Error::Runtime(error)),
                 _ => None,
-            }
+            },
             ExprStmt(expr) => match self.eval_expr(expr) {
                 Ok(value) => {
                     println!("{}", value);
