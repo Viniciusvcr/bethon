@@ -142,6 +142,10 @@ impl Interpreter {
                 }
                 Err(error) => Some(Error::Runtime(error)),
             },
+            c => {
+                println!("{:?}", c);
+                None
+            }
         }
     }
 

@@ -19,14 +19,17 @@ pub enum RuntimeError {
     NotAllowed, // REFACTOR
 }
 
+#[derive(Debug)]
 pub enum ParserError {
     // Line
     MissingRightParen(usize),
     // Note
     MissingExpression(Option<usize>),
-    AssignmentExpected,
-    TypeNotDefined,
-    ColonExpected,
+    AssignmentExpected(usize),
+    TypeNotDefined(usize),
+    ColonExpected(usize),
+    ExpectedTypeDecl(usize),
+    ExpectedColon(usize),
 }
 
 pub enum SmntcError {
@@ -282,6 +285,7 @@ impl Error {
                 Color::Yellow,
                 Color::Reset
             ),
+            err => format!("{:?}", err) // TODO Error print of new parser errors
         }
     }
 }

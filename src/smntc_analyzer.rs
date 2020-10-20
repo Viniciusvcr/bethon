@@ -164,6 +164,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(t) => self.insert(&exp, t),
                     Err(err) => return Err(Error::Smntc(err)),
                 },
+                Stmt::VarStmt(_id, _expr) => {} // TODO smntc_analyzer of VarStmt
             }
         }
 

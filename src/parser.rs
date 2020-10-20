@@ -228,9 +228,9 @@ impl<'a> Parser<'a> {
         self.expression_statement()
     }
 
-    fn var_declaration(&mut self, id_tt: &str) -> Result<Stmt, ParserError> {
+    fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
         if let Some(_) = self.consume(Colon) {
-            if let Some(x) = self.next_is(|tt| match tt {
+            if let Some(_) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
                 Int => Some(VarType::Integer),
                 Float => Some(VarType::Float),
@@ -243,29 +243,32 @@ impl<'a> Parser<'a> {
 
                     Ok(Stmt::VarStmt(id_tt.to_string(), expr))
                 } else {
-                    // TODO Error => Expected an assignment
+                    // Happens when: "x: int" is detecte, i.e
+                    Err(ParserError::AssignmentExpected(line))
                 }
             } else {
-                // TODO Error => Expected a Type
+                // Happens when the type is not valid
+                Err(ParserError::TypeNotDefined(line))
             }
         } else {
-            if let Some(token) = self.next_is(|tt| match tt {
+            if let Some(_) = self.next_is(|tt| match tt {
                 Equal => Some(Equal),
                 _ => None,
             }) {
-                // TODO Error => Expected a type declaration
+                // Happens when the user skipped the type declaration
+                Err(ParserError::ExpectedTypeDecl(line))
             } else {
-                // TODO Error => Expected Colon
+                Err(ParserError::ExpectedColon(line))
             }
         }
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParserError> {
         if let Some((identifier, token)) = self.next_is(|tt| match tt {
-            Identifier(x) => Some(x),
+            Identifier(x) => Some(x.clone()),
             _ => None,
         }) {
-            self.var_declaration(identifier)
+            self.var_declaration(&identifier, token.placement().line)
         } else {
             self.statement()
         }
@@ -276,9 +279,9 @@ impl<'a> Parser<'a> {
         let mut errors: Vec<Error> = vec![];
 
         while !self.is_at_end() {
-            match self.statement() {
+            match self.declaration() {
                 Ok(statement) => statements.push(statement),
-                Err(error) => errors.push(Error::Parser(error)),
+                Err(error) => errors.push(Error::Parser(error)), // TODO sync on error
             }
         }
 
