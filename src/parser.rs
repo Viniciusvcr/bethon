@@ -230,7 +230,8 @@ impl<'a> Parser<'a> {
 
     fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
         if let Some(_) = self.consume(Colon) {
-            if let Some(_) = self.next_is(|tt| match tt {
+            self.ignore_spaces();
+            if let Some((var_type, _)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
                 Int => Some(VarType::Integer),
                 Float => Some(VarType::Float),
@@ -238,10 +239,11 @@ impl<'a> Parser<'a> {
                 Bool => Some(VarType::Boolean),
                 _ => None,
             }) {
+                self.ignore_spaces();
                 if let Some(_) = self.consume(Equal) {
                     let expr = self.expression()?;
 
-                    Ok(Stmt::VarStmt(id_tt.to_string(), expr))
+                    Ok(Stmt::VarStmt(id_tt.to_string(), var_type, expr))
                 } else {
                     // Happens when: "x: int" is detecte, i.e
                     Err(ParserError::AssignmentExpected(line))
@@ -268,6 +270,7 @@ impl<'a> Parser<'a> {
             Identifier(x) => Some(x.clone()),
             _ => None,
         }) {
+            self.ignore_spaces();
             self.var_declaration(&identifier, token.placement().line)
         } else {
             self.statement()
