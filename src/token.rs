@@ -152,6 +152,7 @@ pub enum TokenType {
     LessEqual,
 
     // Keywords
+    Assert,
     Class,
     True,
     False,

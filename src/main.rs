@@ -4,6 +4,8 @@ use bethon::parser::Parser;
 use bethon::scanner::{create_code_vec, Scanner};
 use bethon::smntc_analyzer::SemanticAnalyzer;
 
+use std::{cmp::Ordering, env, process::exit};
+
 #[allow(unused_variables)]
 fn run(filename: &str, source_code: &str) {
     let mut lexer = Scanner::new(source_code);
@@ -20,32 +22,35 @@ fn run(filename: &str, source_code: &str) {
 
                     if let Err(error) = pass.analyze(&stmts) {
                         error.show_error(Some(filename), Some(&create_code_vec(source_code)));
+                        exit(1);
                     } else {
                         let mut interpreter = Interpreter::default();
 
                         if let Some(error) = interpreter.interpret(&stmts) {
-                            error.show_error(Some(filename), Some(&create_code_vec(source_code)))
+                            error.show_error(Some(filename), Some(&create_code_vec(source_code)));
+                            exit(1);
                         }
                     }
                 }
                 Err(errors) => {
                     let code_vec = create_code_vec(source_code);
                     for error in errors {
-                        error.show_error(Some(filename), Some(&code_vec))
+                        error.show_error(Some(filename), Some(&code_vec));
                     }
+                    exit(1);
                 }
             }
         }
         Err(err) => {
             let code_vec = create_code_vec(source_code);
-            err.show_error(Some(filename), Some(&code_vec))
+            err.show_error(Some(filename), Some(&code_vec));
+            exit(1);
         }
     }
 }
 
 fn main() {
-    use std::{cmp::Ordering, process::exit};
-    let mut argv = std::env::args();
+    let mut argv = env::args();
     let argv_len = argv.len();
 
     match argv_len.cmp(&2) {
