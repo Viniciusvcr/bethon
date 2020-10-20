@@ -28,8 +28,6 @@ pub enum ParserError {
     MissingExpression(Option<usize>),
     AssignmentExpected(usize),
     TypeNotDefined(usize),
-    ColonExpected(usize),
-    ExpectedTypeDecl(usize),
     ExpectedColon(usize),
 }
 
@@ -187,7 +185,7 @@ impl Error {
                 }
             }
             SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White),
-            SmntcError::IncompatibleDeclaration => format!("The type is not compatible with de assignment")
+            SmntcError::IncompatibleDeclaration => "The type is not compatible with de assignment".to_string()
         }
     }
 
@@ -289,7 +287,9 @@ impl Error {
                 Color::Yellow,
                 Color::Reset
             ),
-            err => format!("{:?}", err) // TODO Error print of new parser errors
+            AssignmentExpected(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} Variable declaration expects an '=' and an expression after type declaration{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            TypeNotDefined(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} Type provided type is not a known type{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            ExpectedColon(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} ':' expected after identifier{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
         }
     }
 }

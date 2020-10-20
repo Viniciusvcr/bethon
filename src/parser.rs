@@ -268,23 +268,21 @@ impl<'a> Parser<'a> {
                 }
             } else {
                 // Happens when the type is not valid
-                return Err(ParserError::TypeNotDefined(line));
+                Err(ParserError::TypeNotDefined(line))
             }
-        } else {
-            if self
-                .next_is(|tt| match tt {
-                    Equal => Some(Equal),
-                    _ => None,
-                })
-                .is_some()
-            {
-                let expr = self.expression()?;
+        } else if self
+            .next_is(|tt| match tt {
+                Equal => Some(Equal),
+                _ => None,
+            })
+            .is_some()
+        {
+            let expr = self.expression()?;
 
-                // Happens when the user skipped the type declaration
-                Ok(Stmt::VarStmt(id_tt.to_string(), None, expr))
-            } else {
-                Err(ParserError::ExpectedColon(line))
-            }
+            // Happens when the user skipped the type declaration
+            Ok(Stmt::VarStmt(id_tt.to_string(), None, expr))
+        } else {
+            Err(ParserError::ExpectedColon(line))
         }
     }
 
