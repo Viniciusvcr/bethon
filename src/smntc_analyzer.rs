@@ -2,6 +2,7 @@ use crate::{
     error::{Error, SmntcError},
     expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, Expr, UnaryOp, Value},
     stmt::Stmt,
+    token::VarType,
 };
 use std::collections::HashMap;
 
@@ -164,7 +165,17 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(t) => self.insert(&exp, t),
                     Err(err) => return Err(Error::Smntc(err)),
                 },
-                Stmt::VarStmt(_id, _var_type, _expr) => {} // TODO smntc_analyzer of VarStmt
+                Stmt::VarStmt(_id, var_type, expr) => match self.analyze_one(expr) {
+                    Ok(t) => match (var_type, t) {
+                        (VarType::Boolean, Type::Bool) => {}
+                        (VarType::Integer, Type::Num) => {}
+                        (VarType::Float, Type::Num) => {}
+                        (VarType::Str, Type::Str) => {}
+                        (VarType::PythonNone, Type::Null) => {}
+                        (_, _) => return Err(Error::Smntc(SmntcError::IncompatibleDeclaration)),
+                    },
+                    Err(err) => return Err(Error::Smntc(err)),
+                }, // TODO smntc_analyzer of VarStmt
             }
         }
 
