@@ -249,7 +249,7 @@ impl<'a> Parser<'a> {
     fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
         if self.consume(Colon).is_some() {
             self.ignore_spaces();
-            if let Some((var_type, _)) = self.next_is(|tt| match tt {
+            if let Some((var_type, token)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
                 Int => Some(VarType::Integer),
                 Float => Some(VarType::Float),
@@ -264,11 +264,20 @@ impl<'a> Parser<'a> {
                     Ok(Stmt::VarStmt(id_tt.to_string(), Some(var_type), expr))
                 } else {
                     // Happens when: "x: int" is detecte, i.e
-                    Err(ParserError::AssignmentExpected(line))
+                    Err(ParserError::AssignmentExpected(
+                        line,
+                        token.placement().ends_at + 1,
+                    ))
                 }
             } else {
+                let token = self.advance().unwrap();
+
                 // Happens when the type is not valid
-                Err(ParserError::TypeNotDefined(line))
+                Err(ParserError::TypeNotDefined(
+                    line,
+                    token.placement().starts_at,
+                    token.placement().ends_at,
+                ))
             }
         } else if self
             .next_is(|tt| match tt {
@@ -282,7 +291,13 @@ impl<'a> Parser<'a> {
             // Happens when the user skipped the type declaration
             Ok(Stmt::VarStmt(id_tt.to_string(), None, expr))
         } else {
-            Err(ParserError::ExpectedColon(line))
+            // TODO if not followed by : or = it is a variable ref, not declaration
+            let token = self.advance().unwrap();
+
+            Err(ParserError::ExpectedColon(
+                line,
+                token.placement().starts_at - 1,
+            ))
         }
     }
 

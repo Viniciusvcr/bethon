@@ -26,9 +26,12 @@ pub enum ParserError {
     MissingRightParen(usize),
     // Note
     MissingExpression(Option<usize>),
-    AssignmentExpected(usize),
-    TypeNotDefined(usize),
-    ExpectedColon(usize),
+    // line, missing_equal_column
+    AssignmentExpected(usize, usize),
+    // line, token_start, token_end
+    TypeNotDefined(usize, usize, usize),
+    // line, missing_colon
+    ExpectedColon(usize, usize),
 }
 
 pub enum SmntcError {
@@ -79,7 +82,7 @@ impl Error {
         format!("{}|{}", Color::Blue, Color::Reset)
     }
 
-    fn print_marker(&self, start: usize, end: usize) -> String {
+    fn print_marker(&self, start: usize, end: usize, message: Option<&str>) -> String {
         let mut arrow: String = "  ".to_string();
         for i in 0..end {
             if i >= start {
@@ -88,6 +91,11 @@ impl Error {
                 arrow.push(' ');
             }
         }
+
+        if message.is_some() {
+            arrow.push_str(&format!("--- {}", message.unwrap()));
+        }
+
         arrow
     }
 
@@ -194,7 +202,7 @@ impl Error {
 
         match error {
             AssertionFailed => "Assertion error".to_string(),
-            DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends), self.blue_pipe(), Color::Yellow, Color::Reset),
+            DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends, None), self.blue_pipe(), Color::Yellow, Color::Reset),
             NotAllowed => format!("{}Runtime error: Operation not allowed.", Color::White)
         }
     }
@@ -211,7 +219,7 @@ impl Error {
                 self.blue_pipe(),
                 source_vec.get(*line - 1).unwrap(),
                 self.blue_pipe(),
-                self.print_marker(*token_start, *token_end),
+                self.print_marker(*token_start, *token_end, None),
                 self.blue_pipe(),
                 Color::Yellow,
                 Color::Reset
@@ -225,7 +233,7 @@ impl Error {
                 self.blue_pipe(),
                 source_vec.get(*line - 1).unwrap(),
                 self.blue_pipe(),
-                self.print_marker(*token_start, *token_end),
+                self.print_marker(*token_start, *token_end, None),
                 self.blue_pipe(),
                 Color::Yellow,
                 Color::Reset
@@ -240,7 +248,7 @@ impl Error {
                 self.blue_pipe(),
                 source_vec.get(*line - 1).unwrap(),
                 self.blue_pipe(),
-                self.print_marker(*token_start, *token_end),
+                self.print_marker(*token_start, *token_end, None),
                 self.blue_pipe(),
                 Color::Yellow,
                 note,
@@ -287,9 +295,9 @@ impl Error {
                 Color::Yellow,
                 Color::Reset
             ),
-            AssignmentExpected(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} Variable declaration expects an '=' and an expression after type declaration{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            TypeNotDefined(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} Type provided type is not a known type{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            ExpectedColon(line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} ':' expected after identifier{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            AssignmentExpected(line, equal_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Variable declaration expects an '=' and an expression after type declaration{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*equal_plcmnt, *equal_plcmnt, Some("Missing an assignment")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            TypeNotDefined(line, token_start, token_end) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Declared type is not a known type{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*token_start, *token_end, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            ExpectedColon(line, colon_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} ':' expected after identifier{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*colon_plcmnt, *colon_plcmnt+1, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
         }
     }
 }
