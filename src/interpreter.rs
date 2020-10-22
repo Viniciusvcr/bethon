@@ -126,11 +126,68 @@ impl Interpreter {
         self.unary_op(op_and_token, &eval_right)
     }
 
+    fn binary_comp_op(
+        &self,
+        left: &Value,
+        op_and_token: &OpWithToken<BinaryCompOp>,
+        right: &Value,
+    ) -> InterpreterResult {
+        let (op, _token) = op_and_token;
+        let evaluated_value = match (op, left, right) {
+            (BinaryCompOp::NotEqual, Value::Number(a), Value::Number(b)) => Value::Bool(a != b),
+            (BinaryCompOp::NotEqual, Value::Bool(a), Value::Bool(b)) => Value::Bool(a != b),
+            (BinaryCompOp::NotEqual, Value::Str(a), Value::Str(b)) => Value::Bool(a != b),
+            (BinaryCompOp::NotEqual, Value::PythonNone, Value::PythonNone) => Value::Bool(false),
+            (BinaryCompOp::NotEqual, _, Value::PythonNone) => Value::Bool(true),
+            (BinaryCompOp::NotEqual, Value::PythonNone, _) => Value::Bool(true),
+            (BinaryCompOp::Equal, Value::Number(a), Value::Number(b)) => Value::Bool(a == b),
+            (BinaryCompOp::Equal, Value::Bool(a), Value::Bool(b)) => Value::Bool(a == b),
+            (BinaryCompOp::Equal, Value::Str(a), Value::Str(b)) => Value::Bool(a == b),
+            (BinaryCompOp::Equal, Value::PythonNone, Value::PythonNone) => Value::Bool(true),
+            (BinaryCompOp::Equal, _, Value::PythonNone) => Value::Bool(false),
+            (BinaryCompOp::Equal, Value::PythonNone, _) => Value::Bool(false),
+            (BinaryCompOp::LessThan, Value::Number(a), Value::Number(b)) => Value::Bool(a < b),
+            (BinaryCompOp::LessThan, Value::Str(a), Value::Str(b)) => {
+                Value::Bool(a.chars().count() < b.chars().count())
+            }
+            (BinaryCompOp::LessEqual, Value::Number(a), Value::Number(b)) => Value::Bool(a <= b),
+            (BinaryCompOp::LessEqual, Value::Str(a), Value::Str(b)) => {
+                Value::Bool(a.chars().count() <= b.chars().count())
+            }
+            (BinaryCompOp::GreaterThan, Value::Number(a), Value::Number(b)) => Value::Bool(a > b),
+            (BinaryCompOp::GreaterThan, Value::Str(a), Value::Str(b)) => {
+                Value::Bool(a.chars().count() > b.chars().count())
+            }
+            (BinaryCompOp::GreaterEqual, Value::Number(a), Value::Number(b)) => Value::Bool(a >= b),
+            (BinaryCompOp::GreaterEqual, Value::Str(a), Value::Str(b)) => {
+                Value::Bool(a.chars().count() >= b.chars().count())
+            }
+            _ => panic!("interpreter::binary_comp_op failed unexpectedly"),
+        };
+
+        Ok(evaluated_value)
+    }
+
+    fn eval_binary_comp_expr(
+        &self,
+        left: &Expr,
+        op_and_token: &OpWithToken<BinaryCompOp>,
+        right: &Expr,
+    ) -> InterpreterResult {
+        let eval_left = self.eval_expr(left)?;
+        let eval_right = self.eval_expr(right)?;
+
+        self.binary_comp_op(&eval_left, op_and_token, &eval_right)
+    }
+
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         use Expr::*;
         match expr {
             BinaryArith(left, op_and_token, right) => {
                 self.eval_binary_arith_expr(left, op_and_token, right)
+            }
+            BinaryComp(left, op_and_token, right) => {
+                self.eval_binary_comp_expr(left, op_and_token, right)
             }
             LogicNot((expr, _token)) => self.eval_logic_not(expr),
             Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
