@@ -89,11 +89,9 @@ impl Interpreter {
         self.binary_arith_op(&eval_left, op_and_token, &eval_right)
     }
 
-    fn unary_op(&self, op_and_token: &OpWithToken<UnaryOp>, right: &Value) -> InterpreterResult {
+    fn unary_op(&self, op: &UnaryOp, right: &Value) -> InterpreterResult {
         use UnaryOp::*;
         use Value::*;
-
-        let (op, _token) = op_and_token;
 
         // FIXME panic will never happen
         match (op, right) {
@@ -121,18 +119,13 @@ impl Interpreter {
         op_and_token: &OpWithToken<UnaryOp>,
         right: &Expr,
     ) -> InterpreterResult {
+        let (op, _token) = op_and_token;
         let eval_right = self.eval_expr(right)?;
 
-        self.unary_op(op_and_token, &eval_right)
+        self.unary_op(op, &eval_right)
     }
 
-    fn binary_comp_op(
-        &self,
-        left: &Value,
-        op_and_token: &OpWithToken<BinaryCompOp>,
-        right: &Value,
-    ) -> InterpreterResult {
-        let (op, _token) = op_and_token;
+    fn binary_comp_op(&self, left: &Value, op: &BinaryCompOp, right: &Value) -> InterpreterResult {
         let evaluated_value = match (op, left, right) {
             (BinaryCompOp::NotEqual, Value::Number(a), Value::Number(b)) => Value::Bool(a != b),
             (BinaryCompOp::NotEqual, Value::Bool(a), Value::Bool(b)) => Value::Bool(a != b),
@@ -174,10 +167,11 @@ impl Interpreter {
         op_and_token: &OpWithToken<BinaryCompOp>,
         right: &Expr,
     ) -> InterpreterResult {
+        let (op, _token) = op_and_token;
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
-        self.binary_comp_op(&eval_left, op_and_token, &eval_right)
+        self.binary_comp_op(&eval_left, op, &eval_right)
     }
 
     fn binary_logic_op(
