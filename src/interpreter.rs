@@ -180,6 +180,38 @@ impl Interpreter {
         self.binary_comp_op(&eval_left, op_and_token, &eval_right)
     }
 
+    fn binary_logic_op(
+        &self,
+        left: &Value,
+        op: &BinaryLogicOp,
+        right: &Value,
+    ) -> InterpreterResult {
+        let evaluated_value = match (op, left, right) {
+            (BinaryLogicOp::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
+            (BinaryLogicOp::And, Value::Bool(a), Value::PythonNone) => Value::Bool(*a && false),
+            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(b)) => Value::Bool(false && *b),
+            (BinaryLogicOp::Or, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a || *b),
+            (BinaryLogicOp::Or, Value::Bool(a), Value::PythonNone) => Value::Bool(*a || false),
+            (BinaryLogicOp::Or, Value::PythonNone, Value::Bool(b)) => Value::Bool(false || *b),
+            _ => panic!("interpreter::binary_logic_op failed unexpectedly"),
+        };
+
+        Ok(evaluated_value)
+    }
+
+    fn eval_binary_logic_expr(
+        &self,
+        left: &Expr,
+        op_and_token: &OpWithToken<BinaryLogicOp>,
+        right: &Expr,
+    ) -> InterpreterResult {
+        let (op, _token) = op_and_token;
+        let eval_left = self.eval_expr(left)?;
+        let eval_right = self.eval_expr(right)?;
+
+        self.binary_logic_op(&eval_left, op, &eval_right)
+    }
+
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         use Expr::*;
         match expr {
@@ -189,11 +221,13 @@ impl Interpreter {
             BinaryComp(left, op_and_token, right) => {
                 self.eval_binary_comp_expr(left, op_and_token, right)
             }
+            BinaryLogic(left, op_and_token, right) => {
+                self.eval_binary_logic_expr(left, op_and_token, right)
+            }
             LogicNot((expr, _token)) => self.eval_logic_not(expr),
             Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Grouping(new_expr) => self.eval_expr(new_expr),
             Literal(value_and_token) => Ok(value_and_token.clone().0),
-            _ => unimplemented!(),
         }
     }
 
@@ -210,7 +244,7 @@ impl Interpreter {
             },
             ExprStmt(expr) => match self.eval_expr(expr) {
                 Ok(value) => {
-                    println!("{}", value);
+                    println!("{}", value); // TODO remove print
                     None
                 }
                 Err(error) => Some(Error::Runtime(error)),
