@@ -23,6 +23,7 @@ impl Interpreter {
 
         let (op, token) = op_and_token;
 
+        // FIXME panic will never happen
         match (op, left, right) {
             (Sub, Number(a), Number(b)) => Ok(Number(a.clone() - b.clone())),
             (Add, Number(a), Number(b)) => Ok(Number(a.clone() + b.clone())),
@@ -72,7 +73,7 @@ impl Interpreter {
             }
             (Mul, Number(a), Number(b)) => Ok(Number(a.clone() * b.clone())),
             (Mod, Number(a), Number(b)) => Ok(Number(a.clone() % b.clone())),
-            _ => panic!(), // FIXME shouldn`t happen
+            _ => panic!("interpreter::binary_arith_op failed unexpectedly"),
         }
     }
 
@@ -94,19 +95,25 @@ impl Interpreter {
 
         let (op, _token) = op_and_token;
 
-        // FIXME these errors should be catched by the parser, therefore, shouldn't appear here
+        // FIXME panic will never happen
         match (op, right) {
-            (Minus, PythonNone) => Err(RuntimeError::NotAllowed),
-            (Minus, Bool(_)) => Err(RuntimeError::NotAllowed),
             (Minus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(-a.clone()))),
             (Minus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(-*a))),
-            (Minus, Str(_)) => Err(RuntimeError::NotAllowed),
-            (Plus, PythonNone) => Err(RuntimeError::NotAllowed),
-            (Plus, Bool(_)) => Err(RuntimeError::NotAllowed),
             (Plus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(a.clone()))),
             (Plus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(*a))),
-            (Plus, Str(_)) => Err(RuntimeError::NotAllowed),
+            _ => panic!("interpreter::unary_op failed unexpectedly"),
         }
+    }
+
+    fn eval_logic_not(&self, expr: &Box<Expr>) -> InterpreterResult {
+        let value = self.eval_expr(expr)?;
+
+        let evaluated_value = match value {
+            Value::Bool(a) => Value::Bool(!a),
+            _ => panic!("interpreter::eval_logic_not failed unexpectedly"),
+        };
+
+        Ok(evaluated_value)
     }
 
     fn eval_unary_expr(
@@ -125,6 +132,7 @@ impl Interpreter {
             BinaryArith(left, op_and_token, right) => {
                 self.eval_binary_arith_expr(left, op_and_token, right)
             }
+            LogicNot((expr, _token)) => self.eval_logic_not(expr),
             Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Grouping(new_expr) => self.eval_expr(new_expr),
             Literal(value_and_token) => Ok(value_and_token.clone().0),
