@@ -140,6 +140,7 @@ impl Interpreter {
             (BinaryCompOp::Equal, _, Value::PythonNone) => Value::Bool(false),
             (BinaryCompOp::Equal, Value::PythonNone, _) => Value::Bool(false),
             (BinaryCompOp::LessThan, Value::Number(a), Value::Number(b)) => Value::Bool(a < b),
+            // TODO how to compare strings?
             (BinaryCompOp::LessThan, Value::Str(a), Value::Str(b)) => {
                 Value::Bool(a.chars().count() < b.chars().count())
             }
@@ -180,12 +181,15 @@ impl Interpreter {
         op: &BinaryLogicOp,
         right: &Value,
     ) -> InterpreterResult {
+        // This is python's thing, don't judge me.
         let evaluated_value = match (op, left, right) {
+            (BinaryLogicOp::And, Value::Bool(true), Value::PythonNone) => Value::PythonNone,
+            (BinaryLogicOp::And, Value::Bool(false), Value::PythonNone) => Value::Bool(false),
             (BinaryLogicOp::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
-            (BinaryLogicOp::And, Value::Bool(_), Value::PythonNone) => Value::Bool(false),
-            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(_)) => Value::Bool(false),
+            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(_)) => Value::PythonNone,
+            (BinaryLogicOp::Or, Value::Bool(true), Value::PythonNone) => Value::Bool(true),
+            (BinaryLogicOp::Or, Value::Bool(false), Value::PythonNone) => Value::PythonNone,
             (BinaryLogicOp::Or, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a || *b),
-            (BinaryLogicOp::Or, Value::Bool(a), Value::PythonNone) => Value::Bool(*a),
             (BinaryLogicOp::Or, Value::PythonNone, Value::Bool(b)) => Value::Bool(*b),
             _ => panic!("interpreter::binary_logic_op failed unexpectedly"),
         };
