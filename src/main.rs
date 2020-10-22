@@ -14,10 +14,8 @@ fn run(filename: &str, source_code: &str) {
         Ok(vec) => {
             let mut parser = Parser::new(vec);
 
-            println!("{:?}\n\n", vec); // TODO remove
             match parser.parse() {
                 Ok(stmts) => {
-                    println!("{:?}\n\n", stmts); // TODO remove
                     let mut pass = SemanticAnalyzer::default();
 
                     if let Err(error) = pass.analyze(&stmts) {
@@ -26,7 +24,7 @@ fn run(filename: &str, source_code: &str) {
                     } else {
                         let mut interpreter = Interpreter::default();
 
-                        if let Some(error) = interpreter.interpret(&stmts) {
+                        if let Some(error) = interpreter.interpret(stmts) {
                             error.show_error(Some(filename), Some(&create_code_vec(source_code)));
                             exit(1);
                         }
