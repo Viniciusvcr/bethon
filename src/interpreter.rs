@@ -105,7 +105,7 @@ impl Interpreter {
         }
     }
 
-    fn eval_logic_not(&self, expr: &Box<Expr>) -> InterpreterResult {
+    fn eval_logic_not(&self, expr: &Expr) -> InterpreterResult {
         let value = self.eval_expr(expr)?;
 
         let evaluated_value = match value {
@@ -188,11 +188,11 @@ impl Interpreter {
     ) -> InterpreterResult {
         let evaluated_value = match (op, left, right) {
             (BinaryLogicOp::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
-            (BinaryLogicOp::And, Value::Bool(a), Value::PythonNone) => Value::Bool(*a && false),
-            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(b)) => Value::Bool(false && *b),
+            (BinaryLogicOp::And, Value::Bool(_), Value::PythonNone) => Value::Bool(false),
+            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(_)) => Value::Bool(false),
             (BinaryLogicOp::Or, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a || *b),
-            (BinaryLogicOp::Or, Value::Bool(a), Value::PythonNone) => Value::Bool(*a || false),
-            (BinaryLogicOp::Or, Value::PythonNone, Value::Bool(b)) => Value::Bool(false || *b),
+            (BinaryLogicOp::Or, Value::Bool(a), Value::PythonNone) => Value::Bool(*a),
+            (BinaryLogicOp::Or, Value::PythonNone, Value::Bool(b)) => Value::Bool(*b),
             _ => panic!("interpreter::binary_logic_op failed unexpectedly"),
         };
 
