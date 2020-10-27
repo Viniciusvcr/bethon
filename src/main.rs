@@ -24,7 +24,7 @@ fn run(filename: &str, source_code: &str) {
                     } else {
                         let mut interpreter = Interpreter::default();
 
-                        if let Some(error) = interpreter.interpret(stmts) {
+                        if let Some(error) = interpreter.interpret(&stmts) {
                             error.show_error(Some(filename), Some(&create_code_vec(source_code)));
                             exit(1);
                         }
