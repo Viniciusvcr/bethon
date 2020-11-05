@@ -26,7 +26,6 @@ impl Interpreter {
 
         let (op, token) = op_and_token;
 
-        // FIXME panic will never happen
         match (op, left, right) {
             (Sub, Number(a), Number(b)) => Ok(Number(a.clone() - b.clone())),
             (Add, Number(a), Number(b)) => Ok(Number(a.clone() + b.clone())),
@@ -96,7 +95,6 @@ impl Interpreter {
         use UnaryOp::*;
         use Value::*;
 
-        // FIXME panic will never happen
         match (op, right) {
             (Minus, Number(NumberType::Integer(a))) => Ok(Number(NumberType::Integer(-a.clone()))),
             (Minus, Number(NumberType::Float(a))) => Ok(Number(NumberType::Float(-*a))),
@@ -184,16 +182,9 @@ impl Interpreter {
         op: &BinaryLogicOp,
         right: &Value,
     ) -> InterpreterResult {
-        // This is python's thing, don't judge me.
         let evaluated_value = match (op, left, right) {
-            (BinaryLogicOp::And, Value::Bool(true), Value::PythonNone) => Value::PythonNone,
-            (BinaryLogicOp::And, Value::Bool(false), Value::PythonNone) => Value::Bool(false),
             (BinaryLogicOp::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
-            (BinaryLogicOp::And, Value::PythonNone, Value::Bool(_)) => Value::PythonNone,
-            (BinaryLogicOp::Or, Value::Bool(true), Value::PythonNone) => Value::Bool(true),
-            (BinaryLogicOp::Or, Value::Bool(false), Value::PythonNone) => Value::PythonNone,
             (BinaryLogicOp::Or, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a || *b),
-            (BinaryLogicOp::Or, Value::PythonNone, Value::Bool(b)) => Value::Bool(*b),
             _ => panic!("interpreter::binary_logic_op failed unexpectedly"),
         };
 

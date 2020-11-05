@@ -106,11 +106,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
         let expr_type = match (op, type_a, type_b) {
             (And, Type::Bool, Type::Bool) => Type::Bool,
-            (And, Type::Bool, Type::Null) => Type::Bool,
-            (And, Type::Null, Type::Bool) => Type::Bool,
             (Or, Type::Bool, Type::Bool) => Type::Bool,
-            (Or, Type::Bool, Type::Null) => Type::Bool,
-            (Or, Type::Null, Type::Bool) => Type::Bool,
             (op, l, r) => return Err(SmntcError::IncompatibleLogicOp(*op, l, r)),
         };
 
