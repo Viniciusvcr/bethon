@@ -39,8 +39,13 @@ impl<'a> SemanticAnalyzer<'a> {
         self.types.insert(expr, t);
     }
 
-    fn insert_var(&mut self, id: &'a str, t: Type) {
-        self.symbol_table.insert(id, t);
+    fn insert_var(&mut self, id: &'a str, t: Type) -> Option<Type> {
+        if !self.symbol_table.contains_key(id) {
+            self.symbol_table.insert(id, t);
+            Some(t)
+        } else {
+            None
+        }
     }
 
     fn get_var(&mut self, id: &str) -> Option<&Type> {
@@ -172,41 +177,67 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Error> {
+    pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Vec<Error>> {
+        let mut errors: Vec<Error> = vec![];
+
         for stmt in stmts {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
-                    Ok(t) if t != Type::Bool => {
-                        return Err(Error::Smntc(SmntcError::MismatchedTypes(
-                            Type::Bool,
-                            t,
-                            None,
-                        )))
-                    }
-                    Err(err) => return Err(Error::Smntc(err)),
+                    Ok(t) if t != Type::Bool => errors.push(Error::Smntc(
+                        SmntcError::MismatchedTypes(Type::Bool, t, None),
+                    )),
+                    Err(err) => errors.push(Error::Smntc(err)),
                     _ => {}
                 },
                 Stmt::ExprStmt(exp) => match self.analyze_one(exp) {
                     Ok(t) => self.insert(&exp, t),
-                    Err(err) => return Err(Error::Smntc(err)),
+                    Err(err) => errors.push(Error::Smntc(err)),
                 },
                 Stmt::VarStmt(id, var_type, expr) => match self.analyze_one(expr) {
                     Ok(t) => match (var_type, t) {
-                        (Some(VarType::Boolean), Type::Bool) => self.insert_var(id, t),
-                        (Some(VarType::Integer), Type::Num) => self.insert_var(id, t),
-                        (Some(VarType::Float), Type::Num) => self.insert_var(id, t),
-                        (Some(VarType::Str), Type::Str) => self.insert_var(id, t),
-                        (Some(VarType::PythonNone), Type::Null) => self.insert_var(id, t),
-                        (None, _) => self.insert_var(id, t),
-                        (_, _) => return Err(Error::Smntc(SmntcError::IncompatibleDeclaration)),
+                        (Some(VarType::Boolean), Type::Bool) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (Some(VarType::Integer), Type::Num) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (Some(VarType::Float), Type::Num) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (Some(VarType::Str), Type::Str) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (Some(VarType::PythonNone), Type::Null) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (None, _) => {
+                            if self.insert_var(id, t).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            }
+                        }
+                        (_, _) => errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration)),
                     },
-                    Err(err) => return Err(Error::Smntc(err)),
+                    Err(err) => errors.push(Error::Smntc(err)),
                 },
             }
         }
 
         println!("{:?}", self.types);
 
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }

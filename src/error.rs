@@ -42,6 +42,7 @@ pub enum SmntcError {
     IncompatibleLogicNot(Type),
     IncompatibleUnaryOp(UnaryOp, Type),
     VariableNotDeclared,
+    VariableAlreadyDeclared,
     IncompatibleDeclaration,
 }
 
@@ -194,8 +195,9 @@ impl Error {
                 }
             }
             SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White),
-            SmntcError::IncompatibleDeclaration => "The type is not compatible with de assignment".to_string(),
-            SmntcError::VariableNotDeclared => "Variable not declared".to_string()
+            SmntcError::IncompatibleDeclaration => "The type is not compatible with de assignment".to_string(), // FIXME
+            SmntcError::VariableNotDeclared => "Variable not declared".to_string(), // FIXME
+            SmntcError::VariableAlreadyDeclared => "Variable already declared".to_string() // FIXME
         }
     }
 

@@ -18,8 +18,11 @@ fn run(filename: &str, source_code: &str) {
                 Ok(stmts) => {
                     let mut pass = SemanticAnalyzer::default();
 
-                    if let Err(error) = pass.analyze(&stmts) {
-                        error.show_error(Some(filename), Some(&create_code_vec(source_code)));
+                    if let Err(errors) = pass.analyze(&stmts) {
+                        let code_vec = create_code_vec(source_code);
+                        for error in errors {
+                            error.show_error(Some(filename), Some(&code_vec));
+                        }
                         exit(1);
                     } else {
                         let mut interpreter = Interpreter::default();
