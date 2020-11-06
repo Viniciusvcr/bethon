@@ -204,6 +204,10 @@ impl Interpreter {
         self.binary_logic_op(&eval_left, op, &eval_right)
     }
 
+    fn eval_var_expr(&self, id: &str) -> Value {
+        self.global_environment.get(id).unwrap().clone()
+    }
+
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         use Expr::*;
         match expr {
@@ -220,6 +224,7 @@ impl Interpreter {
             Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Grouping(new_expr) => self.eval_expr(new_expr),
             Literal(value_and_token) => Ok(value_and_token.clone().0),
+            Variable(_token, id) => Ok(self.eval_var_expr(id)),
         }
     }
 

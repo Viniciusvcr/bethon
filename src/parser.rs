@@ -114,6 +114,11 @@ impl<'a> Parser<'a> {
             let expr = self.expression()?;
 
             Ok(Expr::LogicNot((expr.into(), token)))
+        } else if let Some((id, token)) = self.next_is(|tt| match tt {
+            Identifier(id) => Some(id.clone()),
+            _ => None,
+        }) {
+            Ok(Expr::Variable(token, id))
         } else {
             Err(ParserError::MissingExpression(Some(self.current_line)))
         }
@@ -227,11 +232,70 @@ impl<'a> Parser<'a> {
         self.or()
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
-        match self.expression() {
-            Ok(value) => Ok(Stmt::ExprStmt(value)),
-            Err(error) => Err(error),
+    fn assignment(&mut self) -> Result<Stmt, ParserError> {
+        let expr = self.expression()?;
+
+        if let Some((_, _token)) = self.next_is(|tt| match tt {
+            Colon => Some(Colon),
+            _ => None,
+        }) {
+            self.ignore_spaces();
+            if let Some((var_type, token)) = self.next_is(|tt| match tt {
+                PythonNone => Some(VarType::PythonNone),
+                Int => Some(VarType::Integer),
+                Float => Some(VarType::Float),
+                Str => Some(VarType::Str),
+                Bool => Some(VarType::Boolean),
+                _ => None,
+            }) {
+                self.ignore_spaces();
+                if self.consume(Equal).is_some() {
+                    let value = self.expression()?;
+
+                    match expr {
+                        Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, Some(var_type), value)),
+                        _ => Err(ParserError::ExpectedColon(
+                            token.placement().line,
+                            token.placement().starts_at - 1,
+                        )),
+                    }
+                } else {
+                    // Happens when: "x: int" is detecte, i.e
+                    Err(ParserError::AssignmentExpected(
+                        token.placement().line,
+                        token.placement().ends_at + 1,
+                    ))
+                }
+            } else {
+                let token = self.advance().unwrap();
+
+                // Happens when the type is not valid
+                Err(ParserError::TypeNotDefined(
+                    token.placement().line,
+                    token.placement().starts_at,
+                    token.placement().ends_at,
+                ))
+            }
+        } else if let Some((_, token)) = self.next_is(|tt| match tt {
+            Equal => Some(Equal),
+            _ => None,
+        }) {
+            let value = self.expression()?;
+
+            match expr {
+                Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, None, value)),
+                _ => Err(ParserError::ExpectedColon(
+                    token.placement().line,
+                    token.placement().starts_at - 1,
+                )),
+            }
+        } else {
+            Ok(Stmt::ExprStmt(expr))
         }
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.assignment()
     }
 
     fn assert(&mut self) -> Result<Stmt, ParserError> {
@@ -246,79 +310,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn var_declaration(&mut self, id_tt: &str, line: usize) -> Result<Stmt, ParserError> {
-        if self.consume(Colon).is_some() {
-            self.ignore_spaces();
-            if let Some((var_type, token)) = self.next_is(|tt| match tt {
-                PythonNone => Some(VarType::PythonNone),
-                Int => Some(VarType::Integer),
-                Float => Some(VarType::Float),
-                Str => Some(VarType::Str),
-                Bool => Some(VarType::Boolean),
-                _ => None,
-            }) {
-                self.ignore_spaces();
-                if self.consume(Equal).is_some() {
-                    let expr = self.expression()?;
-
-                    Ok(Stmt::VarStmt(id_tt.to_string(), Some(var_type), expr))
-                } else {
-                    // Happens when: "x: int" is detecte, i.e
-                    Err(ParserError::AssignmentExpected(
-                        line,
-                        token.placement().ends_at + 1,
-                    ))
-                }
-            } else {
-                let token = self.advance().unwrap();
-
-                // Happens when the type is not valid
-                Err(ParserError::TypeNotDefined(
-                    line,
-                    token.placement().starts_at,
-                    token.placement().ends_at,
-                ))
-            }
-        } else if self
-            .next_is(|tt| match tt {
-                Equal => Some(Equal),
-                _ => None,
-            })
-            .is_some()
-        {
-            let expr = self.expression()?;
-
-            // Happens when the user skipped the type declaration
-            Ok(Stmt::VarStmt(id_tt.to_string(), None, expr))
-        } else {
-            // TODO if not followed by : or = it is a variable ref, not declaration
-            let token = self.advance().unwrap();
-
-            Err(ParserError::ExpectedColon(
-                line,
-                token.placement().starts_at - 1,
-            ))
-        }
-    }
-
-    fn declaration(&mut self) -> Result<Stmt, ParserError> {
-        if let Some((identifier, token)) = self.next_is(|tt| match tt {
-            Identifier(x) => Some(x.clone()),
-            _ => None,
-        }) {
-            self.ignore_spaces();
-            self.var_declaration(&identifier, token.placement().line)
-        } else {
-            self.statement()
-        }
-    }
-
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<Error>> {
         let mut statements: Vec<Stmt> = vec![];
         let mut errors: Vec<Error> = vec![];
 
         while !self.is_at_end() {
-            match self.declaration() {
+            match self.statement() {
                 Ok(statement) => statements.push(statement),
                 Err(error) => {
                     errors.push(Error::Parser(error));

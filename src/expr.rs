@@ -106,6 +106,7 @@ pub enum Expr {
     Unary(OpWithToken<UnaryOp>, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(OpWithToken<Value>),
+    Variable(Token, String),
 }
 
 impl Hash for &Expr {

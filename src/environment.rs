@@ -11,7 +11,7 @@ impl Environment {
         self.values.insert(identifier, value);
     }
 
-    pub fn get(&mut self, identifier: &str) -> Option<&Value> {
+    pub fn get(&self, identifier: &str) -> Option<&Value> {
         self.values.get(identifier)
     }
 }

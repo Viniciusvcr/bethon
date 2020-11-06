@@ -6,7 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Type {
     Num,
     Bool,
@@ -29,6 +29,7 @@ impl std::fmt::Display for Type {
 #[derive(Default)]
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>,
+    symbol_table: HashMap<&'a str, Type>,
 }
 
 type SemanticAnalyzerResult = Result<Type, SmntcError>;
@@ -36,6 +37,14 @@ type SemanticAnalyzerResult = Result<Type, SmntcError>;
 impl<'a> SemanticAnalyzer<'a> {
     fn insert(&mut self, expr: &'a Expr, t: Type) {
         self.types.insert(expr, t);
+    }
+
+    fn insert_var(&mut self, id: &'a str, t: Type) {
+        self.symbol_table.insert(id, t);
+    }
+
+    fn get_var(&mut self, id: &str) -> Option<&Type> {
+        self.symbol_table.get(id)
     }
 
     fn analyze_bin_arith(&mut self, op: &BinaryOp, a: &Expr, b: &Expr) -> SemanticAnalyzerResult {
@@ -142,6 +151,14 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn analyze_variable_expr(&mut self, id: &str) -> SemanticAnalyzerResult {
+        if let Some(t) = self.get_var(id) {
+            Ok(*t)
+        } else {
+            Err(SmntcError::VariableNotDeclared)
+        }
+    }
+
     fn analyze_one(&mut self, exp: &Expr) -> SemanticAnalyzerResult {
         match exp {
             Expr::BinaryArith(a, op_and_token, b) => self.analyze_bin_arith(&op_and_token.0, a, b),
@@ -151,6 +168,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Unary(op_and_token, exp) => self.analyze_unary(&op_and_token.0, exp),
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal((value, _)) => Ok(self.analyze_literal(value)),
+            Expr::Variable(_token, id) => self.analyze_variable_expr(id),
         }
     }
 
@@ -172,18 +190,18 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(t) => self.insert(&exp, t),
                     Err(err) => return Err(Error::Smntc(err)),
                 },
-                Stmt::VarStmt(_id, var_type, expr) => match self.analyze_one(expr) {
+                Stmt::VarStmt(id, var_type, expr) => match self.analyze_one(expr) {
                     Ok(t) => match (var_type, t) {
-                        (Some(VarType::Boolean), Type::Bool) => {}
-                        (Some(VarType::Integer), Type::Num) => {}
-                        (Some(VarType::Float), Type::Num) => {}
-                        (Some(VarType::Str), Type::Str) => {}
-                        (Some(VarType::PythonNone), Type::Null) => {}
-                        (None, _) => {}
+                        (Some(VarType::Boolean), Type::Bool) => self.insert_var(id, t),
+                        (Some(VarType::Integer), Type::Num) => self.insert_var(id, t),
+                        (Some(VarType::Float), Type::Num) => self.insert_var(id, t),
+                        (Some(VarType::Str), Type::Str) => self.insert_var(id, t),
+                        (Some(VarType::PythonNone), Type::Null) => self.insert_var(id, t),
+                        (None, _) => self.insert_var(id, t),
                         (_, _) => return Err(Error::Smntc(SmntcError::IncompatibleDeclaration)),
                     },
                     Err(err) => return Err(Error::Smntc(err)),
-                }, // TODO smntc_analyzer of VarStmt
+                },
             }
         }
 

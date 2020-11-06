@@ -1,0 +1,10 @@
+a: int = 10
+b: float = 10.5
+c: bool = True
+d: str = "Test"
+e: None = None
+f = 10
+g = 10.5
+h = True
+i = "Test"
+j = None
