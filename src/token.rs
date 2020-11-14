@@ -1,6 +1,8 @@
 use num_bigint::BigInt;
 use num_traits::cast::ToPrimitive;
 
+use crate::expr::Expr;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum NumberType {
     Float(f64),
@@ -207,5 +209,18 @@ impl Token {
     pub fn new(tt: TokenType, line: usize, starts_at: usize, ends_at: usize) -> Self {
         let placement = Placement::new(line, starts_at, ends_at);
         Self { tt, placement }
+    }
+}
+
+pub fn get_token_line(expr: &Expr) -> usize {
+    match expr {
+        Expr::BinaryArith(_, (_, token), _) => token.placement().line,
+        Expr::BinaryComp(_, (_, token), _) => token.placement().line,
+        Expr::BinaryLogic(_, (_, token), _) => token.placement().line,
+        Expr::LogicNot((_, token)) => token.placement().line,
+        Expr::Unary((_, token), _) => token.placement().line,
+        Expr::Grouping(expr) => get_token_line(expr),
+        Expr::Literal((_, token)) => token.placement().line,
+        Expr::Variable(token, _) => token.placement().line,
     }
 }

@@ -3,6 +3,7 @@ use crate::{
     error::{Error, RuntimeError},
     expr::*,
     stmt::*,
+    token::get_token_line,
     token::NumberType,
 };
 use num_traits::ToPrimitive;
@@ -273,10 +274,7 @@ impl Interpreter {
         match stmt {
             Assert(expr) => self.assert_eval(expr),
             ExprStmt(expr) => match self.eval_expr(expr) {
-                Ok(value) => {
-                    println!("{}", value); // TODO remove print
-                    None
-                }
+                Ok(_value) => None,
                 Err(error) => Some(Error::Runtime(error)),
             },
             VarStmt(identifier, _var_type, expr) => match self.eval_var_stmt(identifier, expr) {
@@ -298,18 +296,5 @@ impl Interpreter {
         println!("{:?}", self.global_environment);
 
         None
-    }
-}
-
-fn get_token_line(expr: &Expr) -> usize {
-    match expr {
-        Expr::BinaryArith(_, (_, token), _) => token.placement().line,
-        Expr::BinaryComp(_, (_, token), _) => token.placement().line,
-        Expr::BinaryLogic(_, (_, token), _) => token.placement().line,
-        Expr::LogicNot((_, token)) => token.placement().line,
-        Expr::Unary((_, token), _) => token.placement().line,
-        Expr::Grouping(expr) => get_token_line(expr),
-        Expr::Literal((_, token)) => token.placement().line,
-        Expr::Variable(token, _) => token.placement().line,
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     error::{Error, SmntcError},
     expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, Expr, UnaryOp, Value},
     stmt::Stmt,
-    token::VarType,
+    token::{get_token_line, VarType},
 };
 use std::collections::HashMap;
 
@@ -193,42 +193,66 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(t) => self.insert(&exp, t),
                     Err(err) => errors.push(Error::Smntc(err)),
                 },
-                Stmt::VarStmt(id, var_type, expr) => match self.analyze_one(expr) {
-                    Ok(t) => match (var_type, t) {
-                        (Some(VarType::Boolean), Type::Bool) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                Stmt::VarStmt(id, var_type, expr) => {
+                    let error_line = get_token_line(expr);
+
+                    match self.analyze_one(expr) {
+                        Ok(t) => match (var_type, t) {
+                            (Some(VarType::Boolean), Type::Bool) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (Some(VarType::Integer), Type::Num) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            (Some(VarType::Integer), Type::Num) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (Some(VarType::Float), Type::Num) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            (Some(VarType::Float), Type::Num) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (Some(VarType::Str), Type::Str) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            (Some(VarType::Str), Type::Str) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (Some(VarType::PythonNone), Type::Null) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            (Some(VarType::PythonNone), Type::Null) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (None, _) => {
-                            if self.insert_var(id, t).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared));
+                            (None, _) => {
+                                if self.insert_var(id, t).is_none() {
+                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        id.to_string(),
+                                    )));
+                                }
                             }
-                        }
-                        (_, _) => errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration)),
-                    },
-                    Err(err) => errors.push(Error::Smntc(err)),
-                },
+                            (_, _) => {
+                                errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration))
+                            }
+                        },
+                        Err(err) => errors.push(Error::Smntc(err)),
+                    }
+                }
             }
         }
 
