@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
     fn consume(&mut self, tt: TokenType) -> Result<(), ParserError> {
         let current_line = self.current_line;
 
-        if let Some(_) = self.next_is(single(tt.clone())) {
+        if self.next_is(single(tt.clone())).is_some() {
             Ok(())
         } else {
             Err(ParserError::Expected(tt, current_line))
