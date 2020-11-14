@@ -156,11 +156,11 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    fn analyze_variable_expr(&mut self, id: &str) -> SemanticAnalyzerResult {
+    fn analyze_variable_expr(&mut self, id: &str, line: usize) -> SemanticAnalyzerResult {
         if let Some(t) = self.get_var(id) {
             Ok(*t)
         } else {
-            Err(SmntcError::VariableNotDeclared)
+            Err(SmntcError::VariableNotDeclared(line, id.to_string()))
         }
     }
 
@@ -173,7 +173,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Unary(op_and_token, exp) => self.analyze_unary(&op_and_token.0, exp),
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal((value, _)) => Ok(self.analyze_literal(value)),
-            Expr::Variable(_token, id) => self.analyze_variable_expr(id),
+            Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
         }
     }
 

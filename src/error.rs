@@ -44,7 +44,7 @@ pub enum SmntcError {
     IncompatibleLogicOp(BinaryLogicOp, Type, Type),
     IncompatibleLogicNot(Type),
     IncompatibleUnaryOp(UnaryOp, Type),
-    VariableNotDeclared,
+    VariableNotDeclared(usize, String),
     VariableAlreadyDeclared(usize, String),
     IncompatibleDeclaration,
 }
@@ -199,7 +199,7 @@ impl Error {
             }
             SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White),
             SmntcError::IncompatibleDeclaration => "The type is not compatible with de assignment".to_string(), // FIXME
-            SmntcError::VariableNotDeclared => "Variable not declared".to_string(), // FIXME
+            SmntcError::VariableNotDeclared(line, var_name) => format!("{}Variable {}'{}'{} not found in this scope:\n{}\n{} '{}'\n{}\n{}{} Note: The attempt to read the undeclared variable is on line {}{}", Color::White, Color::Yellow, var_name, Color::White, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, line, Color::Reset),
             SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset)
         }
     }
