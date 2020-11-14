@@ -237,18 +237,41 @@ impl Interpreter {
         Ok(())
     }
 
-    fn eval(&mut self, stmt: &Stmt) -> Option<Error> {
-        use Stmt::*;
-        match stmt {
-            Assert(expr) => match self.eval_expr(expr) {
-                Ok(val) if val != Value::Bool(true) => {
-                    let error_line = get_token_line(expr);
+    // TODO Change 'val' to the result of the expression
+    fn assert_eval(&self, expr: &Expr) -> Option<Error> {
+        let error_line = get_token_line(expr);
 
+        match expr {
+            Expr::BinaryComp(left, op_and_token, right) => {
+                let value = self.eval_binary_comp_expr(left, op_and_token, right);
+                match value {
+                    Ok(val) if val != Value::Bool(true) => {
+                        Some(Error::Runtime(RuntimeError::CompAssertionFailed(
+                            error_line,
+                            format!("{}", left),
+                            format!("{}", right),
+                            op_and_token.0,
+                            val,
+                        )))
+                    }
+                    Err(error) => Some(Error::Runtime(error)),
+                    _ => None,
+                }
+            }
+            _ => match self.eval_expr(expr) {
+                Ok(val) if val != Value::Bool(true) => {
                     Some(Error::Runtime(RuntimeError::AssertionFailed(error_line)))
                 }
                 Err(error) => Some(Error::Runtime(error)),
                 _ => None,
             },
+        }
+    }
+
+    fn eval(&mut self, stmt: &Stmt) -> Option<Error> {
+        use Stmt::*;
+        match stmt {
+            Assert(expr) => self.assert_eval(expr),
             ExprStmt(expr) => match self.eval_expr(expr) {
                 Ok(value) => {
                     println!("{}", value); // TODO remove print

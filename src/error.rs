@@ -1,4 +1,5 @@
 use crate::{
+    expr::Value,
     expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
     smntc_analyzer::Type,
     token::TokenType,
@@ -17,6 +18,7 @@ pub enum ScannerError {
 
 pub enum RuntimeError {
     AssertionFailed(usize),
+    CompAssertionFailed(usize, String, String, BinaryCompOp, Value),
     DivisionByZero(usize, usize, usize),
     NotAllowed, // REFACTOR
 }
@@ -208,6 +210,7 @@ impl Error {
 
         match error {
             AssertionFailed(line) => format!("Assertion error on line {}:\n{}\n{} '{}'", line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap()),
+            CompAssertionFailed(line, left, right, op,  val) => format!("Assertion error on line {}:\n{}\n{} '{}'\n{}\n{} Assertion of the comparison {}'{} {} {}'{}\n{} was expected to be {}True{}, but evaluation resulted {}{}{}", line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, left, op, right, Color::Reset, self.blue_pipe(), Color::Yellow, Color::Reset, Color::Yellow, val, Color::Reset),
             DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends, None), self.blue_pipe(), Color::Yellow, Color::Reset),
             NotAllowed => format!("{}Runtime error: Operation not allowed.", Color::White)
         }

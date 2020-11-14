@@ -119,3 +119,18 @@ impl Hash for &Expr {
 }
 
 impl Eq for &Expr {}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::BinaryArith(left, (op, _token), right) => write!(f, "{} {} {}", left, op, right),
+            Expr::BinaryComp(left, (op, _token), right) => write!(f, "{} {} {}", left, op, right),
+            Expr::BinaryLogic(left, (op, _token), right) => write!(f, "{} {} {}", left, op, right),
+            Expr::LogicNot((expr, _token)) => write!(f, "not {}", expr),
+            Expr::Unary((op, _token), expr) => write!(f, "{} {}", op, expr),
+            Expr::Grouping(expr) => write!(f, "({})", expr),
+            Expr::Literal((value, _token)) => write!(f, "{}", value),
+            Expr::Variable(_token, id) => write!(f, "{}", id),
+        }
+    }
+}
