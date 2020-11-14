@@ -93,18 +93,12 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(Expr::Literal(value_and_token))
-        } else if let Some((_, _token)) = self.next_is(|tt| match tt {
-            LeftParen => Some(LeftParen),
-            _ => None,
-        }) {
+        } else if let Some((_, _token)) = self.next_is(single(LeftParen)) {
             let expr = self.expression()?;
             self.consume(RightParen)?;
 
             Ok(Expr::Grouping(expr.into()))
-        } else if let Some((_, token)) = self.next_is(|tt| match tt {
-            Not => Some(()),
-            _ => None,
-        }) {
+        } else if let Some((_, token)) = self.next_is(single(Not)) {
             let expr = self.expression()?;
 
             Ok(Expr::LogicNot((expr.into(), token)))
@@ -264,10 +258,7 @@ impl<'a> Parser<'a> {
                     token.placement().ends_at,
                 ))
             }
-        } else if let Some((_, token)) = self.next_is(|tt| match tt {
-            Equal => Some(Equal),
-            _ => None,
-        }) {
+        } else if let Some((_, token)) = self.next_is(single(Equal)) {
             let value = self.expression()?;
 
             match expr {
@@ -316,6 +307,17 @@ impl<'a> Parser<'a> {
             Ok(statements)
         } else {
             Err(errors)
+        }
+    }
+}
+
+fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
+    use std::mem::discriminant;
+    move |other| {
+        if discriminant(&tt) == discriminant(other) {
+            Some(())
+        } else {
+            None
         }
     }
 }
