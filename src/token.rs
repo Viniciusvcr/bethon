@@ -112,6 +112,18 @@ pub enum VarType {
     PythonNone,
 }
 
+impl std::fmt::Display for VarType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VarType::Boolean => write!(f, "bool"),
+            VarType::Integer => write!(f, "int"),
+            VarType::Float => write!(f, "float"),
+            VarType::Str => write!(f, "str"),
+            VarType::PythonNone => write!(f, "None"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Not interpret, spaces ou markers

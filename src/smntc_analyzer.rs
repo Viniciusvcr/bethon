@@ -6,6 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
+// TODO split Num into int and float
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Type {
     Num,
@@ -19,8 +20,8 @@ impl std::fmt::Display for Type {
         match self {
             Type::Null => write!(f, "None"),
             Type::Num => write!(f, "Num"),
-            Type::Bool => write!(f, "Bool"),
-            Type::Str => write!(f, "Str"),
+            Type::Bool => write!(f, "bool"),
+            Type::Str => write!(f, "str"),
         }
     }
 }
@@ -246,8 +247,12 @@ impl<'a> SemanticAnalyzer<'a> {
                                     )));
                                 }
                             }
-                            (_, _) => {
-                                errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration))
+                            (Some(expected), found) => {
+                                errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration(
+                                    error_line,
+                                    expected.clone(),
+                                    found,
+                                )))
                             }
                         },
                         Err(err) => errors.push(Error::Smntc(err)),
