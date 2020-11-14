@@ -51,19 +51,15 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn check_type(&mut self, tt: TokenType) -> bool {
-        if let Some(token) = self.peek() {
-            *token.tt() == tt
-        } else {
-            false
-        }
-    }
+    fn consume(&mut self, tt: TokenType) -> Result<&Token, ParserError> {
+        let next_token = self
+            .peek()
+            .ok_or_else(|| ParserError::Expected(tt.clone(), self.current_line))?;
 
-    fn consume(&mut self, tt: TokenType) -> Option<&Token> {
-        if self.check_type(tt) {
-            self.advance()
+        if *next_token.tt() == tt {
+            Ok(next_token)
         } else {
-            None
+            Err(ParserError::Expected(tt, self.current_line))
         }
     }
 
@@ -97,16 +93,14 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(Expr::Literal(value_and_token))
-        } else if let Some((_, token)) = self.next_is(|tt| match tt {
+        } else if let Some((_, _token)) = self.next_is(|tt| match tt {
             LeftParen => Some(LeftParen),
             _ => None,
         }) {
             let expr = self.expression()?;
+            self.consume(RightParen)?;
 
-            match self.consume(RightParen) {
-                Some(_) => Ok(Expr::Grouping(expr.into())),
-                None => Err(ParserError::MissingRightParen(token.placement().line)),
-            }
+            Ok(Expr::Grouping(expr.into()))
         } else if let Some((_, token)) = self.next_is(|tt| match tt {
             Not => Some(()),
             _ => None,
@@ -249,22 +243,16 @@ impl<'a> Parser<'a> {
                 _ => None,
             }) {
                 self.ignore_spaces();
-                if self.consume(Equal).is_some() {
-                    let value = self.expression()?;
+                self.consume(Equal)?;
 
-                    match expr {
-                        Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, Some(var_type), value)),
-                        _ => Err(ParserError::ExpectedColon(
-                            token.placement().line,
-                            token.placement().starts_at - 1,
-                        )),
-                    }
-                } else {
-                    // Happens when: "x: int" is detecte, i.e
-                    Err(ParserError::AssignmentExpected(
+                let value = self.expression()?;
+
+                match expr {
+                    Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, Some(var_type), value)),
+                    _ => Err(ParserError::ExpectedColon(
                         token.placement().line,
-                        token.placement().ends_at + 1,
-                    ))
+                        token.placement().starts_at - 1,
+                    )),
                 }
             } else {
                 let token = self.advance().unwrap();
@@ -303,7 +291,7 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParserError> {
-        if self.consume(Assert).is_some() {
+        if self.consume(Assert).is_ok() {
             self.assert()
         } else {
             self.expression_statement()
