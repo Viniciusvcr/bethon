@@ -51,15 +51,13 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn consume(&mut self, tt: TokenType) -> Result<&Token, ParserError> {
-        let next_token = self
-            .peek()
-            .ok_or_else(|| ParserError::Expected(tt.clone(), self.current_line))?;
+    fn consume(&mut self, tt: TokenType) -> Result<(), ParserError> {
+        let current_line = self.current_line;
 
-        if *next_token.tt() == tt {
-            Ok(next_token)
+        if let Some(_) = self.next_is(single(tt.clone())) {
+            Ok(())
         } else {
-            Err(ParserError::Expected(tt, self.current_line))
+            Err(ParserError::Expected(tt, current_line))
         }
     }
 
@@ -223,10 +221,7 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> Result<Stmt, ParserError> {
         let expr = self.expression()?;
 
-        if let Some((_, _token)) = self.next_is(|tt| match tt {
-            Colon => Some(Colon),
-            _ => None,
-        }) {
+        if let Some((_, _token)) = self.next_is(single(Colon)) {
             self.ignore_spaces();
             if let Some((var_type, token)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),

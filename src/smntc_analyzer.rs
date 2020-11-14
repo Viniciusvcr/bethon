@@ -232,7 +232,8 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
-        println!("{:?}", self.types);
+        println!("Types: {:?}\n", self.types);
+        println!("Symnbol Table: {:?}\n", self.symbol_table);
 
         if errors.is_empty() {
             Ok(())

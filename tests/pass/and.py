@@ -1,2 +1,2 @@
-True and False
-True and True
+assert True and False == False
+assert True and True == True
