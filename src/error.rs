@@ -16,7 +16,7 @@ pub enum ScannerError {
 }
 
 pub enum RuntimeError {
-    AssertionFailed,
+    AssertionFailed(usize),
     DivisionByZero(usize, usize, usize),
     NotAllowed, // REFACTOR
 }
@@ -207,7 +207,7 @@ impl Error {
         use RuntimeError::*;
 
         match error {
-            AssertionFailed => "Assertion error".to_string(),
+            AssertionFailed(line) => format!("Assertion error on line {}:\n{}\n{} '{}'", line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap()),
             DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends, None), self.blue_pipe(), Color::Yellow, Color::Reset),
             NotAllowed => format!("{}Runtime error: Operation not allowed.", Color::White)
         }

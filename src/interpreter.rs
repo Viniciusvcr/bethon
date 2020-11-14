@@ -242,8 +242,9 @@ impl Interpreter {
         match stmt {
             Assert(expr) => match self.eval_expr(expr) {
                 Ok(val) if val != Value::Bool(true) => {
-                    // TODO: add line number
-                    Some(Error::Runtime(RuntimeError::AssertionFailed))
+                    let error_line = get_token_line(expr);
+
+                    Some(Error::Runtime(RuntimeError::AssertionFailed(error_line)))
                 }
                 Err(error) => Some(Error::Runtime(error)),
                 _ => None,
@@ -274,5 +275,18 @@ impl Interpreter {
         println!("{:?}", self.global_environment);
 
         None
+    }
+}
+
+fn get_token_line(expr: &Expr) -> usize {
+    match expr {
+        Expr::BinaryArith(_, (_, token), _) => token.placement().line,
+        Expr::BinaryComp(_, (_, token), _) => token.placement().line,
+        Expr::BinaryLogic(_, (_, token), _) => token.placement().line,
+        Expr::LogicNot((_, token)) => token.placement().line,
+        Expr::Unary((_, token), _) => token.placement().line,
+        Expr::Grouping(expr) => get_token_line(expr),
+        Expr::Literal((_, token)) => token.placement().line,
+        Expr::Variable(token, _) => token.placement().line,
     }
 }
