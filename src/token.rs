@@ -130,7 +130,8 @@ pub enum TokenType {
     Comment,
     Newline,
     Blank,
-    Space,
+    Ident,
+    Deident,
     Eof,
 
     // Types

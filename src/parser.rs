@@ -61,22 +61,20 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn ignore_spaces(&mut self) {
-        while self
-            .next_is(|tt| match tt {
-                TokenType::Space => Some(()),
-                _ => None,
-            })
-            .is_some()
-        {}
-    }
-
     fn sync(&mut self, current_line: usize) {
         while let Some(token) = self.peek() {
             if token.placement().line == current_line + 1 || self.is_at_end() {
                 return;
             } else {
                 self.advance();
+            }
+        }
+    }
+
+    fn find_deident(&mut self) {
+        while let Some(token) = self.advance() {
+            if *token.tt() == TokenType::Deident {
+                return;
             }
         }
     }
@@ -105,14 +103,18 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(Expr::Variable(token, id))
+        } else if let Some(_token) = self.next_is(|tt| match tt {
+            Ident => Some(Ident),
+            _ => None,
+        }) {
+            self.find_deident();
+            Err(ParserError::UnexpectedIdent(self.current_line))
         } else {
             Err(ParserError::MissingExpression(Some(self.current_line)))
         }
     }
 
     fn unary(&mut self) -> ParserResult {
-        self.ignore_spaces();
-
         if let Some(op_and_token) = self.next_is(|tt| match tt {
             Minus => Some(UnaryOp::Minus),
             Plus => Some(UnaryOp::Plus),
@@ -126,8 +128,6 @@ impl<'a> Parser<'a> {
 
     fn multiplication(&mut self) -> ParserResult {
         let mut expr = self.unary()?;
-
-        self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Slash => Some(BinaryOp::Div),
@@ -146,8 +146,6 @@ impl<'a> Parser<'a> {
     fn addition(&mut self) -> ParserResult {
         let mut expr = self.multiplication()?;
 
-        self.ignore_spaces();
-
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Minus => Some(BinaryOp::Sub),
             Plus => Some(BinaryOp::Add),
@@ -163,8 +161,6 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> ParserResult {
         let mut expr = self.addition()?;
-
-        self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             BangEqual => Some(BinaryCompOp::NotEqual),
@@ -185,8 +181,6 @@ impl<'a> Parser<'a> {
     fn and(&mut self) -> ParserResult {
         let mut expr = self.comparison()?;
 
-        self.ignore_spaces();
-
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             And => Some(BinaryLogicOp::And),
             _ => None,
@@ -200,8 +194,6 @@ impl<'a> Parser<'a> {
 
     fn or(&mut self) -> ParserResult {
         let mut expr = self.and()?;
-
-        self.ignore_spaces();
 
         while let Some(op_and_token) = self.next_is(|tt| match tt {
             Or => Some(BinaryLogicOp::Or),
@@ -222,7 +214,6 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
 
         if let Some((_, _token)) = self.next_is(single(Colon)) {
-            self.ignore_spaces();
             if let Some((var_type, token)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
                 Int => Some(VarType::Integer),
@@ -231,7 +222,6 @@ impl<'a> Parser<'a> {
                 Bool => Some(VarType::Boolean),
                 _ => None,
             }) {
-                self.ignore_spaces();
                 self.consume(Equal)?;
 
                 let value = self.expression()?;

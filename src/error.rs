@@ -1,3 +1,5 @@
+use std::usize;
+
 use crate::{
     expr::Value,
     expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
@@ -14,6 +16,7 @@ pub enum ScannerError {
     LonelyBangSign(usize, usize, usize),
     // Line
     UnterminatedString(usize),
+    MismatchedIdent(usize),
 }
 
 pub enum RuntimeError {
@@ -35,6 +38,7 @@ pub enum ParserError {
     // line, missing_colon
     ExpectedColon(usize, usize),
     Expected(TokenType, usize),
+    UnexpectedIdent(usize),
 }
 
 pub enum SmntcError {
@@ -273,6 +277,7 @@ impl Error {
                 Color::Yellow,
                 Color::Reset
             ),
+            _ => "Another error".to_string(), // TODO write error
         }
     }
 
@@ -305,7 +310,8 @@ impl Error {
             AssignmentExpected(line, equal_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Variable declaration expects an '=' and an expression after type declaration{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*equal_plcmnt, *equal_plcmnt, Some("Missing an assignment")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
             TypeNotDefined(line, token_start, token_end) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Declared type is not a known type{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*token_start, *token_end, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
             ExpectedColon(line, colon_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} ':' expected after identifier{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*colon_plcmnt, *colon_plcmnt+1, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            Expected(tt, line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} '{:#?}' expected here{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, tt, Color::Reset)
+            Expected(tt, line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} '{:#?}' expected here{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, tt, Color::Reset),
+            UnexpectedIdent(line) => format!("Unexpected identation in line {}", line), // TODO write error
         }
     }
 }

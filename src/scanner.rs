@@ -33,6 +33,9 @@ pub struct Scanner<'a> {
     source_code: &'a str,
     chars: Chars<'a>,
     tokens: Vec<Token>,
+    current_ident_level: i32,
+    space_ident: bool,
+    tab_ident: bool,
 }
 
 impl<'a> Scanner<'a> {
@@ -44,6 +47,9 @@ impl<'a> Scanner<'a> {
             end_token: 0,
             chars: source_code.chars(),
             tokens: vec![],
+            current_ident_level: 0,
+            space_ident: false,
+            tab_ident: false,
         }
     }
 
@@ -89,10 +95,64 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn newline(&mut self) -> TokenType {
-        self.current_line += 1;
+    // TODO make level_const dynamic
+    fn scan_identation(&mut self) -> i32 {
+        let mut spaces = 0;
 
-        TokenType::Newline
+        while let Some(ch) = self.peek() {
+            if ch == '#' {
+                self.comment();
+            } else if ch == '\n' {
+                spaces = 0;
+            } else if ch == ' ' {
+                spaces += 1;
+                self.space_ident = true;
+            } else if ch == '\t' {
+                spaces += 1;
+                self.tab_ident = true;
+            } else {
+                break;
+            }
+
+            self.advance();
+        }
+
+        let level_const = if self.space_ident { 4 } else { 1 };
+
+        spaces / level_const
+    }
+
+    fn newline(&mut self) -> Result<TokenType, ScannerError> {
+        self.current_line += 1;
+        self.start_token = 0;
+        self.end_token = 0;
+
+        let line_ident_level = self.scan_identation();
+
+        match line_ident_level.cmp(&self.current_ident_level) {
+            std::cmp::Ordering::Greater => self.add_token(TokenType::Ident),
+            std::cmp::Ordering::Less => {
+                for _ in 0..self.current_ident_level - line_ident_level {
+                    self.add_token(TokenType::Deident);
+                }
+            }
+            std::cmp::Ordering::Equal => (),
+        }
+
+        // if line_ident_level > self.current_ident_level {
+        //     self.add_token(TokenType::Ident);
+        // } else if line_ident_level < self.current_ident_level {
+        //     for _ in 0..self.current_ident_level - line_ident_level {
+        //         self.add_token(TokenType::Deident);
+        //     }
+        // }
+        self.current_ident_level = line_ident_level;
+
+        if self.tab_ident && self.space_ident {
+            Err(ScannerError::MismatchedIdent(self.current_line))
+        } else {
+            Ok(TokenType::Newline)
+        }
     }
 
     fn peek(&mut self) -> Option<char> {
@@ -205,9 +265,11 @@ impl<'a> Scanner<'a> {
                 '>' => self.match_or_else('=', TokenType::GreaterEqual, TokenType::Greater),
                 ':' => Colon,
                 '#' => self.comment(),
-                ' ' | '\t' => Space,
-                '\r' => Blank,
-                '\n' => self.newline(),
+                ' ' | '\r' => Blank,
+                '\n' => match self.newline() {
+                    Ok(newline) => newline,
+                    Err(error) => return Err(Error::Scanner(error)),
+                },
                 '"' => {
                     if let Some(string) = self.string() {
                         string
@@ -265,11 +327,7 @@ impl<'a> Scanner<'a> {
 
             if let Some(token) = self.scan_token()? {
                 match token {
-                    Newline => {
-                        self.start_token = 0;
-                        self.end_token = 0
-                    }
-                    Blank | Comment => (),
+                    Newline | Blank | Comment => (),
                     _ => self.add_token(token),
                 }
             } else {
