@@ -16,7 +16,7 @@ pub enum ScannerError {
     LonelyBangSign(usize, usize, usize),
     // Line
     UnterminatedString(usize),
-    MismatchedIdent(usize),
+    MismatchedIdent(usize, usize, usize),
 }
 
 pub enum RuntimeError {
@@ -30,7 +30,7 @@ pub enum ParserError {
     // Line
     MissingRightParen(usize),
     // Note
-    MissingExpression(Option<usize>),
+    MissingExpression(usize),
     // line, missing_equal_column
     AssignmentExpected(usize, usize),
     // line, token_start, token_end
@@ -106,6 +106,64 @@ impl Error {
         }
 
         arrow
+    }
+
+    fn syntax_error_template(
+        &self,
+        source_vec: &[String],
+        line: usize,
+        starts_at: Option<usize>,
+        ends_at: Option<usize>,
+        reason: String,
+        marker: Option<String>,
+    ) -> String {
+        fn create_title(line: usize, starts_at: Option<usize>, ends_at: Option<usize>) -> String {
+            match starts_at {
+                Some(start_number) => match ends_at {
+                    Some(end_number) => format!(
+                        "Syntax error in line {} from character {} to {}:",
+                        line, start_number, end_number
+                    ),
+                    None => format!(
+                        "Syntax error in line {} from character {} to the end of file:",
+                        line, start_number
+                    ),
+                },
+                None => format!("Syntax error in line {}:", line),
+            }
+        }
+
+        if marker.is_some() {
+            format!(
+                "{}{} \n{}\n{} '{}'\n{}{}\n{}\n{}{} Reason: {}{}",
+                Color::White,
+                create_title(line, starts_at, ends_at),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(line - 1).unwrap(),
+                self.blue_pipe(),
+                marker.unwrap(),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                Color::Yellow,
+                reason,
+                Color::Reset
+            )
+        } else {
+            format!(
+                "{}{} \n{}\n{} '{}'\n{}\n{}{} Reason: {}{}",
+                Color::White,
+                create_title(line, starts_at, ends_at),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                source_vec.get(line - 1).unwrap(),
+                self.blue_pipe(),
+                self.blue_pipe(),
+                Color::Yellow,
+                reason,
+                Color::Reset
+            )
+        }
     }
 
     pub fn show_error(&self, file: Option<&str>, source_vec: Option<&[String]>) {
@@ -219,99 +277,115 @@ impl Error {
     }
 
     fn format_scanner_error(&self, error: &ScannerError, source_vec: &[String]) -> String {
-        use ScannerError::*;
         match error {
-            InvalidCharacter(line, token_start, token_end) => format!("{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: Invalid character{}",
-                Color::White,
-                line,
-                token_start,
-                token_end,
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line - 1).unwrap(),
-                self.blue_pipe(),
-                self.print_marker(*token_start, *token_end, None),
-                self.blue_pipe(),
-                Color::Yellow,
-                Color::Reset
+            ScannerError::InvalidCharacter(line, starts_at, ends_at) => self.syntax_error_template(
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Invalid character".to_string(),
+                Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            LonelyBangSign(line, token_start, token_end) => format!("{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: Invalid syntax. Did you mean '!='?{}",
-                Color::White,
-                line,
-                token_start,
-                token_end,
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line - 1).unwrap(),
-                self.blue_pipe(),
-                self.print_marker(*token_start, *token_end, None),
-                self.blue_pipe(),
-                Color::Yellow,
-                Color::Reset
+            ScannerError::LonelyBangSign(line, starts_at, ends_at) => self.syntax_error_template(
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Invalid syntax. Did you mean 'not'?".to_string(),
+                Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            InvalidToken(line, token_start, token_end, note) => format!(
-                "{}Syntax error in line {} from character {} to {}: \n{}\n{} '{}'\n{}{}\n{} {}Reason: {}{}",
-                Color::White,
-                line,
-                token_start,
-                token_end,
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line - 1).unwrap(),
-                self.blue_pipe(),
-                self.print_marker(*token_start, *token_end, None),
-                self.blue_pipe(),
-                Color::Yellow,
-                note,
-                Color::Reset
+            ScannerError::InvalidToken(line, starts_at, ends_at, reason) => self
+                .syntax_error_template(
+                    source_vec,
+                    *line,
+                    Some(*starts_at),
+                    Some(*ends_at),
+                    reason.to_string(),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
+                ),
+            ScannerError::MismatchedIdent(line, starts_at, ends_at) => self.syntax_error_template(
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "There is a conflicted usage of spaces and tabs indentation in this file"
+                    .to_string(),
+                Some(self.print_marker(*starts_at, *ends_at, Some("first conflict happens here"))),
             ),
-            UnterminatedString(line) => format!(
-                "{}Unterminated String from line {} to the end of file:\n{} \n{}'{}'\n{}\n{} {}Note: Every string must start and finish with a quotation mark, (e.g \"Lorem ipsum\"). Maybe you forgot a '\"'?{}",
-                Color::White,
-                line,
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line - 1).unwrap(),
-                self.blue_pipe(),
-                self.blue_pipe(),
-                Color::Yellow,
-                Color::Reset
+            ScannerError::UnterminatedString(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Unterminated String. Maybe you forgot a '\"'?".to_string(),
+                None,
             ),
-            _ => "Another error".to_string(), // TODO write error
         }
     }
 
     fn format_parser_error(&self, error: &ParserError, source_vec: &[String]) -> String {
-        use ParserError::*;
         match error {
-            MissingRightParen(line) => format!("{}Syntax error in line {}: \n{}\n{} '{}'\n{}\n{} {}Expected a ')' after this expression{}",
-                Color::White,
-                line,
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line - 1).unwrap(),
-                self.blue_pipe(),
-                self.blue_pipe(),
-                Color::Yellow,
-                Color::Reset,
+            ParserError::MissingRightParen(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Expected a ')' after this expression".to_string(),
+                None,
             ),
-            MissingExpression(line) => format!(
-                "{}Syntax error in line {}:\n{}\n{} '{}'\n{}\n{}{} Reason: Missing an expression{}",
-                Color::White,
-                line.as_ref().unwrap(),
-                self.blue_pipe(),
-                self.blue_pipe(),
-                source_vec.get(*line.as_ref().unwrap() - 1).unwrap(),
-                self.blue_pipe(),
-                self.blue_pipe(),
-                Color::Yellow,
-                Color::Reset
+            ParserError::MissingExpression(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Missing an expression".to_string(),
+                None,
             ),
-            AssignmentExpected(line, equal_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Variable declaration expects an '=' and an expression after type declaration{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*equal_plcmnt, *equal_plcmnt, Some("Missing an assignment")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            TypeNotDefined(line, token_start, token_end) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} Declared type is not a known type{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*token_start, *token_end, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            ExpectedColon(line, colon_plcmnt) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}{}\n{}\n{}{} ':' expected after identifier{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.print_marker(*colon_plcmnt, *colon_plcmnt+1, Some("here")), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            Expected(tt, line) => format!("{}Sintax error in line {}: \n{}\n{} '{}'\n{}\n{}{} '{:#?}' expected here{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, tt, Color::Reset),
-            UnexpectedIdent(line) => format!("Unexpected identation in line {}", line), // TODO write error
+            ParserError::AssignmentExpected(line, equal_plcmnt) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Variable declaration expects an '=' and an expression after type declaration"
+                    .to_string(),
+                Some(self.print_marker(
+                    *equal_plcmnt,
+                    *equal_plcmnt,
+                    Some("Missing an assignment"),
+                )),
+            ),
+            ParserError::TypeNotDefined(line, starts_at, ends_at) => self.syntax_error_template(
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Declared type is not a known type".to_string(),
+                Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
+            ),
+            ParserError::ExpectedColon(line, colon_plcmnt) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "':' expected after identifier".to_string(),
+                Some(self.print_marker(*colon_plcmnt, *colon_plcmnt + 1, Some("here"))),
+            ),
+            ParserError::Expected(tt, line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                format!("'{:#?}' expected", tt),
+                None,
+            ),
+            ParserError::UnexpectedIdent(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Indentation not expected here".to_string(),
+                None,
+            ),
         }
     }
 }

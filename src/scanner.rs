@@ -96,6 +96,7 @@ impl<'a> Scanner<'a> {
     }
 
     // TODO make level_const dynamic
+    // FIXME first line indent not covered
     fn scan_identation(&mut self) -> i32 {
         let mut spaces = 0;
 
@@ -139,17 +140,14 @@ impl<'a> Scanner<'a> {
             std::cmp::Ordering::Equal => (),
         }
 
-        // if line_ident_level > self.current_ident_level {
-        //     self.add_token(TokenType::Ident);
-        // } else if line_ident_level < self.current_ident_level {
-        //     for _ in 0..self.current_ident_level - line_ident_level {
-        //         self.add_token(TokenType::Deident);
-        //     }
-        // }
         self.current_ident_level = line_ident_level;
 
         if self.tab_ident && self.space_ident {
-            Err(ScannerError::MismatchedIdent(self.current_line))
+            Err(ScannerError::MismatchedIdent(
+                self.current_line,
+                self.start_token,
+                self.end_token,
+            ))
         } else {
             Ok(TokenType::Newline)
         }

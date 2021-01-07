@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
             self.find_deident();
             Err(ParserError::UnexpectedIdent(self.current_line))
         } else {
-            Err(ParserError::MissingExpression(Some(self.current_line)))
+            Err(ParserError::MissingExpression(self.current_line))
         }
     }
 
