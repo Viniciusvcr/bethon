@@ -107,8 +107,9 @@ impl<'a> Parser<'a> {
             Ident => Some(Ident),
             _ => None,
         }) {
+            let indent_line = self.current_line;
             self.find_deident();
-            Err(ParserError::UnexpectedIdent(self.current_line))
+            Err(ParserError::UnexpectedIdent(indent_line))
         } else {
             Err(ParserError::MissingExpression(self.current_line))
         }
