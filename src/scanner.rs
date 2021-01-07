@@ -33,9 +33,9 @@ pub struct Scanner<'a> {
     source_code: &'a str,
     chars: Chars<'a>,
     tokens: Vec<Token>,
-    current_ident_level: i32,
-    space_ident: bool,
-    tab_ident: bool,
+    current_indent_level: i32,
+    space_indent: bool,
+    tab_indent: bool,
 }
 
 impl<'a> Scanner<'a> {
@@ -47,9 +47,9 @@ impl<'a> Scanner<'a> {
             end_token: 0,
             chars: source_code.chars(),
             tokens: vec![],
-            current_ident_level: 0,
-            space_ident: false,
-            tab_ident: false,
+            current_indent_level: 0,
+            space_indent: false,
+            tab_indent: false,
         }
     }
 
@@ -96,8 +96,7 @@ impl<'a> Scanner<'a> {
     }
 
     // TODO make level_const dynamic
-    // FIXME first line indent not covered
-    fn scan_identation(&mut self) -> i32 {
+    fn scan_indentation(&mut self) -> i32 {
         let mut spaces = 0;
 
         while let Some(ch) = self.peek() {
@@ -107,10 +106,10 @@ impl<'a> Scanner<'a> {
                 spaces = 0;
             } else if ch == ' ' {
                 spaces += 1;
-                self.space_ident = true;
+                self.space_indent = true;
             } else if ch == '\t' {
                 spaces += 1;
-                self.tab_ident = true;
+                self.tab_indent = true;
             } else {
                 break;
             }
@@ -118,9 +117,21 @@ impl<'a> Scanner<'a> {
             self.advance();
         }
 
-        let level_const = if self.space_ident { 4 } else { 1 };
+        let level_const = if self.space_indent { 4 } else { 1 };
 
         spaces / level_const
+    }
+
+    fn indent_to(&mut self, indent_level: i32) {
+        match indent_level.cmp(&self.current_indent_level) {
+            std::cmp::Ordering::Greater => self.add_token(TokenType::Indent),
+            std::cmp::Ordering::Less => {
+                for _ in 0..self.current_indent_level - indent_level {
+                    self.add_token(TokenType::Deindent);
+                }
+            }
+            std::cmp::Ordering::Equal => (),
+        }
     }
 
     fn newline(&mut self) -> Result<TokenType, ScannerError> {
@@ -128,21 +139,12 @@ impl<'a> Scanner<'a> {
         self.start_token = 0;
         self.end_token = 0;
 
-        let line_ident_level = self.scan_identation();
+        let line_indent_level = self.scan_indentation();
+        self.indent_to(line_indent_level);
 
-        match line_ident_level.cmp(&self.current_ident_level) {
-            std::cmp::Ordering::Greater => self.add_token(TokenType::Ident),
-            std::cmp::Ordering::Less => {
-                for _ in 0..self.current_ident_level - line_ident_level {
-                    self.add_token(TokenType::Deident);
-                }
-            }
-            std::cmp::Ordering::Equal => (),
-        }
+        self.current_indent_level = line_indent_level;
 
-        self.current_ident_level = line_ident_level;
-
-        if self.tab_ident && self.space_ident {
+        if self.tab_indent && self.space_indent {
             Err(ScannerError::MismatchedIdent(
                 self.current_line,
                 self.start_token,
@@ -226,7 +228,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn identifier_or_keyword(&mut self) -> TokenType {
+    fn indentifier_or_keyword(&mut self) -> TokenType {
         self.take_while(is_alphanumeric);
 
         let text = self.consumed();
@@ -301,7 +303,7 @@ impl<'a> Scanner<'a> {
                             )));
                         }
                     } else if is_alpha(c) {
-                        self.identifier_or_keyword()
+                        self.indentifier_or_keyword()
                     } else {
                         return Err(Error::Scanner(ScannerError::InvalidCharacter(
                             self.current_line,
@@ -319,6 +321,10 @@ impl<'a> Scanner<'a> {
 
     pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, Error> {
         use TokenType::*;
+
+        let initial_indet_level = self.scan_indentation();
+        self.indent_to(initial_indet_level);
+        self.source_code = self.chars.as_str();
 
         loop {
             self.start_token = self.end_token;

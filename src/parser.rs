@@ -71,9 +71,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn find_deident(&mut self) {
+    fn find_deindent(&mut self) {
         while let Some(token) = self.advance() {
-            if *token.tt() == TokenType::Deident {
+            if *token.tt() == TokenType::Deindent {
                 return;
             }
         }
@@ -104,11 +104,11 @@ impl<'a> Parser<'a> {
         }) {
             Ok(Expr::Variable(token, id))
         } else if let Some(_token) = self.next_is(|tt| match tt {
-            Ident => Some(Ident),
+            Indent => Some(Indent),
             _ => None,
         }) {
             let indent_line = self.current_line;
-            self.find_deident();
+            self.find_deindent();
             Err(ParserError::UnexpectedIdent(indent_line))
         } else {
             Err(ParserError::MissingExpression(self.current_line))
