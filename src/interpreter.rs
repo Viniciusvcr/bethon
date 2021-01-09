@@ -270,15 +270,42 @@ impl Interpreter {
     }
 
     fn eval(&mut self, stmt: &Stmt) -> Option<Error> {
-        use Stmt::*;
         match stmt {
-            Assert(expr) => self.assert_eval(expr),
-            ExprStmt(expr) => match self.eval_expr(expr) {
+            Stmt::Assert(expr) => self.assert_eval(expr),
+            Stmt::ExprStmt(expr) => match self.eval_expr(expr) {
                 Ok(_value) => None,
                 Err(error) => Some(Error::Runtime(error)),
             },
-            VarStmt(identifier, _var_type, expr) => match self.eval_var_stmt(identifier, expr) {
-                Ok(()) => None,
+            Stmt::VarStmt(identifier, _var_type, expr) => {
+                match self.eval_var_stmt(identifier, expr) {
+                    Ok(()) => None,
+                    Err(error) => Some(Error::Runtime(error)),
+                }
+            }
+            Stmt::IfStmt(condition, then_branch, else_branch) => match self.eval_expr(condition) {
+                Ok(evalued_condition) => {
+                    if evalued_condition == Value::Bool(true) {
+                        for then_stmt in then_branch {
+                            if let Some(error) = self.eval(then_stmt) {
+                                return Some(error);
+                            }
+                        }
+
+                        None
+                    } else {
+                        if else_branch.is_some() {
+                            for else_stmt in else_branch.as_ref().unwrap() {
+                                if let Some(error) = self.eval(else_stmt) {
+                                    return Some(error);
+                                }
+                            }
+
+                            None
+                        } else {
+                            None
+                        }
+                    }
+                }
                 Err(error) => Some(Error::Runtime(error)),
             },
         }

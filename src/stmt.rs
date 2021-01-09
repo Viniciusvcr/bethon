@@ -1,9 +1,10 @@
 use crate::expr::Expr;
 use crate::token::VarType;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Assert(Expr),
     ExprStmt(Expr),
     VarStmt(String, Option<VarType>, Expr),
+    IfStmt(Expr, Vec<Stmt>, Option<Vec<Stmt>>),
 }

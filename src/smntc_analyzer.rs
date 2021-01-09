@@ -258,11 +258,33 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => errors.push(Error::Smntc(err)),
                     }
                 }
+                Stmt::IfStmt(condition, then_branch, else_branch) => {
+                    match self.analyze_one(condition) {
+                        Ok(Type::Bool) => self.insert(condition, Type::Bool),
+                        Ok(_) => errors.push(Error::Smntc(SmntcError::IfNotLogicalCondition)),
+                        Err(err) => errors.push(Error::Smntc(err)),
+                    };
+
+                    if let Err(then_branch_errors) = self.analyze(then_branch) {
+                        for error in then_branch_errors {
+                            errors.push(error)
+                        }
+                    }
+
+                    if else_branch.is_some() {
+                        if let Err(else_branch_errors) = self.analyze(else_branch.as_ref().unwrap())
+                        {
+                            for error in else_branch_errors {
+                                errors.push(error)
+                            }
+                        }
+                    }
+                }
             }
         }
 
         println!("Types: {:?}\n", self.types);
-        println!("Symnbol Table: {:?}\n", self.symbol_table);
+        println!("Symbol Table: {:?}\n", self.symbol_table);
 
         if errors.is_empty() {
             Ok(())

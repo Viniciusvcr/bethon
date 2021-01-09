@@ -51,6 +51,7 @@ pub enum SmntcError {
     VariableNotDeclared(usize, String),
     VariableAlreadyDeclared(usize, String),
     IncompatibleDeclaration(usize, VarType, Type),
+    IfNotLogicalCondition,
 }
 
 #[allow(dead_code)]
@@ -262,7 +263,8 @@ impl Error {
             SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Bool, Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White),
             SmntcError::IncompatibleDeclaration(line, expected, found) => format!("{}Incompatible assignment error on line {}\n{}\n{} '{}' \n{}\n{}{}Note: Declared type is {}'{}'{}, but the assigned expression evaluates to {}'{}'{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::White, Color::Yellow, expected, Color::White, Color::Yellow, found, Color::Reset),
             SmntcError::VariableNotDeclared(line, var_name) => format!("{}Variable {}'{}'{} not found in this scope:\n{}\n{} '{}'\n{}\n{}{} Note: The attempt to read the undeclared variable is on line {}{}", Color::White, Color::Yellow, var_name, Color::White, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, line, Color::Reset),
-            SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset)
+            SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
+            SmntcError::IfNotLogicalCondition => "IfNotLogicalCondition".to_string()
         }
     }
 

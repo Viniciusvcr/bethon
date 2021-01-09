@@ -267,9 +267,35 @@ impl<'a> Parser<'a> {
         self.expression().map(Stmt::Assert)
     }
 
+    // TODO then_branch can have multiple statements
+    // TODO add multiple elif branches
+    // TODO else_branch can have multiple statements
+    fn if_statement(&mut self) -> Result<Stmt, ParserError> {
+        let condition = self.expression()?;
+
+        self.consume(Colon)?;
+        self.consume(Indent)?;
+
+        let then_branch = self.statement()?;
+
+        self.consume(Deindent)?;
+
+        let mut else_branch: Option<Vec<Stmt>> = None;
+        if self.next_is(single(Else)).is_some() {
+            self.consume(Colon)?;
+            self.consume(Indent)?;
+            else_branch = Some(vec![self.statement()?]);
+            self.consume(Deindent)?;
+        }
+
+        Ok(Stmt::IfStmt(condition, vec![then_branch], else_branch))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
+        } else if self.consume(If).is_ok() {
+            self.if_statement()
         } else {
             self.expression_statement()
         }
@@ -290,6 +316,7 @@ impl<'a> Parser<'a> {
         }
 
         if errors.is_empty() {
+            println!("{:#?}", statements);
             Ok(statements)
         } else {
             Err(errors)
