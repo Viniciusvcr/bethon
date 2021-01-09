@@ -6,7 +6,7 @@ use crate::{
     smntc_analyzer::Type,
     token::{TokenType, VarType},
 };
-
+#[derive(Debug)]
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
@@ -18,7 +18,7 @@ pub enum ScannerError {
     UnterminatedString(usize),
     MismatchedIdent(usize, usize, usize),
 }
-
+#[derive(Debug)]
 pub enum RuntimeError {
     AssertionFailed(usize),
     CompAssertionFailed(usize, String, String, BinaryCompOp, Value),
@@ -39,8 +39,9 @@ pub enum ParserError {
     ExpectedColon(usize, usize),
     Expected(TokenType, usize),
     UnexpectedIdent(usize),
+    IndentedElse(usize),
 }
-
+#[derive(Debug)]
 pub enum SmntcError {
     MismatchedTypes(Type, Type, Option<String>), // Expected, Found, Note
     IncompatibleBinArith(BinaryOp, Type, Type),  // Operation, Left, Right
@@ -77,7 +78,7 @@ impl std::fmt::Display for Color {
         }
     }
 }
-
+#[derive(Debug)]
 pub enum Error {
     UnexpectedFail,
     Input(String, String),
@@ -386,6 +387,14 @@ impl Error {
                 None,
                 None,
                 "Indentation not expected here".to_string(),
+                None,
+            ),
+            ParserError::IndentedElse(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "'else' needs to be unindented from 'if.".to_string(),
                 None,
             ),
         }

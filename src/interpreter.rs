@@ -292,18 +292,16 @@ impl Interpreter {
                         }
 
                         None
-                    } else {
-                        if else_branch.is_some() {
-                            for else_stmt in else_branch.as_ref().unwrap() {
-                                if let Some(error) = self.eval(else_stmt) {
-                                    return Some(error);
-                                }
+                    } else if else_branch.is_some() {
+                        for else_stmt in else_branch.as_ref().unwrap() {
+                            if let Some(error) = self.eval(else_stmt) {
+                                return Some(error);
                             }
-
-                            None
-                        } else {
-                            None
                         }
+
+                        None
+                    } else {
+                        None
                     }
                 }
                 Err(error) => Some(Error::Runtime(error)),

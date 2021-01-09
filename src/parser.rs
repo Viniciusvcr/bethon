@@ -267,28 +267,32 @@ impl<'a> Parser<'a> {
         self.expression().map(Stmt::Assert)
     }
 
-    // TODO then_branch can have multiple statements
+    // FIXME indented elses cause infinite loops
     // TODO add multiple elif branches
-    // TODO else_branch can have multiple statements
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
         let condition = self.expression()?;
 
         self.consume(Colon)?;
         self.consume(Indent)?;
 
-        let then_branch = self.statement()?;
-
-        self.consume(Deindent)?;
+        let mut then_branch: Vec<Stmt> = vec![];
+        while self.consume(Deindent).is_err() {
+            then_branch.push(self.statement()?);
+        }
 
         let mut else_branch: Option<Vec<Stmt>> = None;
         if self.next_is(single(Else)).is_some() {
             self.consume(Colon)?;
             self.consume(Indent)?;
-            else_branch = Some(vec![self.statement()?]);
-            self.consume(Deindent)?;
+            let mut else_clauses: Vec<Stmt> = vec![];
+            while self.consume(Deindent).is_err() {
+                else_clauses.push(self.statement()?);
+            }
+
+            else_branch = Some(else_clauses);
         }
 
-        Ok(Stmt::IfStmt(condition, vec![then_branch], else_branch))
+        Ok(Stmt::IfStmt(condition, then_branch, else_branch))
     }
 
     fn statement(&mut self) -> Result<Stmt, ParserError> {
@@ -311,6 +315,7 @@ impl<'a> Parser<'a> {
                 Err(error) => {
                     errors.push(Error::Parser(error));
                     self.sync(self.current_line);
+                    println!("{:?}", errors.last());
                 }
             }
         }
