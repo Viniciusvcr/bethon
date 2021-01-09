@@ -3,6 +3,8 @@ use crate::token::{NumberType, Token, TokenType};
 use num_bigint::BigInt;
 use std::str::Chars;
 
+// FIXME blank lines not being counted
+
 pub fn create_code_vec(source_code: &str) -> std::vec::Vec<String> {
     let source_code_len = source_code.chars().count();
 
