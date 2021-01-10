@@ -315,13 +315,11 @@ impl<'a> Parser<'a> {
                 Err(error) => {
                     errors.push(Error::Parser(error));
                     self.sync(self.current_line);
-                    println!("{:?}", errors.last());
                 }
             }
         }
 
         if errors.is_empty() {
-            println!("{:#?}", statements);
             Ok(statements)
         } else {
             Err(errors)
