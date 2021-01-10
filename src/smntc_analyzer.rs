@@ -7,7 +7,7 @@ use crate::{
 
 use num_bigint::BigInt;
 use num_traits::cast::ToPrimitive;
-use std::collections::HashMap;
+use std::{collections::HashMap, f64};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -91,7 +91,6 @@ impl<'a> SemanticAnalyzer<'a> {
         Ok(expr_type)
     }
 
-    // FIXME compare with error margin
     fn analyze_bin_comp(
         &mut self,
         op: &BinaryCompOp,
@@ -103,20 +102,32 @@ impl<'a> SemanticAnalyzer<'a> {
         let type_a = self.analyze_one(a)?;
         let type_b = self.analyze_one(b)?;
 
+        let error_margin = f64::EPSILON;
+
         let expr_type = match (op, type_a, type_b) {
             (NotEqual, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a != b),
-            (NotEqual, Type::Integer(a), Type::Float(b)) => Type::Boolean(a.to_f64().unwrap() != b),
-            (NotEqual, Type::Float(a), Type::Integer(b)) => Type::Boolean(a != b.to_f64().unwrap()),
-            (NotEqual, Type::Float(a), Type::Float(b)) => Type::Boolean(a != b),
+            (NotEqual, Type::Integer(a), Type::Float(b)) => {
+                Type::Boolean((a.to_f64().unwrap() - b).abs() > error_margin)
+            }
+            (NotEqual, Type::Float(a), Type::Integer(b)) => {
+                Type::Boolean((a - b.to_f64().unwrap()).abs() > error_margin)
+            }
+            (NotEqual, Type::Float(a), Type::Float(b)) => {
+                Type::Boolean((a - b).abs() > error_margin)
+            }
             (NotEqual, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a != b),
             (NotEqual, Type::Str(a), Type::Str(b)) => Type::Boolean(a.ne(&b)),
             (NotEqual, Type::Null, Type::Null) => Type::Boolean(false),
             (NotEqual, _, Type::Null) => Type::Boolean(true),
             (NotEqual, Type::Null, _) => Type::Boolean(true),
             (Equal, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a == b),
-            (Equal, Type::Integer(a), Type::Float(b)) => Type::Boolean(a.to_f64().unwrap() == b),
-            (Equal, Type::Float(a), Type::Integer(b)) => Type::Boolean(a == b.to_f64().unwrap()),
-            (Equal, Type::Float(a), Type::Float(b)) => Type::Boolean(a == b),
+            (Equal, Type::Integer(a), Type::Float(b)) => {
+                Type::Boolean((a.to_f64().unwrap() - b).abs() < error_margin)
+            }
+            (Equal, Type::Float(a), Type::Integer(b)) => {
+                Type::Boolean((a - b.to_f64().unwrap()).abs() < error_margin)
+            }
+            (Equal, Type::Float(a), Type::Float(b)) => Type::Boolean((a - b).abs() < error_margin),
             (Equal, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a == b),
             (Equal, Type::Str(a), Type::Str(b)) => Type::Boolean(a.eq(&b)),
             (Equal, Type::Null, Type::Null) => Type::Boolean(true),
