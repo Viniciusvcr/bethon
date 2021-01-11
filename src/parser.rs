@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     fn advance(&mut self) -> Option<&Token> {
         if let Some((first, rest)) = self.tokens.split_first() {
             self.tokens = rest;
-            self.current_line = first.placement().line;
+            self.current_line = first.placement.line;
             Some(first)
         } else {
             None
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
 
     fn sync(&mut self, current_line: usize) {
         while let Some(token) = self.peek() {
-            if token.placement().line == current_line + 1 || self.is_at_end() {
+            if token.placement.line == current_line + 1 || self.is_at_end() {
                 return;
             } else {
                 self.advance();
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> ParserResult {
-        if let Some(value_and_token) = self.next_is(|tt| match tt {
+        if let Some((value, token)) = self.next_is(|tt| match tt {
             False => Some(Value::Bool(false)),
             True => Some(Value::Bool(true)),
             PythonNone => Some(Value::PythonNone),
@@ -88,7 +88,9 @@ impl<'a> Parser<'a> {
             String(string) => Some(Value::Str(string.to_string())),
             _ => None,
         }) {
-            Ok(Expr::Literal(value_and_token))
+            let new_literal = OpWithToken::new(value, token);
+
+            Ok(Expr::Literal(new_literal))
         } else if let Some((_, _token)) = self.next_is(single(LeftParen)) {
             let expr = self.expression()?;
             self.consume(RightParen)?;
@@ -116,12 +118,15 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> ParserResult {
-        if let Some(op_and_token) = self.next_is(|tt| match tt {
+        if let Some((op, token)) = self.next_is(|tt| match tt {
             Minus => Some(UnaryOp::Minus),
             Plus => Some(UnaryOp::Plus),
             _ => None,
         }) {
-            Ok(Expr::Unary(op_and_token, self.unary()?.into()))
+            Ok(Expr::Unary(
+                OpWithToken::new(op, token),
+                self.unary()?.into(),
+            ))
         } else {
             self.primary()
         }
@@ -130,7 +135,7 @@ impl<'a> Parser<'a> {
     fn multiplication(&mut self) -> ParserResult {
         let mut expr = self.unary()?;
 
-        while let Some(op_and_token) = self.next_is(|tt| match tt {
+        while let Some((op, token)) = self.next_is(|tt| match tt {
             Slash => Some(BinaryOp::Div),
             Star => Some(BinaryOp::Mul),
             Mod => Some(BinaryOp::Mod),
@@ -138,7 +143,7 @@ impl<'a> Parser<'a> {
         }) {
             let right = self.unary()?;
 
-            expr = Expr::BinaryArith(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryArith(expr.into(), OpWithToken::new(op, token), right.into());
         }
 
         Ok(expr)
@@ -147,14 +152,14 @@ impl<'a> Parser<'a> {
     fn addition(&mut self) -> ParserResult {
         let mut expr = self.multiplication()?;
 
-        while let Some(op_and_token) = self.next_is(|tt| match tt {
+        while let Some((op, token)) = self.next_is(|tt| match tt {
             Minus => Some(BinaryOp::Sub),
             Plus => Some(BinaryOp::Add),
             _ => None,
         }) {
             let right = self.multiplication()?;
 
-            expr = Expr::BinaryArith(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryArith(expr.into(), OpWithToken::new(op, token), right.into());
         }
 
         Ok(expr)
@@ -163,7 +168,7 @@ impl<'a> Parser<'a> {
     fn comparison(&mut self) -> ParserResult {
         let mut expr = self.addition()?;
 
-        while let Some(op_and_token) = self.next_is(|tt| match tt {
+        while let Some((op, token)) = self.next_is(|tt| match tt {
             BangEqual => Some(BinaryCompOp::NotEqual),
             EqualEqual => Some(BinaryCompOp::Equal),
             Greater => Some(BinaryCompOp::GreaterThan),
@@ -173,7 +178,7 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             let right = self.addition()?;
-            expr = Expr::BinaryComp(expr.into(), op_and_token, right.into());
+            expr = Expr::BinaryComp(expr.into(), OpWithToken::new(op, token), right.into());
         }
 
         Ok(expr)
@@ -182,12 +187,12 @@ impl<'a> Parser<'a> {
     fn and(&mut self) -> ParserResult {
         let mut expr = self.comparison()?;
 
-        while let Some(op_and_token) = self.next_is(|tt| match tt {
+        while let Some((op, token)) = self.next_is(|tt| match tt {
             And => Some(BinaryLogicOp::And),
             _ => None,
         }) {
             let right = self.comparison()?;
-            expr = Expr::BinaryLogic(Box::new(expr), op_and_token, Box::new(right));
+            expr = Expr::BinaryLogic(Box::new(expr), OpWithToken::new(op, token), Box::new(right));
         }
 
         Ok(expr)
@@ -196,12 +201,12 @@ impl<'a> Parser<'a> {
     fn or(&mut self) -> ParserResult {
         let mut expr = self.and()?;
 
-        while let Some(op_and_token) = self.next_is(|tt| match tt {
+        while let Some((op, token)) = self.next_is(|tt| match tt {
             Or => Some(BinaryLogicOp::Or),
             _ => None,
         }) {
             let right = self.and()?;
-            expr = Expr::BinaryLogic(Box::new(expr), op_and_token, Box::new(right));
+            expr = Expr::BinaryLogic(Box::new(expr), OpWithToken::new(op, token), Box::new(right));
         }
 
         Ok(expr)
@@ -230,8 +235,8 @@ impl<'a> Parser<'a> {
                 match expr {
                     Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, Some(var_type), value)),
                     _ => Err(ParserError::ExpectedColon(
-                        token.placement().line,
-                        token.placement().starts_at - 1,
+                        token.placement.line,
+                        token.placement.starts_at - 1,
                     )),
                 }
             } else {
@@ -239,9 +244,9 @@ impl<'a> Parser<'a> {
 
                 // Happens when the type is not valid
                 Err(ParserError::TypeNotDefined(
-                    token.placement().line,
-                    token.placement().starts_at,
-                    token.placement().ends_at,
+                    token.placement.line,
+                    token.placement.starts_at,
+                    token.placement.ends_at,
                 ))
             }
         } else if let Some((_, token)) = self.next_is(single(Equal)) {
@@ -250,8 +255,8 @@ impl<'a> Parser<'a> {
             match expr {
                 Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, None, value)),
                 _ => Err(ParserError::ExpectedColon(
-                    token.placement().line,
-                    token.placement().starts_at - 1,
+                    token.placement.line,
+                    token.placement.starts_at - 1,
                 )),
             }
         } else {

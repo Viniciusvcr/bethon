@@ -3,7 +3,6 @@ use crate::{
     error::{Error, RuntimeError},
     expr::*,
     stmt::*,
-    token::get_token_line,
     token::NumberType,
 };
 use num_traits::ToPrimitive;
@@ -25,7 +24,7 @@ impl Interpreter {
         use BinaryOp::*;
         use Value::*;
 
-        let (op, token) = op_and_token;
+        let (op, token) = op_and_token.as_tuple();
 
         match (op, left, right) {
             (Sub, Number(a), Number(b)) => Ok(Number(a.clone() - b.clone())),
@@ -35,9 +34,9 @@ impl Interpreter {
                     Ok(Value::Number(NumberType::Integer(a / b)))
                 } else {
                     Err(RuntimeError::DivisionByZero(
-                        token.placement().line,
-                        token.placement().starts_at,
-                        token.placement().ends_at,
+                        token.placement.line,
+                        token.placement.starts_at,
+                        token.placement.ends_at,
                     ))
                 }
             }
@@ -46,9 +45,9 @@ impl Interpreter {
                     Ok(Value::Number(NumberType::Float(a / b.to_f64().unwrap())))
                 } else {
                     Err(RuntimeError::DivisionByZero(
-                        token.placement().line,
-                        token.placement().starts_at,
-                        token.placement().ends_at,
+                        token.placement.line,
+                        token.placement.starts_at,
+                        token.placement.ends_at,
                     ))
                 }
             }
@@ -57,9 +56,9 @@ impl Interpreter {
                     Ok(Value::Number(NumberType::Float(a.to_f64().unwrap() / b)))
                 } else {
                     Err(RuntimeError::DivisionByZero(
-                        token.placement().line,
-                        token.placement().starts_at,
-                        token.placement().ends_at,
+                        token.placement.line,
+                        token.placement.starts_at,
+                        token.placement.ends_at,
                     ))
                 }
             }
@@ -68,9 +67,9 @@ impl Interpreter {
                     Ok(Value::Number(NumberType::Float(a / b)))
                 } else {
                     Err(RuntimeError::DivisionByZero(
-                        token.placement().line,
-                        token.placement().starts_at,
-                        token.placement().ends_at,
+                        token.placement.line,
+                        token.placement.starts_at,
+                        token.placement.ends_at,
                     ))
                 }
             }
@@ -121,7 +120,7 @@ impl Interpreter {
         op_and_token: &OpWithToken<UnaryOp>,
         right: &Expr,
     ) -> InterpreterResult {
-        let (op, _token) = op_and_token;
+        let op = &op_and_token.op;
         let eval_right = self.eval_expr(right)?;
 
         self.unary_op(op, &eval_right)
@@ -170,7 +169,7 @@ impl Interpreter {
         op_and_token: &OpWithToken<BinaryCompOp>,
         right: &Expr,
     ) -> InterpreterResult {
-        let (op, _token) = op_and_token;
+        let (op, _token) = op_and_token.as_tuple();
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
@@ -198,7 +197,7 @@ impl Interpreter {
         op_and_token: &OpWithToken<BinaryLogicOp>,
         right: &Expr,
     ) -> InterpreterResult {
-        let (op, _token) = op_and_token;
+        let op = &op_and_token.op;
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
@@ -210,22 +209,21 @@ impl Interpreter {
     }
 
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
-        use Expr::*;
         match expr {
-            BinaryArith(left, op_and_token, right) => {
+            Expr::BinaryArith(left, op_and_token, right) => {
                 self.eval_binary_arith_expr(left, op_and_token, right)
             }
-            BinaryComp(left, op_and_token, right) => {
+            Expr::BinaryComp(left, op_and_token, right) => {
                 self.eval_binary_comp_expr(left, op_and_token, right)
             }
-            BinaryLogic(left, op_and_token, right) => {
+            Expr::BinaryLogic(left, op_and_token, right) => {
                 self.eval_binary_logic_expr(left, op_and_token, right)
             }
-            LogicNot((expr, _token)) => self.eval_logic_not(expr),
-            Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
-            Grouping(new_expr) => self.eval_expr(new_expr),
-            Literal(value_and_token) => Ok(value_and_token.clone().0),
-            Variable(_token, id) => Ok(self.eval_var_expr(id)),
+            Expr::LogicNot((expr, _token)) => self.eval_logic_not(expr),
+            Expr::Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
+            Expr::Grouping(new_expr) => self.eval_expr(new_expr),
+            Expr::Literal(value_and_token) => Ok(value_and_token.clone().op),
+            Expr::Variable(_token, id) => Ok(self.eval_var_expr(id)),
         }
     }
 
@@ -240,18 +238,17 @@ impl Interpreter {
 
     // TODO Change 'val' to the result of the expression
     fn assert_eval(&self, expr: &Expr) -> Option<Error> {
-        let error_line = get_token_line(expr);
-
         match expr {
             Expr::BinaryComp(left, op_and_token, right) => {
                 let value = self.eval_binary_comp_expr(left, op_and_token, right);
+
                 match value {
                     Ok(val) if val != Value::Bool(true) => {
                         Some(Error::Runtime(RuntimeError::CompAssertionFailed(
-                            error_line,
+                            op_and_token.get_token_line(),
                             format!("{}", left),
                             format!("{}", right),
-                            op_and_token.0,
+                            op_and_token.op,
                             val,
                         )))
                     }
@@ -260,9 +257,9 @@ impl Interpreter {
                 }
             }
             _ => match self.eval_expr(expr) {
-                Ok(val) if val != Value::Bool(true) => {
-                    Some(Error::Runtime(RuntimeError::AssertionFailed(error_line)))
-                }
+                Ok(val) if val != Value::Bool(true) => Some(Error::Runtime(
+                    RuntimeError::AssertionFailed(expr.get_line()),
+                )),
                 Err(error) => Some(Error::Runtime(error)),
                 _ => None,
             },

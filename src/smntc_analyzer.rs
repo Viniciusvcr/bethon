@@ -2,7 +2,7 @@ use crate::{
     error::{Error, SmntcError},
     expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, Expr, UnaryOp, Value},
     stmt::Stmt,
-    token::{get_token_line, NumberType, VarType},
+    token::{NumberType, VarType},
 };
 
 use num_bigint::BigInt;
@@ -230,13 +230,13 @@ impl<'a> SemanticAnalyzer<'a> {
 
     fn analyze_one(&mut self, exp: &Expr) -> SemanticAnalyzerResult {
         match exp {
-            Expr::BinaryArith(a, op_and_token, b) => self.analyze_bin_arith(&op_and_token.0, a, b),
-            Expr::BinaryComp(a, op_and_token, b) => self.analyze_bin_comp(&op_and_token.0, a, b),
-            Expr::BinaryLogic(a, op_and_token, b) => self.analyze_bin_logic(&op_and_token.0, a, b),
+            Expr::BinaryArith(a, op_and_token, b) => self.analyze_bin_arith(&op_and_token.op, a, b),
+            Expr::BinaryComp(a, op_and_token, b) => self.analyze_bin_comp(&op_and_token.op, a, b),
+            Expr::BinaryLogic(a, op_and_token, b) => self.analyze_bin_logic(&op_and_token.op, a, b),
             Expr::LogicNot((exp, _)) => self.analyze_logic_not(exp),
-            Expr::Unary(op_and_token, exp) => self.analyze_unary(&op_and_token.0, exp),
+            Expr::Unary(op_and_token, exp) => self.analyze_unary(&op_and_token.op, exp),
             Expr::Grouping(exp) => self.analyze_one(exp),
-            Expr::Literal((value, _)) => Ok(self.analyze_literal(value)),
+            Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
             Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
         }
     }
@@ -260,7 +260,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     Err(err) => errors.push(Error::Smntc(err)),
                 },
                 Stmt::VarStmt(id, var_type, expr) => {
-                    let error_line = get_token_line(expr);
+                    let error_line = expr.get_line();
 
                     match self.analyze_one(expr) {
                         Ok(t) => match (var_type, t.clone()) {
