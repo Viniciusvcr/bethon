@@ -105,13 +105,22 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(Expr::Variable(token, id))
-        } else if let Some(_token) = self.next_is(|tt| match tt {
+        } else if let Some((_, indent_token)) = self.next_is(|tt| match tt {
             Indent => Some(Indent),
             _ => None,
         }) {
-            let indent_line = self.current_line;
             self.find_deindent();
-            Err(ParserError::UnexpectedIdent(indent_line))
+            Err(ParserError::UnexpectedIdent(
+                indent_token.placement.line,
+                indent_token.placement.starts_at,
+                indent_token.placement.ends_at,
+            ))
+        } else if let Some((_, token)) = self.next_is(single(Else)) {
+            Err(ParserError::DanglingElse(
+                token.placement.line,
+                token.placement.starts_at,
+                token.placement.ends_at,
+            ))
         } else {
             Err(ParserError::MissingExpression(self.current_line))
         }
@@ -272,7 +281,6 @@ impl<'a> Parser<'a> {
         self.expression().map(Stmt::Assert)
     }
 
-    // FIXME indented elses cause infinite loops
     // TODO add multiple elif branches
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
         let condition = self.expression()?;
@@ -282,9 +290,22 @@ impl<'a> Parser<'a> {
 
         let mut then_branch: Vec<Stmt> = vec![];
         while self.consume(Deindent).is_err() {
+            if let Some((_, token)) = self.next_is(single(Else)) {
+                return Err(ParserError::IndentedElse(
+                    token.placement.line,
+                    token.placement.starts_at,
+                    token.placement.ends_at,
+                ));
+            } else if let Some((_, token)) = self.next_is(single(Indent)) {
+                return Err(ParserError::UnexpectedIdent(
+                    token.placement.line + 1,
+                    token.placement.starts_at,
+                    token.placement.ends_at,
+                ));
+            }
+
             then_branch.push(self.statement()?);
         }
-
         let mut else_branch: Option<Vec<Stmt>> = None;
         if self.next_is(single(Else)).is_some() {
             self.consume(Colon)?;
@@ -315,6 +336,7 @@ impl<'a> Parser<'a> {
         let mut errors: Vec<Error> = vec![];
 
         while !self.is_at_end() {
+            println!("Aqui {:?}", self.tokens.first());
             match self.statement() {
                 Ok(statement) => statements.push(statement),
                 Err(error) => {

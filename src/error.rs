@@ -38,8 +38,9 @@ pub enum ParserError {
     // line, missing_colon
     ExpectedColon(usize, usize),
     Expected(TokenType, usize),
-    UnexpectedIdent(usize),
-    IndentedElse(usize),
+    UnexpectedIdent(usize, usize, usize),
+    IndentedElse(usize, usize, usize),
+    DanglingElse(usize, usize, usize),
 }
 #[derive(Debug)]
 pub enum SmntcError {
@@ -381,21 +382,37 @@ impl Error {
                 format!("'{:#?}' expected", tt),
                 None,
             ),
-            ParserError::UnexpectedIdent(line) => self.syntax_error_template(
+            ParserError::UnexpectedIdent(line, starts_at, ends_at) => self.syntax_error_template(
                 source_vec,
                 *line,
-                None,
-                None,
+                Some(*starts_at),
+                Some(*ends_at),
                 "Indentation not expected here".to_string(),
-                None,
+                Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            ParserError::IndentedElse(line) => self.syntax_error_template(
+            ParserError::IndentedElse(line, starts_at, ends_at) => self.syntax_error_template(
                 source_vec,
                 *line,
-                None,
-                None,
+                Some(*starts_at),
+                Some(*ends_at),
                 "'else' needs to be unindented from 'if.".to_string(),
-                None,
+                Some(self.print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("try removing the indentation at the start"),
+                )),
+            ),
+            ParserError::DanglingElse(line, starts_at, ends_at) => self.syntax_error_template(
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "'else' needs to be binded to a 'if. Maybe the indentation is wrong?".to_string(),
+                Some(self.print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("this 'else' is not binded to a 'if."),
+                )),
             ),
         }
     }

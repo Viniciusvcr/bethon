@@ -125,7 +125,11 @@ impl<'a> Scanner<'a> {
 
     fn indent_to(&mut self, indent_level: i32) {
         match indent_level.cmp(&self.current_indent_level) {
-            std::cmp::Ordering::Greater => self.add_token(TokenType::Indent),
+            std::cmp::Ordering::Greater => {
+                for _ in 0..indent_level {
+                    self.add_token(TokenType::Indent);
+                }
+            }
             std::cmp::Ordering::Less => {
                 for _ in 0..self.current_indent_level - indent_level {
                     self.add_token(TokenType::Deindent);
@@ -136,12 +140,12 @@ impl<'a> Scanner<'a> {
     }
 
     fn newline(&mut self) -> Result<TokenType, ScannerError> {
-        self.current_line += 1;
         self.start_token = 0;
         self.end_token = 0;
 
         let line_indent_level = self.scan_indentation();
         self.indent_to(line_indent_level);
+        self.current_line += 1;
 
         self.current_indent_level = line_indent_level;
 
@@ -323,8 +327,9 @@ impl<'a> Scanner<'a> {
     pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, Error> {
         use TokenType::*;
 
-        let initial_indet_level = self.scan_indentation();
-        self.indent_to(initial_indet_level);
+        let initial_indent_level = self.scan_indentation();
+        self.indent_to(initial_indent_level);
+        self.current_indent_level = initial_indent_level;
         self.source_code = self.chars.as_str();
 
         loop {
@@ -341,6 +346,8 @@ impl<'a> Scanner<'a> {
             self.source_code = self.chars.as_str();
         }
 
+        let final_indent_level = self.scan_indentation();
+        self.indent_to(final_indent_level);
         self.add_token(Eof);
         Ok(&self.tokens)
     }
