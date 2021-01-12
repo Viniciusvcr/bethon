@@ -39,6 +39,7 @@ pub enum ParserError {
     ExpectedColon(usize, usize),
     Expected(TokenType, usize),
     UnexpectedIdent(usize, usize, usize),
+    UnexpectedDeident(usize),
     IndentedElse(usize, usize, usize),
     DanglingElse(usize, usize, usize),
 }
@@ -389,6 +390,14 @@ impl Error {
                 Some(*ends_at),
                 "Indentation not expected here".to_string(),
                 Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
+            ),
+            ParserError::UnexpectedDeident(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "Unexpected deindentation".to_string(),
+                None,
             ),
             ParserError::IndentedElse(line, starts_at, ends_at) => self.syntax_error_template(
                 source_vec,

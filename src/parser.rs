@@ -117,6 +117,10 @@ impl<'a> Parser<'a> {
                 token.placement.starts_at,
                 token.placement.ends_at,
             ))
+        } else if let Some((_, deindent_token)) = self.next_is(single(Deindent)) {
+            Err(ParserError::UnexpectedDeident(
+                deindent_token.placement.line,
+            ))
         } else {
             Err(ParserError::MissingExpression(self.current_line))
         }
@@ -277,41 +281,27 @@ impl<'a> Parser<'a> {
         self.expression().map(Stmt::Assert)
     }
 
+    fn block(&mut self) -> Result<Vec<Stmt>, ParserError> {
+        let mut stmts: Vec<Stmt> = vec![];
+
+        self.consume(Colon)?;
+        self.consume(Indent)?;
+        while self.next_is(single(Deindent)).is_none() && !self.is_at_end() {
+            stmts.push(self.statement()?);
+        }
+
+        Ok(stmts)
+    }
+
     // TODO add multiple elif branches
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
         let condition = self.expression()?;
 
-        self.consume(Colon)?;
-        self.consume(Indent)?;
+        let then_branch = self.block()?;
 
-        let mut then_branch: Vec<Stmt> = vec![];
-        while self.consume(Deindent).is_err() {
-            if let Some((_, token)) = self.next_is(single(Else)) {
-                return Err(ParserError::IndentedElse(
-                    token.placement.line,
-                    token.placement.starts_at,
-                    token.placement.ends_at,
-                ));
-            } else if let Some((_, token)) = self.next_is(single(Indent)) {
-                return Err(ParserError::UnexpectedIdent(
-                    token.placement.line + 1,
-                    token.placement.starts_at,
-                    token.placement.ends_at,
-                ));
-            }
-
-            then_branch.push(self.statement()?);
-        }
         let mut else_branch: Option<Vec<Stmt>> = None;
         if self.next_is(single(Else)).is_some() {
-            self.consume(Colon)?;
-            self.consume(Indent)?;
-            let mut else_clauses: Vec<Stmt> = vec![];
-            while self.consume(Deindent).is_err() {
-                else_clauses.push(self.statement()?);
-            }
-
-            else_branch = Some(else_clauses);
+            else_branch = Some(self.block()?);
         }
 
         Ok(Stmt::IfStmt(condition, then_branch, else_branch))
