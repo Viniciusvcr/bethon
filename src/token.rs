@@ -138,7 +138,7 @@ pub enum TokenType {
     Str,
 
     // Literals
-    Identifier(String),
+    Identifier,
     String(String),
     Number(NumberType),
 
@@ -204,6 +204,7 @@ impl Placement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub tt: TokenType,
+    pub lexeme: String,
     pub placement: Placement,
 }
 
@@ -216,8 +217,22 @@ impl Token {
         &self.placement
     }
 
-    pub fn new(tt: TokenType, line: usize, starts_at: usize, ends_at: usize) -> Self {
+    pub fn lexeme(&self) -> String {
+        self.lexeme.clone()
+    }
+
+    pub fn new(
+        tt: TokenType,
+        lexeme: String,
+        line: usize,
+        starts_at: usize,
+        ends_at: usize,
+    ) -> Self {
         let placement = Placement::new(line, starts_at, ends_at);
-        Self { tt, placement }
+        Self {
+            tt,
+            lexeme,
+            placement,
+        }
     }
 }

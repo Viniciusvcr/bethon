@@ -100,11 +100,10 @@ impl<'a> Parser<'a> {
             let expr = self.expression()?;
 
             Ok(Expr::LogicNot((expr.into(), token)))
-        } else if let Some((id, token)) = self.next_is(|tt| match tt {
-            Identifier(id) => Some(id.clone()),
-            _ => None,
-        }) {
-            Ok(Expr::Variable(token, id))
+        } else if let Some((_, token)) = self.next_is(single(Identifier)) {
+            let var_id = token.lexeme();
+
+            Ok(Expr::Variable(token, var_id))
         } else if let Some((_, indent_token)) = self.next_is(|tt| match tt {
             Indent => Some(Indent),
             _ => None,
@@ -336,7 +335,6 @@ impl<'a> Parser<'a> {
         let mut errors: Vec<Error> = vec![];
 
         while !self.is_at_end() {
-            println!("Aqui {:?}", self.tokens.first());
             match self.statement() {
                 Ok(statement) => statements.push(statement),
                 Err(error) => {

@@ -77,9 +77,10 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_token(&mut self, tt: TokenType) {
+    fn add_token(&mut self, tt: TokenType, lexeme: String) {
         self.tokens.push(Token::new(
             tt,
+            lexeme,
             self.current_line,
             self.start_token,
             self.end_token,
@@ -127,12 +128,12 @@ impl<'a> Scanner<'a> {
         match indent_level.cmp(&self.current_indent_level) {
             std::cmp::Ordering::Greater => {
                 for _ in 0..indent_level {
-                    self.add_token(TokenType::Indent);
+                    self.add_token(TokenType::Indent, self.consumed().to_string());
                 }
             }
             std::cmp::Ordering::Less => {
                 for _ in 0..self.current_indent_level - indent_level {
-                    self.add_token(TokenType::Deindent);
+                    self.add_token(TokenType::Deindent, self.consumed().to_string());
                 }
             }
             std::cmp::Ordering::Equal => (),
@@ -237,8 +238,7 @@ impl<'a> Scanner<'a> {
         self.take_while(is_alphanumeric);
 
         let text = self.consumed();
-        self.get_keyword(&text)
-            .unwrap_or_else(|| TokenType::Identifier(String::from(text)))
+        self.get_keyword(&text).unwrap_or(TokenType::Identifier)
     }
 
     fn match_or_else(&mut self, expected: char, tt: TokenType, default: TokenType) -> TokenType {
@@ -338,7 +338,7 @@ impl<'a> Scanner<'a> {
             if let Some(token) = self.scan_token()? {
                 match token {
                     Newline | Blank | Comment => (),
-                    _ => self.add_token(token),
+                    _ => self.add_token(token, self.consumed().to_string()),
                 }
             } else {
                 break;
@@ -348,7 +348,7 @@ impl<'a> Scanner<'a> {
 
         let final_indent_level = self.scan_indentation();
         self.indent_to(final_indent_level);
-        self.add_token(Eof);
+        self.add_token(Eof, "EOF".to_string());
         Ok(&self.tokens)
     }
 }
