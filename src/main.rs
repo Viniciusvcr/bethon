@@ -17,7 +17,7 @@ fn run(filename: &str, source_code: &str) {
 
             match parser.parse() {
                 Ok(stmts) => {
-                    let mut pass = SemanticAnalyzer::new();
+                    let mut pass = SemanticAnalyzer::default();
 
                     if let Err(errors) = pass.analyze(&stmts) {
                         let code_vec = create_code_vec(source_code);

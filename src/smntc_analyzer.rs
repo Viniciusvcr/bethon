@@ -36,6 +36,12 @@ pub struct SemanticAnalyzer<'a> {
     symbol_table: Vec<HashMap<&'a str, Type>>,
 }
 
+impl<'a> Default for SemanticAnalyzer<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 type SemanticAnalyzerResult = Result<Type, SmntcError>;
 
 impl<'a> SemanticAnalyzer<'a> {
