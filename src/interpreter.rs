@@ -11,7 +11,7 @@ type InterpreterResult = std::result::Result<Value, RuntimeError>;
 
 #[derive(Default)]
 pub struct Interpreter {
-    global_environment: Environment,
+    environment: Environment,
 }
 
 impl Interpreter {
@@ -205,7 +205,7 @@ impl Interpreter {
     }
 
     fn eval_var_expr(&self, id: &str) -> Value {
-        self.global_environment.get(id).unwrap().clone()
+        self.environment.get(id).unwrap()
     }
 
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
@@ -230,8 +230,7 @@ impl Interpreter {
     fn eval_var_stmt(&mut self, identifier: &str, expr: &Expr) -> Result<(), RuntimeError> {
         let value = self.eval_expr(expr)?;
 
-        self.global_environment
-            .insert(identifier.to_string(), value);
+        self.environment.define(identifier.to_string(), value);
 
         Ok(())
     }
@@ -307,7 +306,7 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, stmts: &[Stmt]) -> Option<Error> {
-        self.global_environment = Environment::default();
+        self.environment = Environment::default();
 
         for stmt in stmts {
             if let Some(evaluation) = self.eval(stmt) {
@@ -315,7 +314,7 @@ impl Interpreter {
             }
         }
 
-        println!("{:?}", self.global_environment);
+        println!("{:?}", self.environment);
 
         None
     }
