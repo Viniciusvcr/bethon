@@ -31,22 +31,31 @@ impl std::fmt::Display for Type {
 }
 
 // The semantic analyzer
-#[derive(Default)]
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>,
-    symbol_table: HashMap<&'a str, Type>,
+    symbol_table: Vec<HashMap<&'a str, Type>>,
 }
 
 type SemanticAnalyzerResult = Result<Type, SmntcError>;
 
 impl<'a> SemanticAnalyzer<'a> {
+    #[allow(dead_code)]
+    fn with_new_env<T>(&mut self, fun: impl Fn(&mut Self) -> T) -> T {
+        self.symbol_table.push(HashMap::default());
+        let result = fun(self);
+        self.symbol_table.pop();
+        result
+    }
+
     fn insert(&mut self, expr: &'a Expr, t: Type) {
         self.types.insert(expr, t);
     }
 
     fn insert_var(&mut self, id: &'a str, t: Type) -> Option<()> {
-        if !self.symbol_table.contains_key(id) {
-            self.symbol_table.insert(id, t);
+        let env = self.symbol_table.last_mut().unwrap();
+
+        if !env.contains_key(id) {
+            env.insert(id, t);
             Some(())
         } else {
             None
@@ -54,7 +63,13 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn get_var(&mut self, id: &str) -> Option<&Type> {
-        self.symbol_table.get(id)
+        for env in self.symbol_table.iter().rev() {
+            if let Some(t) = env.get(id) {
+                return Some(t);
+            }
+        }
+
+        None
     }
 
     fn analyze_bin_arith(&mut self, op: &BinaryOp, a: &Expr, b: &Expr) -> SemanticAnalyzerResult {
@@ -352,12 +367,19 @@ impl<'a> SemanticAnalyzer<'a> {
         }
 
         println!("Types: {:?}\n", self.types);
-        println!("Symbol Table: {:?}\n", self.symbol_table);
+        println!("Symbol Table: {:#?}\n", self.symbol_table);
 
         if errors.is_empty() {
             Ok(())
         } else {
             Err(errors)
+        }
+    }
+
+    pub fn new() -> Self {
+        SemanticAnalyzer {
+            types: HashMap::default(),
+            symbol_table: vec![HashMap::default()],
         }
     }
 }
