@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
             let new_literal = OpWithToken::new(value, token);
 
             Ok(Expr::Literal(new_literal))
-        } else if let Some((_, _token)) = self.next_is(single(LeftParen)) {
+        } else if self.next_is(single(LeftParen)).is_some() {
             let expr = self.expression()?;
             self.consume(RightParen)?;
 
@@ -104,10 +104,7 @@ impl<'a> Parser<'a> {
             let var_id = token.lexeme();
 
             Ok(Expr::Variable(token, var_id))
-        } else if let Some((_, indent_token)) = self.next_is(|tt| match tt {
-            Indent => Some(Indent),
-            _ => None,
-        }) {
+        } else if let Some((_, indent_token)) = self.next_is(single(Indent)) {
             self.find_deindent();
             Err(ParserError::UnexpectedIdent(
                 indent_token.placement.line,
