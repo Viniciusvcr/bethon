@@ -132,6 +132,7 @@ pub enum Expr {
     Grouping(Box<Expr>),
     Literal(OpWithToken<Value>),
     Variable(Token, String),
+    Call(Box<Expr>, Vec<Expr>),
 }
 
 impl Hash for &Expr {
@@ -154,6 +155,7 @@ impl Expr {
             Expr::Grouping(expr) => expr.get_token(),
             Expr::Literal(op_and_token) => &op_and_token.token,
             Expr::Variable(token, _) => &token,
+            Expr::Call(callee, _) => callee.get_token(),
         }
     }
 
@@ -181,6 +183,13 @@ impl std::fmt::Display for Expr {
             Expr::Grouping(expr) => write!(f, "({})", expr),
             Expr::Literal(value_and_token) => write!(f, "{}", value_and_token.op),
             Expr::Variable(_token, id) => write!(f, "{}", id),
+            Expr::Call(callee, arguments) => {
+                write!(f, "{}(", callee)?;
+                for arg in arguments {
+                    write!(f, "{}", arg)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

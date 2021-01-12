@@ -126,6 +126,40 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn finish_call(&mut self, callee: Expr) -> ParserResult {
+        let max_function_args = 255;
+        let mut arguments: Vec<Expr> = vec![];
+
+        if self.next_is(single(RightParen)).is_none() {
+            arguments.push(self.expression()?); // First argument
+            while self.next_is(single(Comma)).is_some() {
+                if arguments.len() >= max_function_args {
+                    return Err(ParserError::MaxFuntionArgsReached(callee.get_line()));
+                }
+
+                arguments.push(self.expression()?);
+            }
+
+            self.consume(RightParen)?;
+        }
+
+        Ok(Expr::Call(callee.into(), arguments))
+    }
+
+    fn call(&mut self) -> ParserResult {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.next_is(single(LeftParen)).is_some() {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn unary(&mut self) -> ParserResult {
         if let Some((op, token)) = self.next_is(|tt| match tt {
             Minus => Some(UnaryOp::Minus),
@@ -137,7 +171,7 @@ impl<'a> Parser<'a> {
                 self.unary()?.into(),
             ))
         } else {
-            self.primary()
+            self.call()
         }
     }
 

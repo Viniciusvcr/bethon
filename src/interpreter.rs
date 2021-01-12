@@ -208,6 +208,11 @@ impl Interpreter {
         self.environment.get(id).unwrap()
     }
 
+    // TODO implement eval_call_expr
+    fn eval_call_expr(&self, callee: &Expr, args: &Vec<Expr>) -> InterpreterResult {
+        todo!()
+    }
+
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
         match expr {
             Expr::BinaryArith(left, op_and_token, right) => {
@@ -224,6 +229,7 @@ impl Interpreter {
             Expr::Grouping(new_expr) => self.eval_expr(new_expr),
             Expr::Literal(value_and_token) => Ok(value_and_token.clone().op),
             Expr::Variable(_token, id) => Ok(self.eval_var_expr(id)),
+            Expr::Call(callee, args) => self.eval_call_expr(callee, args),
         }
     }
 

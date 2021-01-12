@@ -259,6 +259,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
             Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
+            Expr::Call(_, _) => Ok(Type::Null), // TODO implement semantics of Call
         }
     }
 

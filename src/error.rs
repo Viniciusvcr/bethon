@@ -42,6 +42,7 @@ pub enum ParserError {
     UnexpectedDeident(usize),
     IndentedElse(usize, usize, usize),
     DanglingElse(usize, usize, usize),
+    MaxFuntionArgsReached(usize),
 }
 #[derive(Debug)]
 pub enum SmntcError {
@@ -422,6 +423,14 @@ impl Error {
                     *ends_at,
                     Some("this 'else' is not binded to a 'if."),
                 )),
+            ),
+            ParserError::MaxFuntionArgsReached(line) => self.syntax_error_template(
+                source_vec,
+                *line,
+                None,
+                None,
+                "A function can have 255 arguments maximum".to_string(),
+                None,
             ),
         }
     }
