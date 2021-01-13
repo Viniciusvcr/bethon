@@ -20,6 +20,7 @@ pub enum Type {
     Boolean(bool),
     Null,
     Str(String),
+    Fun,
 }
 
 impl std::fmt::Display for Type {
@@ -30,6 +31,7 @@ impl std::fmt::Display for Type {
             Type::Float(_) => write!(f, "float"),
             Type::Boolean(_) => write!(f, "bool"),
             Type::Str(_) => write!(f, "str"),
+            Type::Fun => write!(f, "<function> -> Null",),
         }
     }
 }
@@ -242,7 +244,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
             Value::Number(NumberType::Float(x)) => Type::Float(*x),
             Value::Str(x) => Type::Str(x.to_string()),
-            Value::Fun(_) => Type::Null, // todo analyze_literal match Value::Fun
+            Value::Fun(_) => Type::Fun, // todo analyze_literal match Value::Fun
         }
     }
 
@@ -251,6 +253,20 @@ impl<'a> SemanticAnalyzer<'a> {
             Ok(t.clone())
         } else {
             Err(SmntcError::VariableNotDeclared(line, id.to_string()))
+        }
+    }
+
+    fn analyze_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> SemanticAnalyzerResult {
+        let ret_type = self.analyze_one(callee)?;
+
+        if ret_type == Type::Fun {
+            for arg in args {
+                self.analyze_one(arg)?;
+            }
+
+            Ok(ret_type)
+        } else {
+            Err(SmntcError::NotCallable)
         }
     }
 
@@ -264,7 +280,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
             Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
-            Expr::Call(_, _) => Ok(Type::Null), // todo implement semantics of Call
+            Expr::Call(callee, args) => self.analyze_call_expr(callee, args),
         }
     }
 

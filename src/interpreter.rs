@@ -80,7 +80,7 @@ impl Interpreter {
     }
 
     fn eval_binary_arith_expr(
-        &self,
+        &mut self,
         left: &Expr,
         op_and_token: &OpWithToken<BinaryOp>,
         right: &Expr,
@@ -104,7 +104,7 @@ impl Interpreter {
         }
     }
 
-    fn eval_logic_not(&self, expr: &Expr) -> InterpreterResult {
+    fn eval_logic_not(&mut self, expr: &Expr) -> InterpreterResult {
         let value = self.eval_expr(expr)?;
 
         let evaluated_value = match value {
@@ -116,7 +116,7 @@ impl Interpreter {
     }
 
     fn eval_unary_expr(
-        &self,
+        &mut self,
         op_and_token: &OpWithToken<UnaryOp>,
         right: &Expr,
     ) -> InterpreterResult {
@@ -164,7 +164,7 @@ impl Interpreter {
     }
 
     fn eval_binary_comp_expr(
-        &self,
+        &mut self,
         left: &Expr,
         op_and_token: &OpWithToken<BinaryCompOp>,
         right: &Expr,
@@ -192,7 +192,7 @@ impl Interpreter {
     }
 
     fn eval_binary_logic_expr(
-        &self,
+        &mut self,
         left: &Expr,
         op_and_token: &OpWithToken<BinaryLogicOp>,
         right: &Expr,
@@ -208,11 +208,21 @@ impl Interpreter {
         self.environment.get(id).unwrap()
     }
 
-    fn eval_call_expr(&self, _callee: &Expr, _args: &[Expr]) -> InterpreterResult {
-        todo!("Implement evall_call_expr")
+    fn eval_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> InterpreterResult {
+        if let Value::Fun(fun) = self.eval_expr(callee)? {
+            let mut eval_args = vec![];
+
+            for expr in args {
+                eval_args.push(self.eval_expr(expr)?);
+            }
+
+            fun.call(self, &eval_args)
+        } else {
+            Err(RuntimeError::NotCallable)
+        }
     }
 
-    fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
+    fn eval_expr(&mut self, expr: &Expr) -> InterpreterResult {
         match expr {
             Expr::BinaryArith(left, op_and_token, right) => {
                 self.eval_binary_arith_expr(left, op_and_token, right)
@@ -241,7 +251,7 @@ impl Interpreter {
     }
 
     // todo Change 'val' to the result of the expression
-    fn assert_eval(&self, expr: &Expr) -> Option<Error> {
+    fn assert_eval(&mut self, expr: &Expr) -> Option<Error> {
         match expr {
             Expr::BinaryComp(left, op_and_token, right) => {
                 let value = self.eval_binary_comp_expr(left, op_and_token, right);

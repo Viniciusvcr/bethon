@@ -23,6 +23,7 @@ pub enum RuntimeError {
     AssertionFailed(usize),
     CompAssertionFailed(usize, String, String, BinaryCompOp, Value),
     DivisionByZero(usize, usize, usize),
+    NotCallable,
 }
 
 #[derive(Debug)]
@@ -56,6 +57,7 @@ pub enum SmntcError {
     VariableAlreadyDeclared(usize, String),
     IncompatibleDeclaration(usize, VarType, Type),
     IfNotLogicalCondition,
+    NotCallable,
 }
 
 #[allow(dead_code)]
@@ -268,7 +270,8 @@ impl Error {
             SmntcError::IncompatibleDeclaration(line, expected, found) => format!("{}Incompatible assignment error on line {}\n{}\n{} '{}' \n{}\n{}{}Note: Declared type is {}'{}'{}, but the assigned expression evaluates to {}'{}'{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::White, Color::Yellow, expected, Color::White, Color::Yellow, found, Color::Reset),
             SmntcError::VariableNotDeclared(line, var_name) => format!("{}Variable {}'{}'{} not found in this scope:\n{}\n{} '{}'\n{}\n{}{} Note: The attempt to read the undeclared variable is on line {}{}", Color::White, Color::Yellow, var_name, Color::White, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, line, Color::Reset),
             SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            SmntcError::IfNotLogicalCondition => "IfNotLogicalCondition".to_string()
+            SmntcError::IfNotLogicalCondition => "IfNotLogicalCondition".to_string(), // todo write better error
+            SmntcError::NotCallable => "Not callable error (Semantic)".to_string() // todo write better error
         }
     }
 
@@ -279,6 +282,7 @@ impl Error {
             AssertionFailed(line) => format!("Assertion error on line {}:\n{}\n{} '{}'", line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap()),
             CompAssertionFailed(line, left, right, op,  val) => format!("Assertion error on line {}:\n{}\n{} '{}'\n{}\n{} Assertion of the comparison {}'{} {} {}'{}\n{} was expected to be {}True{}, but evaluation resulted {}{}{}", line, self.blue_pipe(), self.blue_pipe(), source_vec.get(line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, left, op, right, Color::Reset, self.blue_pipe(), Color::Yellow, Color::Reset, Color::Yellow, val, Color::Reset),
             DivisionByZero(line, token_starts, token_ends) => format!("{}Runtime error caused by line {}:\n{}\n{} '{}'\n{} {}\n{} {}Reason: Attempting to divide by zero!{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line -1).unwrap(), self.blue_pipe(), self.print_marker(*token_starts, *token_ends, None), self.blue_pipe(), Color::Yellow, Color::Reset),
+            RuntimeError::NotCallable => "Not callable error".to_string()
         }
     }
 
