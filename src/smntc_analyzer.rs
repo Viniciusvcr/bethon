@@ -260,9 +260,11 @@ impl<'a> SemanticAnalyzer<'a> {
         let ret_type = self.analyze_one(callee)?;
 
         if ret_type == Type::Fun {
+            self.symbol_table.push(HashMap::default());
             for arg in args {
                 self.analyze_one(arg)?;
             }
+            self.symbol_table.pop();
 
             Ok(ret_type)
         } else {
@@ -391,11 +393,32 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => errors.push(Error::Smntc(err)),
                     };
                 }
+                // todo semantics of a function
+                Stmt::Function(id_token, params, body, _) => {
+                    if self.insert_var(&id_token.lexeme, Type::Fun).is_none() {
+                        errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                            id_token.placement.line,
+                            id_token.lexeme(),
+                        )));
+                    } else {
+                        self.symbol_table.push(HashMap::default());
+                        for token in params {
+                            if self.insert_var(&token.lexeme, Type::Null).is_none() {
+                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                    token.placement.line,
+                                    token.lexeme(),
+                                )));
+                            }
+                        }
+                        self.analyze(&body)?;
+                        self.symbol_table.pop();
+                    }
+                }
             }
         }
 
-        println!("Types: {:?}\n", self.types);
-        println!("Symbol Table: {:#?}\n", self.symbol_table);
+        println!("Semantic Types: {:?}\n", self.types);
+        println!("Semantic Symbol Table: {:#?}\n", self.symbol_table);
 
         if errors.is_empty() {
             Ok(())

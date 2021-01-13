@@ -19,6 +19,7 @@ pub enum ScannerError {
     MismatchedIdent(usize, usize, usize),
 }
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum RuntimeError {
     AssertionFailed(usize),
     CompAssertionFailed(usize, String, String, BinaryCompOp, Value),
@@ -44,6 +45,7 @@ pub enum ParserError {
     IndentedElse(usize, usize, usize),
     DanglingElse(usize, usize, usize),
     MaxFuntionArgsReached(usize),
+    MissingFunctionReturnType,
 }
 #[derive(Debug)]
 pub enum SmntcError {
@@ -436,6 +438,10 @@ impl Error {
                 "A function can have 255 arguments maximum".to_string(),
                 None,
             ),
+            // todo write error
+            ParserError::MissingFunctionReturnType => {
+                "Missing function return type error".to_string()
+            }
         }
     }
 }

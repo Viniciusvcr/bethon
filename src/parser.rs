@@ -51,11 +51,11 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn consume(&mut self, tt: TokenType) -> Result<(), ParserError> {
+    fn consume(&mut self, tt: TokenType) -> Result<Token, ParserError> {
         let current_line = self.current_line;
 
-        if self.next_is(single(tt.clone())).is_some() {
-            Ok(())
+        if let Some((_, token)) = self.next_is(single(tt.clone())) {
+            Ok(token)
         } else {
             Err(ParserError::Expected(tt, current_line))
         }
@@ -341,11 +341,48 @@ impl<'a> Parser<'a> {
         Ok(Stmt::IfStmt(condition, then_branch, else_branch))
     }
 
+    fn function(&mut self) -> Result<Stmt, ParserError> {
+        let fun_id = self.consume(Identifier)?;
+        self.consume(LeftParen)?;
+
+        let mut params = vec![];
+        if self.next_is(single(RightParen)).is_none() {
+            // FIXME params need types
+            params.push(self.consume(Identifier)?);
+            while self.next_is(single(Comma)).is_some() {
+                params.push(self.consume(Identifier)?);
+            }
+            self.consume(RightParen)?;
+        }
+
+        let mut ret_type = VarType::PythonNone;
+        if self.next_is(single(Arrow)).is_some() {
+            if let Some((var_type, _)) = self.next_is(|tt| match tt {
+                PythonNone => Some(VarType::PythonNone),
+                Int => Some(VarType::Integer),
+                Float => Some(VarType::Float),
+                Str => Some(VarType::Str),
+                Bool => Some(VarType::Boolean),
+                _ => None,
+            }) {
+                ret_type = var_type;
+            } else if self.next_is(single(Colon)).is_some() {
+                return Err(ParserError::MissingFunctionReturnType);
+            }
+        }
+
+        let fun_body = self.block()?;
+
+        Ok(Stmt::Function(fun_id, params, fun_body, ret_type))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
         } else if self.consume(If).is_ok() {
             self.if_statement()
+        } else if self.consume(Def).is_ok() {
+            self.function()
         } else {
             self.expression_statement()
         }

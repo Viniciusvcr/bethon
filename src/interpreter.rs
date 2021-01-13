@@ -5,6 +5,7 @@ use crate::{
     stmt::*,
     token::number_type::NumberType,
 };
+use callable::Callable;
 use num_traits::ToPrimitive;
 
 pub type InterpreterResult = std::result::Result<Value, RuntimeError>;
@@ -218,7 +219,7 @@ impl Interpreter {
 
             fun.call(self, &eval_args)
         } else {
-            Err(RuntimeError::NotCallable)
+            panic!("not callable")
         }
     }
 
@@ -251,72 +252,97 @@ impl Interpreter {
     }
 
     // todo Change 'val' to the result of the expression
-    fn assert_eval(&mut self, expr: &Expr) -> Option<Error> {
+    fn assert_eval(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
         match expr {
             Expr::BinaryComp(left, op_and_token, right) => {
                 let value = self.eval_binary_comp_expr(left, op_and_token, right);
 
                 match value {
-                    Ok(val) if val != Value::Bool(true) => {
-                        Some(Error::Runtime(RuntimeError::CompAssertionFailed(
-                            op_and_token.get_token_line(),
-                            format!("{}", left),
-                            format!("{}", right),
-                            op_and_token.op,
-                            val,
-                        )))
-                    }
-                    Err(error) => Some(Error::Runtime(error)),
-                    _ => None,
+                    Ok(val) if val != Value::Bool(true) => Err(RuntimeError::CompAssertionFailed(
+                        op_and_token.get_token_line(),
+                        format!("{}", left),
+                        format!("{}", right),
+                        op_and_token.op,
+                        val,
+                    )),
+                    Err(error) => Err(error),
+                    _ => Ok(()),
                 }
             }
             _ => match self.eval_expr(expr) {
-                Ok(val) if val != Value::Bool(true) => Some(Error::Runtime(
-                    RuntimeError::AssertionFailed(expr.get_line()),
-                )),
-                Err(error) => Some(Error::Runtime(error)),
-                _ => None,
+                Ok(val) if val != Value::Bool(true) => {
+                    Err(RuntimeError::AssertionFailed(expr.get_line()))
+                }
+                Err(error) => Err(error),
+                _ => Ok(()),
             },
         }
     }
 
-    fn eval(&mut self, stmt: &Stmt) -> Option<Error> {
+    pub fn eval_func(&mut self, fun: &Callable, args: &[Value]) -> InterpreterResult {
+        let old_env = std::mem::replace(&mut self.environment, fun.env.clone());
+
+        self.environment.push();
+        for (param, value) in fun.params.iter().zip(args) {
+            self.environment.define(param.lexeme(), value.clone());
+        }
+
+        for stmt in &fun.body {
+            self.eval(stmt)?;
+        }
+
+        self.environment.pop();
+        self.environment = old_env;
+
+        Ok(Value::PythonNone)
+    }
+
+    fn eval(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Assert(expr) => self.assert_eval(expr),
             Stmt::ExprStmt(expr) => match self.eval_expr(expr) {
-                Ok(_value) => None,
-                Err(error) => Some(Error::Runtime(error)),
+                Ok(_value) => Ok(()),
+                Err(error) => Err(error),
             },
             Stmt::VarStmt(identifier, _var_type, expr) => {
                 match self.eval_var_stmt(identifier, expr) {
-                    Ok(()) => None,
-                    Err(error) => Some(Error::Runtime(error)),
+                    Ok(()) => Ok(()),
+                    Err(error) => Err(error),
                 }
             }
             Stmt::IfStmt(condition, then_branch, else_branch) => match self.eval_expr(condition) {
                 Ok(evalued_condition) => {
                     if evalued_condition == Value::Bool(true) {
                         for then_stmt in then_branch {
-                            if let Some(error) = self.eval(then_stmt) {
-                                return Some(error);
-                            }
+                            self.eval(then_stmt)?;
                         }
 
-                        None
+                        Ok(())
                     } else if else_branch.is_some() {
                         for else_stmt in else_branch.as_ref().unwrap() {
-                            if let Some(error) = self.eval(else_stmt) {
-                                return Some(error);
-                            }
+                            self.eval(else_stmt)?;
                         }
 
-                        None
+                        Ok(())
                     } else {
-                        None
+                        Ok(())
                     }
                 }
-                Err(error) => Some(Error::Runtime(error)),
+                Err(error) => Err(error),
             },
+            Stmt::Function(fun_id, params, fun_body, _ret_type) => {
+                self.environment.define(
+                    fun_id.lexeme(),
+                    Value::Fun(Callable::new(
+                        self.environment.clone(),
+                        fun_id.clone(),
+                        params.clone(),
+                        fun_body.clone(),
+                    )),
+                );
+
+                Ok(())
+            }
         }
     }
 
@@ -324,12 +350,10 @@ impl Interpreter {
         self.environment = Environment::default();
 
         for stmt in stmts {
-            if let Some(evaluation) = self.eval(stmt) {
-                return Some(evaluation);
+            if let Err(evaluation) = self.eval(stmt) {
+                return Some(Error::Runtime(evaluation));
             }
         }
-
-        println!("{:?}", self.environment);
 
         None
     }

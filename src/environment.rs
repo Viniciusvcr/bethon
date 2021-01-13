@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(PartialEq, Clone, Default, Debug)]
 pub struct Environment {
-    env: Rc<Env>,
+    pub env: Rc<Env>,
 }
 
 impl Environment {
@@ -35,9 +35,9 @@ impl Environment {
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
-struct Env {
+pub struct Env {
     previous: Option<Rc<Self>>,
-    current: RefCell<HashMap<String, Value>>,
+    pub current: RefCell<HashMap<String, Value>>,
 }
 
 impl Env {

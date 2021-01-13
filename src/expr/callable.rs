@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::fmt::Debug;
 
 use crate::{
     environment::Environment,
@@ -10,14 +10,14 @@ use crate::{
 use super::Value;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Callable {
-    env: Environment,
-    id_token: Token,
-    params: Vec<Token>,
-    body: Rc<Stmt>,
+    pub env: Environment,
+    pub id_token: Token,
+    pub params: Vec<Token>,
+    pub body: Vec<Stmt>,
 }
 
 impl Callable {
-    pub fn new(env: Environment, id_token: Token, params: Vec<Token>, body: Rc<Stmt>) -> Self {
+    pub fn new(env: Environment, id_token: Token, params: Vec<Token>, body: Vec<Stmt>) -> Self {
         Self {
             env,
             id_token,
@@ -26,9 +26,8 @@ impl Callable {
         }
     }
 
-    pub fn call(&self, _interpreter: &mut Interpreter, _args: &[Value]) -> InterpreterResult {
-        todo!("Implement Callable::call")
-        // interpreter.eval_func(self, args)
+    pub fn call(&self, interpreter: &mut Interpreter, args: &[Value]) -> InterpreterResult {
+        interpreter.eval_func(self, args)
     }
 
     pub fn arity(&self) -> usize {

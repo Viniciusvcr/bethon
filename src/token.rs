@@ -10,6 +10,7 @@ pub enum VarType {
     Float,
     Str,
     PythonNone,
+    Function,
 }
 
 impl std::fmt::Display for VarType {
@@ -20,6 +21,7 @@ impl std::fmt::Display for VarType {
             VarType::Float => write!(f, "float"),
             VarType::Str => write!(f, "str"),
             VarType::PythonNone => write!(f, "None"),
+            VarType::Function => write!(f, "func"),
         }
     }
 }
