@@ -4,7 +4,7 @@ use crate::{
     environment::Environment,
     interpreter::{Interpreter, InterpreterResult},
     stmt::Stmt,
-    token::Token,
+    token::{Token, VarType},
 };
 
 use super::Value;
@@ -14,15 +14,23 @@ pub struct Callable {
     pub id_token: Token,
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,
+    pub ret_type: VarType,
 }
 
 impl Callable {
-    pub fn new(env: Environment, id_token: Token, params: Vec<Token>, body: Vec<Stmt>) -> Self {
+    pub fn new(
+        env: Environment,
+        id_token: Token,
+        params: Vec<Token>,
+        body: Vec<Stmt>,
+        ret_type: VarType,
+    ) -> Self {
         Self {
             env,
             id_token,
             params,
             body,
+            ret_type,
         }
     }
 

@@ -330,7 +330,7 @@ impl Interpreter {
                 }
                 Err(error) => Err(error),
             },
-            Stmt::Function(fun_id, params, fun_body, _ret_type) => {
+            Stmt::Function(fun_id, params, fun_body, ret_type) => {
                 self.environment.define(
                     fun_id.lexeme(),
                     Value::Fun(Callable::new(
@@ -338,6 +338,7 @@ impl Interpreter {
                         fun_id.clone(),
                         params.clone(),
                         fun_body.clone(),
+                        ret_type.clone(),
                     )),
                 );
 

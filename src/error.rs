@@ -6,7 +6,7 @@ use crate::{
     smntc_analyzer::Type,
     token::{token_type::TokenType, VarType},
 };
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScannerError {
     // Line, line_start, line_char, reason
     InvalidToken(usize, usize, usize, String),
@@ -18,7 +18,7 @@ pub enum ScannerError {
     UnterminatedString(usize),
     MismatchedIdent(usize, usize, usize),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum RuntimeError {
     AssertionFailed(usize),
@@ -27,7 +27,7 @@ pub enum RuntimeError {
     NotCallable,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParserError {
     // Line
     MissingRightParen(usize),
@@ -47,7 +47,7 @@ pub enum ParserError {
     MaxFuntionArgsReached(usize),
     MissingFunctionReturnType,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SmntcError {
     MismatchedTypes(Type, Type, Option<String>), // Expected, Found, Note
     IncompatibleBinArith(BinaryOp, Type, Type),  // Operation, Left, Right
@@ -85,7 +85,7 @@ impl std::fmt::Display for Color {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     UnexpectedFail,
     Input(String, String),

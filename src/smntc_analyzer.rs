@@ -40,6 +40,7 @@ impl std::fmt::Display for Type {
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>,
     symbol_table: Vec<HashMap<&'a str, Type>>,
+    errors: Vec<Error>,
 }
 
 impl<'a> Default for SemanticAnalyzer<'a> {
@@ -287,22 +288,20 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Vec<Error>> {
-        let mut errors: Vec<Error> = vec![];
-
         for stmt in stmts {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
                     Ok(Type::Boolean(_)) => {}
-                    Ok(t) => errors.push(Error::Smntc(SmntcError::MismatchedTypes(
+                    Ok(t) => self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
                         Type::Boolean(true),
                         t,
                         None,
                     ))),
-                    Err(err) => errors.push(Error::Smntc(err)),
+                    Err(err) => self.errors.push(Error::Smntc(err)),
                 },
                 Stmt::ExprStmt(exp) => match self.analyze_one(exp) {
                     Ok(t) => self.insert(&exp, t),
-                    Err(err) => errors.push(Error::Smntc(err)),
+                    Err(err) => self.errors.push(Error::Smntc(err)),
                 },
                 Stmt::VarStmt(id, var_type, expr) => {
                     let error_line = expr.get_line();
@@ -311,61 +310,74 @@ impl<'a> SemanticAnalyzer<'a> {
                         Ok(t) => match (var_type, t.clone()) {
                             (Some(VarType::Boolean), Type::Boolean(_)) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (Some(VarType::Integer), Type::Integer(_)) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (Some(VarType::Float), Type::Float(_)) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (Some(VarType::Str), Type::Str(_)) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (Some(VarType::PythonNone), Type::Null) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (None, _) => {
                                 if self.insert_var(id, t).is_none() {
-                                    errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        id.to_string(),
-                                    )));
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            error_line,
+                                            id.to_string(),
+                                        ),
+                                    ));
                                 }
                             }
                             (Some(expected), found) => {
-                                errors.push(Error::Smntc(SmntcError::IncompatibleDeclaration(
-                                    error_line,
-                                    expected.clone(),
-                                    found,
-                                )))
+                                self.errors
+                                    .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
+                                        error_line,
+                                        expected.clone(),
+                                        found,
+                                    )))
                             }
                         },
-                        Err(err) => errors.push(Error::Smntc(err)),
+                        Err(err) => self.errors.push(Error::Smntc(err)),
                     }
                 }
                 Stmt::IfStmt(condition, then_branch, else_branch) => {
@@ -376,7 +388,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             if x {
                                 if let Err(then_branch_errors) = self.analyze(then_branch) {
                                     for error in then_branch_errors {
-                                        errors.push(error)
+                                        self.errors.push(error)
                                     }
                                 }
                             } else if else_branch.is_some() {
@@ -384,34 +396,44 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.analyze(else_branch.as_ref().unwrap())
                                 {
                                     for error in else_branch_errors {
-                                        errors.push(error)
+                                        self.errors.push(error)
                                     }
                                 }
                             }
                         }
-                        Ok(_) => errors.push(Error::Smntc(SmntcError::IfNotLogicalCondition)),
-                        Err(err) => errors.push(Error::Smntc(err)),
+                        Ok(_) => self
+                            .errors
+                            .push(Error::Smntc(SmntcError::IfNotLogicalCondition)),
+                        Err(err) => self.errors.push(Error::Smntc(err)),
                     };
                 }
                 // todo semantics of a function
                 Stmt::Function(id_token, params, body, _) => {
                     if self.insert_var(&id_token.lexeme, Type::Fun).is_none() {
-                        errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                            id_token.placement.line,
-                            id_token.lexeme(),
-                        )));
+                        self.errors
+                            .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                id_token.placement.line,
+                                id_token.lexeme(),
+                            )));
                     } else {
-                        self.symbol_table.push(HashMap::default());
-                        for token in params {
-                            if self.insert_var(&token.lexeme, Type::Null).is_none() {
-                                errors.push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                    token.placement.line,
-                                    token.lexeme(),
-                                )));
+                        self.with_new_env(|analyzer| {
+                            for token in params {
+                                if analyzer.insert_var(&token.lexeme, Type::Null).is_none() {
+                                    analyzer.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            token.placement.line,
+                                            token.lexeme(),
+                                        ),
+                                    ));
+                                }
                             }
-                        }
-                        self.analyze(&body)?;
-                        self.symbol_table.pop();
+
+                            if let Err(err_vec) = analyzer.analyze(&body) {
+                                for err in err_vec {
+                                    analyzer.errors.push(err)
+                                }
+                            }
+                        });
                     }
                 }
             }
@@ -420,10 +442,10 @@ impl<'a> SemanticAnalyzer<'a> {
         println!("Semantic Types: {:?}\n", self.types);
         println!("Semantic Symbol Table: {:#?}\n", self.symbol_table);
 
-        if errors.is_empty() {
+        if self.errors.is_empty() {
             Ok(())
         } else {
-            Err(errors)
+            Err(self.errors.clone())
         }
     }
 
@@ -431,6 +453,7 @@ impl<'a> SemanticAnalyzer<'a> {
         SemanticAnalyzer {
             types: HashMap::default(),
             symbol_table: vec![HashMap::default()],
+            errors: Vec::default(),
         }
     }
 }
