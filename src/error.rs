@@ -1,10 +1,10 @@
 use std::usize;
 
 use crate::{
-    expr::Value,
-    expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
+    expr::operations::*,
+    expr::value::Value,
     smntc_analyzer::Type,
-    token::{TokenType, VarType},
+    token::{token_type::TokenType, VarType},
 };
 #[derive(Debug)]
 pub enum ScannerError {

@@ -1,5 +1,5 @@
 use crate::error::{Error, ScannerError};
-use crate::token::{NumberType, Token, TokenType};
+use crate::token::{number_type::NumberType, token_type::TokenType, Token};
 use num_bigint::BigInt;
 use std::str::Chars;
 
@@ -96,7 +96,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    // TODO make level_const dynamic
+    // todo make level_const dynamic
     fn scan_indentation(&mut self) -> i32 {
         let mut spaces = 0;
 

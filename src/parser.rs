@@ -1,7 +1,7 @@
 use crate::error::{Error, ParserError};
-use crate::expr::*;
+use crate::expr::{operations::*, value::Value, *};
 use crate::stmt::Stmt;
-use crate::token::{Token, TokenType, VarType};
+use crate::token::{token_type::TokenType, Token, VarType};
 
 type ParserResult = std::result::Result<Expr, ParserError>;
 
@@ -327,7 +327,7 @@ impl<'a> Parser<'a> {
         Ok(stmts)
     }
 
-    // TODO add multiple elif branches
+    // todo add multiple elif branches
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
         let condition = self.expression()?;
 

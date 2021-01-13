@@ -1,8 +1,12 @@
 use crate::{
     error::{Error, SmntcError},
-    expr::{BinaryCompOp, BinaryLogicOp, BinaryOp, Expr, UnaryOp, Value},
+    expr::{
+        operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
+        value::Value,
+        Expr,
+    },
     stmt::Stmt,
-    token::{NumberType, VarType},
+    token::{number_type::NumberType, VarType},
 };
 
 use num_bigint::BigInt;
@@ -238,6 +242,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
             Value::Number(NumberType::Float(x)) => Type::Float(*x),
             Value::Str(x) => Type::Str(x.to_string()),
+            Value::Fun(_) => Type::Null, // todo analyze_literal match Value::Fun
         }
     }
 
@@ -259,7 +264,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
             Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
-            Expr::Call(_, _) => Ok(Type::Null), // TODO implement semantics of Call
+            Expr::Call(_, _) => Ok(Type::Null), // todo implement semantics of Call
         }
     }
 

@@ -1,126 +1,15 @@
-use crate::token::{NumberType, Placement, Token};
+pub mod callable;
+pub mod operations;
+pub mod value;
+
+use crate::token::Token;
 use std::{
     hash::{Hash, Hasher},
     usize,
 };
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct OpWithToken<Op> {
-    pub op: Op,
-    pub token: Token,
-}
-
-impl<Op> OpWithToken<Op> {
-    pub fn new(op: Op, token: Token) -> Self {
-        Self { op, token }
-    }
-
-    pub fn get_token_line(&self) -> usize {
-        self.token.placement.line
-    }
-
-    pub fn get_token_placement(&self) -> &Placement {
-        self.token.placement()
-    }
-
-    pub fn as_tuple(&self) -> (&Op, &Token) {
-        (&self.op, &self.token)
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Copy)]
-pub enum UnaryOp {
-    Minus,
-    Plus,
-}
-
-impl std::fmt::Display for UnaryOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryOp::Plus => write!(f, "+"),
-            UnaryOp::Minus => write!(f, "-"),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Copy)]
-pub enum BinaryOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-}
-
-impl std::fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::Mod => write!(f, "%"),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Copy)]
-pub enum BinaryCompOp {
-    NotEqual,
-    Equal,
-    LessThan,
-    LessEqual,
-    GreaterThan,
-    GreaterEqual,
-}
-
-impl std::fmt::Display for BinaryCompOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryCompOp::NotEqual => write!(f, "!="),
-            BinaryCompOp::Equal => write!(f, "=="),
-            BinaryCompOp::LessThan => write!(f, "<"),
-            BinaryCompOp::LessEqual => write!(f, "<="),
-            BinaryCompOp::GreaterThan => write!(f, ">"),
-            BinaryCompOp::GreaterEqual => write!(f, ">="),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug, Copy)]
-pub enum BinaryLogicOp {
-    And,
-    Or,
-}
-
-impl std::fmt::Display for BinaryLogicOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryLogicOp::And => write!(f, "and"),
-            BinaryLogicOp::Or => write!(f, "or"),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub enum Value {
-    PythonNone,
-    Bool(bool),
-    Number(NumberType),
-    Str(String),
-}
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::PythonNone => write!(f, "None"),
-            Value::Bool(false) => write!(f, "False"),
-            Value::Bool(true) => write!(f, "True"),
-            Value::Number(value) => write!(f, "{}", value),
-            Value::Str(value) => write!(f, "{}", value),
-        }
-    }
-}
+use operations::*;
+use value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Expr {

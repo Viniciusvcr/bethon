@@ -1,7 +1,7 @@
 use crate::expr::Expr;
 use crate::token::VarType;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Assert(Expr),
     ExprStmt(Expr),

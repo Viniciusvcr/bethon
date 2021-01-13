@@ -1,5 +1,5 @@
 use bethon::parser::Parser;
-use bethon::token::{Token, TokenType};
+use bethon::token::{token_type::TokenType, Token};
 
 #[test]
 fn empty_code() {

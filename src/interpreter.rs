@@ -1,13 +1,13 @@
 use crate::{
     environment::Environment,
     error::{Error, RuntimeError},
-    expr::*,
+    expr::{operations::*, value::Value, *},
     stmt::*,
-    token::NumberType,
+    token::number_type::NumberType,
 };
 use num_traits::ToPrimitive;
 
-type InterpreterResult = std::result::Result<Value, RuntimeError>;
+pub type InterpreterResult = std::result::Result<Value, RuntimeError>;
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -141,7 +141,7 @@ impl Interpreter {
             (BinaryCompOp::Equal, _, Value::PythonNone) => Value::Bool(false),
             (BinaryCompOp::Equal, Value::PythonNone, _) => Value::Bool(false),
             (BinaryCompOp::LessThan, Value::Number(a), Value::Number(b)) => Value::Bool(a < b),
-            // TODO how to compare strings?
+            // todo how to compare strings?
             (BinaryCompOp::LessThan, Value::Str(a), Value::Str(b)) => {
                 Value::Bool(a.chars().count() < b.chars().count())
             }
@@ -208,9 +208,8 @@ impl Interpreter {
         self.environment.get(id).unwrap()
     }
 
-    // TODO implement eval_call_expr
-    fn eval_call_expr(&self, callee: &Expr, args: &Vec<Expr>) -> InterpreterResult {
-        todo!()
+    fn eval_call_expr(&self, _callee: &Expr, _args: &[Expr]) -> InterpreterResult {
+        todo!("Implement evall_call_expr")
     }
 
     fn eval_expr(&self, expr: &Expr) -> InterpreterResult {
@@ -241,7 +240,7 @@ impl Interpreter {
         Ok(())
     }
 
-    // TODO Change 'val' to the result of the expression
+    // todo Change 'val' to the result of the expression
     fn assert_eval(&self, expr: &Expr) -> Option<Error> {
         match expr {
             Expr::BinaryComp(left, op_and_token, right) => {
