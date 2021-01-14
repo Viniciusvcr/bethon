@@ -127,7 +127,7 @@ impl<'a> Scanner<'a> {
     fn indent_to(&mut self, indent_level: i32) {
         match indent_level.cmp(&self.current_indent_level) {
             std::cmp::Ordering::Greater => {
-                for _ in 0..indent_level {
+                for _ in 0..indent_level - self.current_indent_level {
                     self.add_token(TokenType::Indent, self.consumed().to_string());
                 }
             }
