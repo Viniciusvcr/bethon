@@ -12,7 +12,7 @@ use super::Value;
 pub struct Callable {
     pub env: Environment,
     pub id_token: Token,
-    pub params: Vec<Token>,
+    pub params: Vec<(Token, VarType)>,
     pub body: Vec<Stmt>,
     pub ret_type: VarType,
 }
@@ -21,7 +21,7 @@ impl Callable {
     pub fn new(
         env: Environment,
         id_token: Token,
-        params: Vec<Token>,
+        params: Vec<(Token, VarType)>,
         body: Vec<Stmt>,
         ret_type: VarType,
     ) -> Self {
@@ -40,6 +40,15 @@ impl Callable {
 
     pub fn arity(&self) -> usize {
         self.params.len()
+    }
+
+    pub fn param_types(&self) -> Vec<VarType> {
+        let mut ret = vec![];
+        for (_, var_type) in &self.params {
+            ret.push(var_type.clone());
+        }
+
+        ret
     }
 }
 

@@ -46,6 +46,7 @@ pub enum ParserError {
     DanglingElse(usize, usize, usize),
     MaxFuntionArgsReached(usize),
     MissingFunctionReturnType,
+    MissingParameterType,
 }
 #[derive(Debug, Clone)]
 pub enum SmntcError {
@@ -60,6 +61,7 @@ pub enum SmntcError {
     IncompatibleDeclaration(usize, VarType, Type),
     IfNotLogicalCondition,
     NotCallable,
+    WrongArity,
 }
 
 #[allow(dead_code)]
@@ -273,7 +275,8 @@ impl Error {
             SmntcError::VariableNotDeclared(line, var_name) => format!("{}Variable {}'{}'{} not found in this scope:\n{}\n{} '{}'\n{}\n{}{} Note: The attempt to read the undeclared variable is on line {}{}", Color::White, Color::Yellow, var_name, Color::White, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, line, Color::Reset),
             SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
             SmntcError::IfNotLogicalCondition => "IfNotLogicalCondition".to_string(), // todo write better error
-            SmntcError::NotCallable => "Not callable error (Semantic)".to_string() // todo write better error
+            SmntcError::NotCallable => "Not callable error (Semantic)".to_string(), // todo write better error
+            SmntcError::WrongArity => "Wrong arity error".to_string() // todo write better error
         }
     }
 
@@ -442,6 +445,7 @@ impl Error {
             ParserError::MissingFunctionReturnType => {
                 "Missing function return type error".to_string()
             }
+            ParserError::MissingParameterType => "Missing parameter type error".to_string(),
         }
     }
 }

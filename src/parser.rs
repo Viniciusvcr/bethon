@@ -347,11 +347,7 @@ impl<'a> Parser<'a> {
 
         let mut params = vec![];
         if self.next_is(single(RightParen)).is_none() {
-            // FIXME params need types
-            params.push(self.consume(Identifier)?);
-            while self.next_is(single(Comma)).is_some() {
-                params.push(self.consume(Identifier)?);
-            }
+            get_params(self, params.as_mut())?;
             self.consume(RightParen)?;
         }
 
@@ -419,4 +415,38 @@ fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
             None
         }
     }
+}
+
+fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result<(), ParserError> {
+    let first_param_id = parser.consume(Identifier)?;
+    parser.consume(Colon)?;
+    if let Some((first_param_type, _)) = parser.next_is(|tt| match tt {
+        Int => Some(VarType::Integer),
+        Float => Some(VarType::Float),
+        Str => Some(VarType::Str),
+        Bool => Some(VarType::Boolean),
+        _ => None,
+    }) {
+        params.push((first_param_id, first_param_type));
+    } else {
+        return Err(ParserError::MissingParameterType);
+    }
+
+    while parser.next_is(single(Comma)).is_some() {
+        let param_id = parser.consume(Identifier)?;
+        parser.consume(Colon)?;
+        if let Some((param_type, _)) = parser.next_is(|tt| match tt {
+            Int => Some(VarType::Integer),
+            Float => Some(VarType::Float),
+            Str => Some(VarType::Str),
+            Bool => Some(VarType::Boolean),
+            _ => None,
+        }) {
+            params.push((param_id, param_type));
+        } else {
+            return Err(ParserError::MissingParameterType);
+        }
+    }
+
+    Ok(())
 }

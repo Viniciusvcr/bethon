@@ -3,6 +3,8 @@ pub mod token_type;
 
 use token_type::TokenType;
 
+use crate::smntc_analyzer::Type;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     Boolean,
@@ -11,6 +13,19 @@ pub enum VarType {
     Str,
     PythonNone,
     Function,
+}
+
+impl From<Type> for VarType {
+    fn from(x: Type) -> Self {
+        match x {
+            Type::Integer(_) => VarType::Integer,
+            Type::Float(_) => VarType::Float,
+            Type::Boolean(_) => VarType::Boolean,
+            Type::Null => VarType::PythonNone,
+            Type::Str(_) => VarType::Str,
+            Type::Fun(_, _) => VarType::Function,
+        }
+    }
 }
 
 impl std::fmt::Display for VarType {

@@ -20,7 +20,19 @@ pub enum Type {
     Boolean(bool),
     Null,
     Str(String),
-    Fun,
+    Fun(Vec<VarType>, VarType),
+}
+impl std::convert::From<&VarType> for Type {
+    fn from(var_type: &VarType) -> Self {
+        match var_type {
+            VarType::Boolean => Type::Boolean(false),
+            VarType::Integer => Type::Integer(0.into()),
+            VarType::Float => Type::Float(0.0),
+            VarType::Str => Type::Str("".to_string()),
+            VarType::PythonNone => Type::Null,
+            VarType::Function => Type::Fun(Vec::default(), VarType::Integer),
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -31,7 +43,7 @@ impl std::fmt::Display for Type {
             Type::Float(_) => write!(f, "float"),
             Type::Boolean(_) => write!(f, "bool"),
             Type::Str(_) => write!(f, "str"),
-            Type::Fun => write!(f, "<function> -> Null",),
+            Type::Fun(_, ret) => write!(f, "<function> -> {}", ret),
         }
     }
 }
@@ -245,7 +257,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
             Value::Number(NumberType::Float(x)) => Type::Float(*x),
             Value::Str(x) => Type::Str(x.to_string()),
-            Value::Fun(_) => Type::Fun, // todo analyze_literal match Value::Fun
+            Value::Fun(x) => Type::Fun(x.param_types(), x.ret_type.clone()),
         }
     }
 
@@ -258,16 +270,27 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn analyze_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> SemanticAnalyzerResult {
-        let ret_type = self.analyze_one(callee)?;
-
-        if ret_type == Type::Fun {
-            self.symbol_table.push(HashMap::default());
-            for arg in args {
-                self.analyze_one(arg)?;
+        if let Type::Fun(param_type, ret_type) = self.analyze_one(callee)? {
+            if param_type.len() != args.len() {
+                return Err(SmntcError::WrongArity);
             }
-            self.symbol_table.pop();
 
-            Ok(ret_type)
+            self.with_new_env(|analyzer| {
+                for (arg, param_var_type) in args.iter().zip(&param_type) {
+                    let arg_type = analyzer.analyze_one(arg)?;
+
+                    let arg_var_type: VarType = arg_type.clone().into();
+                    let param_type: Type = param_var_type.into();
+
+                    if arg_var_type != *param_var_type {
+                        return Err(SmntcError::MismatchedTypes(param_type, arg_type, None));
+                    }
+                }
+
+                Ok(())
+            })?;
+
+            Ok((&ret_type).into())
         } else {
             Err(SmntcError::NotCallable)
         }
@@ -407,33 +430,43 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => self.errors.push(Error::Smntc(err)),
                     };
                 }
-                // todo semantics of a function
-                Stmt::Function(id_token, params, body, _) => {
-                    if self.insert_var(&id_token.lexeme, Type::Fun).is_none() {
+                Stmt::Function(id_token, params, body, ret_type) => {
+                    self.with_new_env(|analyzer| {
+                        for (token, var_type) in params {
+                            if analyzer
+                                .insert_var(&token.lexeme, var_type.into())
+                                .is_none()
+                            {
+                                analyzer.errors.push(Error::Smntc(
+                                    SmntcError::VariableAlreadyDeclared(
+                                        token.placement.line,
+                                        token.lexeme(),
+                                    ),
+                                ));
+                            }
+                        }
+
+                        if let Err(err_vec) = analyzer.analyze(&body) {
+                            for err in err_vec {
+                                analyzer.errors.push(err)
+                            }
+                        }
+                    });
+
+                    let mut param_types = vec![];
+                    for (_, var_type) in params {
+                        param_types.push(var_type.clone())
+                    }
+
+                    if self
+                        .insert_var(&id_token.lexeme, Type::Fun(param_types, ret_type.clone()))
+                        .is_none()
+                    {
                         self.errors
                             .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
                                 id_token.placement.line,
                                 id_token.lexeme(),
                             )));
-                    } else {
-                        self.with_new_env(|analyzer| {
-                            for token in params {
-                                if analyzer.insert_var(&token.lexeme, Type::Null).is_none() {
-                                    analyzer.errors.push(Error::Smntc(
-                                        SmntcError::VariableAlreadyDeclared(
-                                            token.placement.line,
-                                            token.lexeme(),
-                                        ),
-                                    ));
-                                }
-                            }
-
-                            if let Err(err_vec) = analyzer.analyze(&body) {
-                                for err in err_vec {
-                                    analyzer.errors.push(err)
-                                }
-                            }
-                        });
                     }
                 }
             }

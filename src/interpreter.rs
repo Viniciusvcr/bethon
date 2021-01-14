@@ -283,8 +283,8 @@ impl Interpreter {
         let old_env = std::mem::replace(&mut self.environment, fun.env.clone());
 
         self.environment.push();
-        for (param, value) in fun.params.iter().zip(args) {
-            self.environment.define(param.lexeme(), value.clone());
+        for ((token, _), value) in fun.params.iter().zip(args) {
+            self.environment.define(token.lexeme(), value.clone());
         }
 
         for stmt in &fun.body {
