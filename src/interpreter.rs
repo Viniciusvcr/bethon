@@ -16,6 +16,13 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
+    fn with_new_env<T>(&mut self, fun: impl Fn(&mut Self) -> T) -> T {
+        self.environment.push();
+        let result = fun(self);
+        self.environment.pop();
+        result
+    }
+
     fn binary_arith_op(
         &self,
         left: &Value,
@@ -282,26 +289,36 @@ impl Interpreter {
     pub fn eval_func(&mut self, fun: &Callable, args: &[Value]) -> InterpreterResult {
         let old_env = std::mem::replace(&mut self.environment, fun.env.clone());
 
-        self.environment.push();
-        for ((token, _), value) in fun.params.iter().zip(args) {
-            self.environment.define(token.lexeme(), value.clone());
-        }
+        let result = self.with_new_env(|interpreter| {
+            for ((token, _), value) in fun.params.iter().zip(args) {
+                interpreter
+                    .environment
+                    .define(token.lexeme(), value.clone());
+            }
 
-        for stmt in &fun.body {
-            self.eval(stmt)?;
-        }
+            for stmt in &fun.body {
+                match interpreter.eval(stmt) {
+                    Err(RuntimeError::Return(value)) => return Ok(value),
+                    Err(x) => return Err(x),
+                    Ok(()) => {}
+                }
+            }
 
-        self.environment.pop();
+            Ok(Value::PythonNone)
+        });
         self.environment = old_env;
 
-        Ok(Value::PythonNone)
+        result
     }
 
     fn eval(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Assert(expr) => self.assert_eval(expr),
             Stmt::ExprStmt(expr) => match self.eval_expr(expr) {
-                Ok(_value) => Ok(()),
+                Ok(value) => {
+                    println!("{}", value);
+                    Ok(())
+                }
                 Err(error) => Err(error),
             },
             Stmt::VarStmt(identifier, _var_type, expr) => {
@@ -344,6 +361,11 @@ impl Interpreter {
 
                 Ok(())
             }
+            Stmt::ReturnStmt(_, expr) => Err(RuntimeError::Return(if let Some(expr) = expr {
+                self.eval_expr(expr)?
+            } else {
+                Value::PythonNone
+            })),
         }
     }
 

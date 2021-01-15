@@ -469,6 +469,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             )));
                     }
                 }
+                Stmt::ReturnStmt(_, _) => {} // todo semantics of return
             }
         }
 

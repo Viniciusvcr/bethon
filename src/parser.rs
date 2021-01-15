@@ -372,6 +372,13 @@ impl<'a> Parser<'a> {
         Ok(Stmt::Function(fun_id, params, fun_body, ret_type))
     }
 
+    // todo how to check for empty return?
+    fn return_statement(&mut self, ret_token: Token) -> Result<Stmt, ParserError> {
+        let expr = self.expression()?;
+
+        Ok(Stmt::ReturnStmt(ret_token, Some(expr)))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
@@ -379,6 +386,8 @@ impl<'a> Parser<'a> {
             self.if_statement()
         } else if self.consume(Def).is_ok() {
             self.function()
+        } else if let Ok(ret_token) = self.consume(Return) {
+            self.return_statement(ret_token)
         } else {
             self.expression_statement()
         }

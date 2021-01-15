@@ -8,4 +8,5 @@ pub enum Stmt {
     VarStmt(String, Option<VarType>, Expr),
     IfStmt(Expr, Vec<Stmt>, Option<Vec<Stmt>>),
     Function(Token, Vec<(Token, VarType)>, Vec<Stmt>, VarType),
+    ReturnStmt(Token, Option<Expr>),
 }
