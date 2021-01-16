@@ -406,19 +406,9 @@ impl<'a> SemanticAnalyzer<'a> {
                             self.insert(condition, Type::Boolean(x));
 
                             if x {
-                                if let Err(then_branch_errors) = self.analyze(then_branch) {
-                                    for error in then_branch_errors {
-                                        self.errors.push(error)
-                                    }
-                                }
+                                self.analyze(then_branch).ok();
                             } else if else_branch.is_some() {
-                                if let Err(else_branch_errors) =
-                                    self.analyze(else_branch.as_ref().unwrap())
-                                {
-                                    for error in else_branch_errors {
-                                        self.errors.push(error)
-                                    }
-                                }
+                                self.analyze(else_branch.as_ref().unwrap()).ok();
                             }
                         }
                         Ok(_) => self
@@ -459,11 +449,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             }
                         }
 
-                        if let Err(err_vec) = analyzer.analyze(&body) {
-                            for err in err_vec {
-                                analyzer.errors.push(err)
-                            }
-                        }
+                        analyzer.analyze(&body).ok(); // Errors will already be pushed to self.errors
 
                         let return_stmts: Vec<(&Token, &Option<Expr>)> = body
                             .iter()
