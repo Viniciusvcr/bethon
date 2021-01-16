@@ -40,7 +40,7 @@ where
 
 #[derive(PartialEq, Clone, Default, Debug)]
 pub struct Env<T> {
-    previous: Option<Rc<Self>>,
+    pub previous: Option<Rc<Self>>,
     pub current: RefCell<HashMap<String, T>>,
 }
 

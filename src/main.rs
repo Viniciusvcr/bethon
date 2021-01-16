@@ -12,12 +12,11 @@ fn run(filename: &str, source_code: &str) {
 
     match lexer.scan_tokens() {
         Ok(vec) => {
-            // println!("{:#?}", vec);
             let mut parser = Parser::new(vec);
 
             match parser.parse() {
                 Ok(stmts) => {
-                    println!("{:#?}", stmts);
+                    // println!("{:#?}", stmts);
                     let mut pass = SemanticAnalyzer::default();
 
                     if let Err(errors) = pass.analyze(&stmts) {
