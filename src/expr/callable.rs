@@ -10,7 +10,7 @@ use crate::{
 use super::Value;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Callable {
-    pub env: Environment,
+    pub env: Environment<Value>,
     pub id_token: Token,
     pub params: Vec<(Token, VarType)>,
     pub body: Vec<Stmt>,
@@ -19,7 +19,7 @@ pub struct Callable {
 
 impl Callable {
     pub fn new(
-        env: Environment,
+        env: Environment<Value>,
         id_token: Token,
         params: Vec<(Token, VarType)>,
         body: Vec<Stmt>,

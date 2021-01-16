@@ -11,6 +11,12 @@ pub enum Value {
     Fun(Callable),
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Value::PythonNone
+    }
+}
+
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -1,4 +1,5 @@
 use crate::{
+    environment::{Environment, SemanticEnvironment},
     error::{Error, SmntcError},
     expr::{
         operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
@@ -20,7 +21,7 @@ pub enum Type {
     Boolean(bool),
     Null,
     Str(String),
-    Fun(Vec<VarType>, VarType),
+    Fun(SemanticEnvironment, Vec<VarType>, VarType),
 }
 impl std::convert::From<&VarType> for Type {
     fn from(var_type: &VarType) -> Self {
@@ -30,7 +31,11 @@ impl std::convert::From<&VarType> for Type {
             VarType::Float => Type::Float(0.0),
             VarType::Str => Type::Str("".to_string()),
             VarType::PythonNone => Type::Null,
-            VarType::Function => Type::Fun(Vec::default(), VarType::Integer),
+            VarType::Function => Type::Fun(
+                Environment::new(HashMap::default()),
+                Vec::default(),
+                VarType::Integer,
+            ),
         }
     }
 }
@@ -43,7 +48,7 @@ impl std::fmt::Display for Type {
             Type::Float(_) => write!(f, "float"),
             Type::Boolean(_) => write!(f, "bool"),
             Type::Str(_) => write!(f, "str"),
-            Type::Fun(_, ret) => write!(f, "<function> -> {}", ret),
+            Type::Fun(_, _, ret) => write!(f, "<function> -> {}", ret),
         }
     }
 }
@@ -51,7 +56,7 @@ impl std::fmt::Display for Type {
 // The semantic analyzer
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>,
-    symbol_table: Vec<HashMap<&'a str, Type>>,
+    symbol_table: SemanticEnvironment,
     errors: Vec<Error>,
 }
 
@@ -66,7 +71,7 @@ type SemanticAnalyzerResult = Result<Type, SmntcError>;
 impl<'a> SemanticAnalyzer<'a> {
     #[allow(dead_code)]
     fn with_new_env<T>(&mut self, fun: impl Fn(&mut Self) -> T) -> T {
-        self.symbol_table.push(HashMap::default());
+        self.symbol_table.push();
         let result = fun(self);
         self.symbol_table.pop();
         result
@@ -77,24 +82,11 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     fn insert_var(&mut self, id: &'a str, t: Type) -> Option<()> {
-        let env = self.symbol_table.last_mut().unwrap();
-
-        if !env.contains_key(id) {
-            env.insert(id, t);
-            Some(())
-        } else {
-            None
-        }
+        self.symbol_table.define(id.to_string(), t).and(Some(()))
     }
 
-    fn get_var(&mut self, id: &str) -> Option<&Type> {
-        for env in self.symbol_table.iter().rev() {
-            if let Some(t) = env.get(id) {
-                return Some(t);
-            }
-        }
-
-        None
+    fn get_var(&mut self, id: &str) -> Option<Type> {
+        self.symbol_table.get(id)
     }
 
     fn analyze_bin_arith(&mut self, op: &BinaryOp, a: &Expr, b: &Expr) -> SemanticAnalyzerResult {
@@ -257,20 +249,26 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
             Value::Number(NumberType::Float(x)) => Type::Float(*x),
             Value::Str(x) => Type::Str(x.to_string()),
-            Value::Fun(x) => Type::Fun(x.param_types(), x.ret_type.clone()),
+            Value::Fun(x) => Type::Fun(
+                Environment::new(HashMap::default()),
+                x.param_types(),
+                x.ret_type.clone(),
+            ),
         }
     }
 
     fn analyze_variable_expr(&mut self, id: &str, line: usize) -> SemanticAnalyzerResult {
         if let Some(t) = self.get_var(id) {
-            Ok(t.clone())
+            Ok(t)
         } else {
             Err(SmntcError::VariableNotDeclared(line, id.to_string()))
         }
     }
 
     fn analyze_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> SemanticAnalyzerResult {
-        if let Type::Fun(param_type, ret_type) = self.analyze_one(callee)? {
+        if let Type::Fun(env, param_type, ret_type) = self.analyze_one(callee)? {
+            let old_env = std::mem::replace(&mut self.symbol_table, env);
+
             if param_type.len() != args.len() {
                 return Err(SmntcError::WrongArity);
             }
@@ -290,6 +288,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 Ok(())
             })?;
 
+            self.symbol_table = old_env;
             Ok((&ret_type).into())
         } else {
             Err(SmntcError::NotCallable)
@@ -310,6 +309,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    // FIXME check "main" before everything (because scope)
     pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Vec<Error>> {
         for stmt in stmts {
             match stmt {
@@ -332,7 +332,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     match self.analyze_one(expr) {
                         Ok(t) => match (var_type, t.clone()) {
                             (Some(VarType::Boolean), Type::Boolean(_)) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -342,7 +342,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(VarType::Integer), Type::Integer(_)) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -352,7 +352,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(VarType::Float), Type::Float(_)) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -362,7 +362,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(VarType::Str), Type::Str(_)) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -372,7 +372,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(VarType::PythonNone), Type::Null) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -382,7 +382,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (None, _) => {
-                                if self.insert_var(id, t).is_none() {
+                                if self.insert_var(id, t).is_some() {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
@@ -435,7 +435,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         for (token, var_type) in params {
                             if analyzer
                                 .insert_var(&token.lexeme, var_type.into())
-                                .is_none()
+                                .is_some()
                             {
                                 analyzer.errors.push(Error::Smntc(
                                     SmntcError::VariableAlreadyDeclared(
@@ -459,8 +459,11 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
 
                     if self
-                        .insert_var(&id_token.lexeme, Type::Fun(param_types, ret_type.clone()))
-                        .is_none()
+                        .insert_var(
+                            &id_token.lexeme,
+                            Type::Fun(self.symbol_table.clone(), param_types, ret_type.clone()),
+                        )
+                        .is_some()
                     {
                         self.errors
                             .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
@@ -474,7 +477,6 @@ impl<'a> SemanticAnalyzer<'a> {
         }
 
         println!("Semantic Types: {:?}\n", self.types);
-        println!("Semantic Symbol Table: {:#?}\n", self.symbol_table);
 
         if self.errors.is_empty() {
             Ok(())
@@ -486,7 +488,7 @@ impl<'a> SemanticAnalyzer<'a> {
     pub fn new() -> Self {
         SemanticAnalyzer {
             types: HashMap::default(),
-            symbol_table: vec![HashMap::default()],
+            symbol_table: Environment::new(HashMap::default()),
             errors: Vec::default(),
         }
     }

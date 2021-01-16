@@ -1,13 +1,17 @@
-use crate::expr::value::Value;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use crate::{expr::value::Value, smntc_analyzer::Type};
+
 #[derive(PartialEq, Clone, Default, Debug)]
-pub struct Environment {
-    pub env: Rc<Env>,
+pub struct Environment<T> {
+    pub env: Rc<Env<T>>,
 }
 
-impl Environment {
-    pub fn new(current: HashMap<String, Value>) -> Self {
+impl<T> Environment<T>
+where
+    T: Clone,
+{
+    pub fn new(current: HashMap<String, T>) -> Self {
         Self {
             env: Env {
                 previous: None,
@@ -17,11 +21,11 @@ impl Environment {
         }
     }
 
-    pub fn define(&mut self, identifier: String, value: Value) {
-        self.env.current.borrow_mut().insert(identifier, value);
+    pub fn define(&mut self, identifier: String, value: T) -> Option<T> {
+        self.env.current.borrow_mut().insert(identifier, value)
     }
 
-    pub fn get(&self, identifier: &str) -> Option<Value> {
+    pub fn get(&self, identifier: &str) -> Option<T> {
         self.env.get(identifier)
     }
 
@@ -35,12 +39,15 @@ impl Environment {
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
-pub struct Env {
+pub struct Env<T> {
     previous: Option<Rc<Self>>,
-    pub current: RefCell<HashMap<String, Value>>,
+    pub current: RefCell<HashMap<String, T>>,
 }
 
-impl Env {
+impl<T> Env<T>
+where
+    T: Clone,
+{
     fn new_with_prev(previous: Rc<Self>) -> Self {
         Self {
             previous: Some(previous),
@@ -48,7 +55,7 @@ impl Env {
         }
     }
 
-    fn get(&self, key: &str) -> Option<Value> {
+    fn get(&self, key: &str) -> Option<T> {
         if self.current.borrow().contains_key(key) {
             self.current.borrow().get(key).cloned()
         } else if self.previous.is_some() {
@@ -58,3 +65,6 @@ impl Env {
         }
     }
 }
+
+pub type InterpreterEnvironment = Environment<Value>;
+pub type SemanticEnvironment = Environment<Type>;

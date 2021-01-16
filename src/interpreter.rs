@@ -12,7 +12,7 @@ pub type InterpreterResult = std::result::Result<Value, RuntimeError>;
 
 #[derive(Default)]
 pub struct Interpreter {
-    environment: Environment,
+    environment: Environment<Value>,
 }
 
 impl Interpreter {
