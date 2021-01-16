@@ -418,10 +418,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     };
                 }
                 Stmt::Function(id_token, params, body, ret_type) => {
-                    let mut param_types = vec![];
-                    for (_, var_type) in params {
-                        param_types.push(var_type.clone())
-                    }
+                    let param_types = params.iter().map(|(_, y)| y.clone()).collect();
 
                     if self
                         .insert_var(&id_token.lexeme, Type::Fun(param_types, ret_type.clone()))
