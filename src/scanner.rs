@@ -223,7 +223,6 @@ impl<'a> Scanner<'a> {
             "None" => Some(PythonNone),
             "or" => Some(Or),
             "not" => Some(Not),
-            "print" => Some(Print),
             "return" => Some(Return),
             "self" => Some(PythonSelf),
             "int" => Some(Int),

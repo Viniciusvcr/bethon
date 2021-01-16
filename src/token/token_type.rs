@@ -54,7 +54,6 @@ pub enum TokenType {
     Return,
     Def,
     PythonSelf,
-    Print,
 
     // Logical Operators
     Not,
