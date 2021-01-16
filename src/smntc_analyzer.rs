@@ -305,7 +305,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    // FIXME check "main" before everything (because scope)
+    // todo check "main" before everything (because scope)
     pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Vec<Error>> {
         for stmt in stmts {
             match stmt {
@@ -399,6 +399,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => self.errors.push(Error::Smntc(err)),
                     }
                 }
+                // FIXME find a way to eval if and else branches without symbol_table colision
                 Stmt::IfStmt(condition, then_branch, else_branch) => {
                     match self.analyze_one(condition) {
                         Ok(Type::Boolean(x)) => {
@@ -426,7 +427,6 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => self.errors.push(Error::Smntc(err)),
                     };
                 }
-                // FIXME find a way to eval if and else branches without symbol_table colision
                 Stmt::Function(id_token, params, body, ret_type) => {
                     let mut param_types = vec![];
                     for (_, var_type) in params {
@@ -511,7 +511,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         self.errors.push(Error::Smntc(err))
                     }
                 }
-                Stmt::ReturnStmt(_, _) => {} // todo semantics of return
+                Stmt::ReturnStmt(_, _) => {}
             }
         }
 
