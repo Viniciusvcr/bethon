@@ -105,18 +105,22 @@ impl<'a> Scanner<'a> {
                 self.comment();
             } else if ch == '\n' {
                 spaces = 0;
+                self.advance();
+
                 self.current_line += 1;
+                self.start_token = 0;
+                self.end_token = 0;
             } else if ch == ' ' {
                 spaces += 1;
                 self.space_indent = true;
+                self.advance();
             } else if ch == '\t' {
                 spaces += 1;
                 self.tab_indent = true;
+                self.advance();
             } else {
                 break;
             }
-
-            self.advance();
         }
 
         let level_const = if self.space_indent { 4 } else { 1 };
@@ -146,8 +150,8 @@ impl<'a> Scanner<'a> {
 
         let line_indent_level = self.scan_indentation();
         self.indent_to(line_indent_level);
-        self.current_line += 1;
 
+        self.current_line += 1;
         self.current_indent_level = line_indent_level;
 
         if self.tab_indent && self.space_indent {
@@ -330,6 +334,9 @@ impl<'a> Scanner<'a> {
         self.indent_to(initial_indent_level);
         self.current_indent_level = initial_indent_level;
         self.source_code = self.chars.as_str();
+
+        self.start_token = 0;
+        self.end_token = 0;
 
         loop {
             self.start_token = self.end_token;

@@ -34,7 +34,7 @@ impl Hash for &Expr {
 }
 
 impl Expr {
-    fn get_token(&self) -> &Token {
+    pub fn get_token(&self) -> &Token {
         match self {
             Expr::BinaryArith(_, op_and_token, _) => &op_and_token.token,
             Expr::BinaryComp(_, op_and_token, _) => &op_and_token.token,
@@ -48,8 +48,48 @@ impl Expr {
         }
     }
 
+    pub fn get_expr_placement(&self) -> (usize, usize) {
+        match self {
+            Expr::BinaryArith(l, _, r) => (l.get_expr_placement().0, r.get_expr_placement().1),
+            Expr::BinaryComp(l, _, r) => (l.get_expr_placement().0, r.get_expr_placement().1),
+            Expr::BinaryLogic(l, _, r) => (l.get_expr_placement().0, r.get_expr_placement().1),
+            Expr::LogicNot((_, token)) => (token.placement.starts_at, token.placement.ends_at),
+            Expr::Unary(_, r) => {
+                let (x, y) = r.get_expr_placement();
+                (x - 1, y)
+            }
+            Expr::Grouping(expr) => {
+                let (x, y) = expr.get_expr_placement();
+                (x - 1, y + 1)
+            }
+            Expr::Literal(op_and_token) => (
+                op_and_token.token.placement.starts_at,
+                op_and_token.token.placement.ends_at,
+            ),
+            Expr::Variable(token, _) => (token.placement.starts_at, token.placement.ends_at),
+            Expr::Call(callee, params) => {
+                let (x, mut y) = callee.get_expr_placement();
+
+                if !params.is_empty() {
+                    let (_, new_y) = params.last().unwrap().get_expr_placement();
+
+                    y = new_y;
+                } else {
+                    y += 1;
+                }
+
+                (x, y + 1)
+            }
+        }
+    }
+
     pub fn get_line(&self) -> usize {
         self.get_token().placement.line
+    }
+
+    pub fn placement(&self) -> (usize, usize, usize) {
+        let (x, y) = self.get_expr_placement();
+        (self.get_line(), x, y)
     }
 }
 

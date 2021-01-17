@@ -36,7 +36,7 @@ impl std::fmt::Display for VarType {
             VarType::Float => write!(f, "float"),
             VarType::Str => write!(f, "str"),
             VarType::PythonNone => write!(f, "None"),
-            VarType::Function => write!(f, "func"),
+            VarType::Function => write!(f, "function"),
         }
     }
 }
@@ -56,6 +56,10 @@ impl Placement {
             starts_at,
             ends_at,
         }
+    }
+
+    pub fn as_tuple(&self) -> (usize, usize, usize) {
+        (self.line, self.starts_at, self.ends_at)
     }
 }
 

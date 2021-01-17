@@ -12,6 +12,7 @@ fn run(filename: &str, source_code: &str) {
 
     match lexer.scan_tokens() {
         Ok(vec) => {
+            println!("{:#?}", vec);
             let mut parser = Parser::new(vec);
 
             match parser.parse() {

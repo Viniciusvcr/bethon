@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use std::usize;
 
 use crate::{
@@ -51,18 +53,19 @@ pub enum ParserError {
 }
 #[derive(Debug, Clone)]
 pub enum SmntcError {
-    MismatchedTypes(Type, Type, Option<String>), // Expected, Found, Note
-    IncompatibleBinArith(BinaryOp, Type, Type),  // Operation, Left, Right
-    IncompatibleComparation(BinaryCompOp, Type, Type, Option<String>),
-    IncompatibleLogicOp(BinaryLogicOp, Type, Type),
-    IncompatibleLogicNot(Type),
-    IncompatibleUnaryOp(UnaryOp, Type),
-    VariableNotDeclared(usize, String),
-    VariableAlreadyDeclared(usize, String),
-    IncompatibleDeclaration(usize, VarType, Type),
-    IfNotLogicalCondition,
-    NotCallable,
-    WrongArity,
+    MismatchedTypes(usize, usize, usize, Type, Type), // Expected, Found, Note
+    IncompatibleBinArith(usize, usize, usize, BinaryOp, Type, Type),  // Operation, Left, Right
+    IncompatibleComparation(usize, usize, usize, BinaryCompOp, Type, Type),
+    IncompatibleLogicOp(usize, usize, usize, BinaryLogicOp, Type, Type),
+    IncompatibleLogicNot(usize, usize, usize, Type),
+    IncompatibleUnaryOp(usize, usize, usize, UnaryOp, Type),
+    VariableNotDeclared(usize, usize, usize, String),
+    VariableAlreadyDeclared(usize, usize, usize, String),
+    IncompatibleDeclaration(usize, usize, usize, VarType, Type),
+    MissingReturns(usize, usize, usize, VarType),
+    IfNotLogicalCondition(usize, usize, usize, Type),
+    NotCallable(usize, usize, usize, Type),
+    WrongArity(usize, usize, usize, usize, usize),
 }
 
 #[allow(dead_code)]
@@ -120,8 +123,9 @@ impl Error {
         arrow
     }
 
-    fn syntax_error_template(
+    fn static_error_template(
         &self,
+        error_type: &str,
         source_vec: &[String],
         line: usize,
         starts_at: Option<usize>,
@@ -129,19 +133,24 @@ impl Error {
         reason: String,
         marker: Option<String>,
     ) -> String {
-        fn create_title(line: usize, starts_at: Option<usize>, ends_at: Option<usize>) -> String {
+        fn create_title(
+            error_type: &str,
+            line: usize,
+            starts_at: Option<usize>,
+            ends_at: Option<usize>,
+        ) -> String {
             match starts_at {
                 Some(start_number) => match ends_at {
                     Some(end_number) => format!(
-                        "Syntax error in line {} from character {} to {}:",
-                        line, start_number, end_number
+                        "{} error in line {} from character {} to {}:",
+                        error_type, line, start_number, end_number
                     ),
                     None => format!(
-                        "Syntax error in line {} from character {} to the end of file:",
-                        line, start_number
+                        "{} error in line {} from character {} to the end of file:",
+                        error_type, line, start_number
                     ),
                 },
-                None => format!("Syntax error in line {}:", line),
+                None => format!("{} error in line {}:", error_type, line),
             }
         }
 
@@ -149,7 +158,7 @@ impl Error {
             format!(
                 "{}{} \n{}\n{} '{}'\n{}{}\n{}\n{}{} Reason: {}{}",
                 Color::White,
-                create_title(line, starts_at, ends_at),
+                create_title(error_type, line, starts_at, ends_at),
                 self.blue_pipe(),
                 self.blue_pipe(),
                 source_vec.get(line - 1).unwrap(),
@@ -165,7 +174,7 @@ impl Error {
             format!(
                 "{}{} \n{}\n{} '{}'\n{}\n{}{} Reason: {}{}",
                 Color::White,
-                create_title(line, starts_at, ends_at),
+                create_title(error_type, line, starts_at, ends_at),
                 self.blue_pipe(),
                 self.blue_pipe(),
                 source_vec.get(line - 1).unwrap(),
@@ -217,67 +226,233 @@ impl Error {
     }
 
     fn format_smntc_error(&self, error: &SmntcError, source_vec: &[String]) -> String {
-        match error {
-            SmntcError::MismatchedTypes(expected, found, note) => {
-                if note.is_some() {
-                    format!(
-                        "{}Mismatched types error: Expected {}{}{}, found {}{}{}\n{}\n{} {}",
-                        Color::White,
-                        Color::Yellow,
-                        expected,
-                        Color::White,
-                        Color::Yellow,
-                        found,
-                        Color::White,
-                        self.blue_pipe(),
-                        self.blue_pipe(),
-                        note.as_ref().unwrap()
-                    )
-                } else {
-                    format!(
-                        "{}Mismatched types error: Expected {}{}{}, found {}{}{}",
-                        Color::White,
-                        Color::Yellow,
-                        expected,
-                        Color::White,
-                        Color::Yellow,
-                        found,
-                        Color::White,
-                    )
-                }
-            }
-            SmntcError::IncompatibleBinArith(op, left, right) => {
-                format!(
-                    "{}Incompatible operation error: Cannot use the {}'{}'{} binary operator with {}{}{} and {}{}{}.",
-                    Color::White,
-                    Color::Yellow,
-                    op,
-                    Color::White,
-                    Color::Yellow,
-                    left,
-                    Color::White,
-                    Color::Yellow,
-                    right,
-                    Color::Reset
-                )
-            },
-            SmntcError::IncompatibleLogicNot(t) => format!("{} The 'not' operator expects the following expression to be of type {}{}{}, but the expression evaluates to {}{}{}.", Color::White, Color::Yellow, Type::Boolean(true), Color::White, Color::Yellow, t, Color::Reset),
-            SmntcError::IncompatibleUnaryOp(op, t) => format!("{} The unary '{}' operator expects the following expression to be of type {}'int'{} or {}'float'{}, but the expression evaluates to {}{}{}.", Color::White, op, Color::Yellow, Color::White,Color::Yellow, Color::White, Color::Yellow, t, Color::Reset),
-            SmntcError::IncompatibleComparation(op, l, r, note) => {
-                if note.is_some() {
-                    format!("{}Incompatible comparation: Cannot compare using the {}'{}'{} operator with {}{}{} and {}{}{}\n{}\n{} {}", Color::White, Color::Yellow, op, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::Reset, self.blue_pipe(), self.blue_pipe(), note.as_ref().unwrap())
-                } else {
-                    format!("{}Incompatible comparation: Cannot compare using the {}'{}'{} operator with {}{}{} and {}{}{}", Color::White, Color::Yellow, op, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::Reset)
+        let error_type = "Semantic";
 
-                }
+        match error {
+            SmntcError::MismatchedTypes(line, starts_at, ends_at, expected, found) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Expected {}{}{}, found {}{}{}", Color::White,
+                    expected,
+                    Color::Yellow,
+                    Color::White,
+                    found,
+                    Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                )
             }
-            SmntcError::IncompatibleLogicOp(op, l, r) => format!("{}The {}'{}'{} operator expects the left and right expressions to be both of type {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", Color::White, Color::Yellow, op, Color::White, Color::Yellow, Type::Boolean(true), Color::White, Color::Yellow, Type::Null, Color::White, Color::Yellow, l, Color::White, Color::Yellow, r, Color::White),
-            SmntcError::IncompatibleDeclaration(line, expected, found) => format!("{}Incompatible assignment error on line {}\n{}\n{} '{}' \n{}\n{}{}Note: Declared type is {}'{}'{}, but the assigned expression evaluates to {}'{}'{}", Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::White, Color::Yellow, expected, Color::White, Color::Yellow, found, Color::Reset),
-            SmntcError::VariableNotDeclared(line, var_name) => format!("{}Variable {}'{}'{} not found in this scope:\n{}\n{} '{}'\n{}\n{}{} Note: The attempt to read the undeclared variable is on line {}{}", Color::White, Color::Yellow, var_name, Color::White, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, line, Color::Reset),
-            SmntcError::VariableAlreadyDeclared(line, var_name) => format!("{}Redeclaration of variable {}'{}'{} on line {}:\n{}\n{} '{}'\n{}\n{}{} Note: It is not allowed to assign the same variable more than once.{}", Color::White, Color::Yellow, var_name, Color::White, line, self.blue_pipe(), self.blue_pipe(), source_vec.get(*line - 1).unwrap(), self.blue_pipe(), self.blue_pipe(), Color::Yellow, Color::Reset),
-            SmntcError::IfNotLogicalCondition => "IfNotLogicalCondition".to_string(), // todo write better error
-            SmntcError::NotCallable => "Not callable error (Semantic)".to_string(), // todo write better error
-            SmntcError::WrongArity => "Wrong arity error".to_string() // todo write better error
+            SmntcError::MissingReturns(line, starts_at, ends_at, expected) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Defined return type is {}{}{}, but not 'return' found in the function", Color::White,
+                    expected,
+                    Color::Yellow), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                )
+            }
+
+            SmntcError::IncompatibleBinArith(line, starts_at, ends_at, op, left, right) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Incompatible operation error: Cannot use the {}'{}'{} binary operator with {}{}{} and {}{}{}",
+                            Color::White,
+                            op,
+                            Color::Yellow,
+                            Color::White,
+                            left,
+                            Color::Yellow,
+                            Color::White,
+                            right,
+                            Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                ) 
+            }
+            SmntcError::IncompatibleLogicNot(line, starts_at, ends_at, t) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("The 'not' operator expects an expression of type {}{}{}, but the expression evaluates to {}{}{}.", 
+                            Color::White, 
+                            Type::Boolean(true), 
+                            Color::Yellow, 
+                            Color::White, 
+                            t, 
+                            Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                )
+            }
+            SmntcError::IncompatibleUnaryOp(line, starts_at, ends_at, op, t) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("The unary {}'{}'{} operator expects {}'int'{} or {}'float'{}, but the expression evaluates to {}{}{}.", 
+                            Color::White,
+                            op,
+                            Color::Yellow,
+                            Color::White, 
+                            Color::Yellow, 
+                            Color::White, 
+                            Color::Yellow, 
+                            Color::White, 
+                            t, 
+                            Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                )
+            }
+            SmntcError::IncompatibleComparation(line, starts_at, ends_at, op, l, r) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Incompatible comparation: Cannot compare using the {}'{}'{} operator with {}{}{} and {}{}{}", 
+                            Color::White, 
+                            op, 
+                            Color::Yellow, 
+                            Color::White, 
+                            l, 
+                            Color::Yellow, 
+                            Color::White, 
+                            r, 
+                            Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                ) 
+            }
+            SmntcError::IncompatibleLogicOp(line, starts_at, ends_at,op, l, r) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("The {}'{}'{} operator expects {}{}{} or {}{}{}, but the expressions evaluates to {}{}{} and {}{}{} respectively.", 
+                            Color::White, 
+                            op, 
+                            Color::Yellow, 
+                            Color::White, 
+                            Type::Boolean(true), 
+                            Color::Yellow, 
+                            Color::White, 
+                            Type::Null, 
+                            Color::Yellow, 
+                            Color::White, 
+                            l, 
+                            Color::Yellow, 
+                            Color::White, 
+                            r, 
+                            Color::Yellow), 
+                    Some(self.print_marker(*starts_at, *ends_at, None))
+                )
+            }
+            SmntcError::IncompatibleDeclaration(line, starts_at, ends_at, expected, found) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Declared type is {}'{}'{}, but the assigned expression evaluates to {}'{}'{}",
+                            Color::White, 
+                            expected, 
+                            Color::Yellow, 
+                            Color::White, 
+                            found, 
+                            Color::Reset), 
+                    Some(self.print_marker(*starts_at, *ends_at, Some(&format!("evaluates to {}", found))))
+                )
+            }
+            SmntcError::VariableNotDeclared(line, starts_at, ends_at, var_name) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Attempting to read an undeclared variable '{}'", var_name),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("not found in this scope")))
+                )
+            }
+            SmntcError::VariableAlreadyDeclared(line, starts_at, ends_at, var_name) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Attempting to reassign the variable '{}'", var_name),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("reassign is not allowed")))
+                )
+            }
+            SmntcError::IfNotLogicalCondition(line, starts_at, ends_at, t) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("The 'if' condition must resolve to {}'{}'{}, but {}'{}'{} was found",
+                            Color::White,
+                            VarType::Boolean,
+                            Color::Yellow, 
+                            Color::White,
+                            t,
+                            Color::Yellow),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("here")))
+                )
+            }
+            SmntcError::NotCallable(line, starts_at, ends_at, t) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Cannot call {}'{}'{}, only {}'{}'{}", 
+                            Color::White,
+                            t, 
+                            Color::Yellow,
+                            Color::White,
+                            VarType::Function,
+                            Color::Yellow),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("call happens here")))
+                )
+            }
+            SmntcError::WrongArity(line, starts_at, ends_at, expected, found) => {
+                self.static_error_template(
+                    error_type, 
+                    source_vec, 
+                    *line, 
+                    Some(*starts_at), 
+                    Some(*ends_at), 
+                    format!("Expected {}{}{} arguments, found {}{}{}", 
+                            Color::White,
+                            expected, 
+                            Color::Yellow,
+                            Color::White,
+                            found,
+                            Color::Yellow),
+                    Some(self.print_marker(*starts_at, *ends_at, Some("here")))
+                )
+            }
         }
     }
 
@@ -294,8 +469,11 @@ impl Error {
     }
 
     fn format_scanner_error(&self, error: &ScannerError, source_vec: &[String]) -> String {
+        let error_type = "Syntax";
+
         match error {
-            ScannerError::InvalidCharacter(line, starts_at, ends_at) => self.syntax_error_template(
+            ScannerError::InvalidCharacter(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -303,7 +481,8 @@ impl Error {
                 "Invalid character".to_string(),
                 Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            ScannerError::LonelyBangSign(line, starts_at, ends_at) => self.syntax_error_template(
+            ScannerError::LonelyBangSign(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -312,7 +491,8 @@ impl Error {
                 Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
             ScannerError::InvalidToken(line, starts_at, ends_at, reason) => self
-                .syntax_error_template(
+                .static_error_template(
+                    error_type,
                     source_vec,
                     *line,
                     Some(*starts_at),
@@ -320,7 +500,8 @@ impl Error {
                     reason.to_string(),
                     Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
                 ),
-            ScannerError::MismatchedIdent(line, starts_at, ends_at) => self.syntax_error_template(
+            ScannerError::MismatchedIdent(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -329,7 +510,8 @@ impl Error {
                     .to_string(),
                 Some(self.print_marker(*starts_at, *ends_at, Some("first conflict happens here"))),
             ),
-            ScannerError::UnterminatedString(line) => self.syntax_error_template(
+            ScannerError::UnterminatedString(line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -341,8 +523,10 @@ impl Error {
     }
 
     fn format_parser_error(&self, error: &ParserError, source_vec: &[String]) -> String {
+        let error_type = "Syntax";
         match error {
-            ParserError::MissingRightParen(line) => self.syntax_error_template(
+            ParserError::MissingRightParen(line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -350,7 +534,8 @@ impl Error {
                 "Expected a ')' after this expression".to_string(),
                 None,
             ),
-            ParserError::MissingExpression(line) => self.syntax_error_template(
+            ParserError::MissingExpression(line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -358,7 +543,8 @@ impl Error {
                 "Missing an expression".to_string(),
                 None,
             ),
-            ParserError::AssignmentExpected(line, equal_plcmnt) => self.syntax_error_template(
+            ParserError::AssignmentExpected(line, equal_plcmnt) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -371,7 +557,8 @@ impl Error {
                     Some("Missing an assignment"),
                 )),
             ),
-            ParserError::TypeNotDefined(line, starts_at, ends_at) => self.syntax_error_template(
+            ParserError::TypeNotDefined(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -379,7 +566,8 @@ impl Error {
                 "Declared type is not a known type".to_string(),
                 Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            ParserError::ExpectedColon(line, colon_plcmnt) => self.syntax_error_template(
+            ParserError::ExpectedColon(line, colon_plcmnt) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -387,7 +575,8 @@ impl Error {
                 "':' expected after identifier".to_string(),
                 Some(self.print_marker(*colon_plcmnt, *colon_plcmnt + 1, Some("here"))),
             ),
-            ParserError::Expected(tt, line) => self.syntax_error_template(
+            ParserError::Expected(tt, line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -395,7 +584,8 @@ impl Error {
                 format!("'{:#?}' expected", tt),
                 None,
             ),
-            ParserError::UnexpectedIdent(line, starts_at, ends_at) => self.syntax_error_template(
+            ParserError::UnexpectedIdent(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -403,7 +593,8 @@ impl Error {
                 "Indentation not expected here".to_string(),
                 Some(self.print_marker(*starts_at, *ends_at, Some("here"))),
             ),
-            ParserError::UnexpectedDeident(line) => self.syntax_error_template(
+            ParserError::UnexpectedDeident(line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,
@@ -411,7 +602,8 @@ impl Error {
                 "Unexpected deindentation".to_string(),
                 None,
             ),
-            ParserError::IndentedElse(line, starts_at, ends_at) => self.syntax_error_template(
+            ParserError::IndentedElse(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -423,7 +615,8 @@ impl Error {
                     Some("try removing the indentation at the start"),
                 )),
             ),
-            ParserError::DanglingElse(line, starts_at, ends_at) => self.syntax_error_template(
+            ParserError::DanglingElse(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
@@ -435,7 +628,8 @@ impl Error {
                     Some("this 'else' is not binded to a 'if."),
                 )),
             ),
-            ParserError::MaxFuntionArgsReached(line) => self.syntax_error_template(
+            ParserError::MaxFuntionArgsReached(line) => self.static_error_template(
+                error_type,
                 source_vec,
                 *line,
                 None,

@@ -92,7 +92,13 @@ impl<'a> SemanticAnalyzer<'a> {
         self.symbol_table.get(id)
     }
 
-    fn analyze_bin_arith(&mut self, op: &BinaryOp, a: &Expr, b: &Expr) -> SemanticAnalyzerResult {
+    fn analyze_bin_arith(
+        &mut self,
+        op: &BinaryOp,
+        a: &Expr,
+        b: &Expr,
+        original_expr: &Expr,
+    ) -> SemanticAnalyzerResult {
         use BinaryOp::*;
 
         let type_a = self.analyze_one(a)?;
@@ -120,7 +126,12 @@ impl<'a> SemanticAnalyzer<'a> {
             (Mod, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() % b),
             (Mod, Type::Float(a), Type::Integer(b)) => Type::Float(a % b.to_f64().unwrap()),
             (Mod, Type::Float(a), Type::Float(b)) => Type::Float(a % b),
-            (op, l, r) => return Err(SmntcError::IncompatibleBinArith(*op, l, r)),
+            (op, l, r) => {
+                let (line, starts_at, ends_at) = original_expr.placement();
+                return Err(SmntcError::IncompatibleBinArith(
+                    line, starts_at, ends_at, *op, l, r,
+                ));
+            }
         };
 
         Ok(expr_type)
@@ -131,6 +142,7 @@ impl<'a> SemanticAnalyzer<'a> {
         op: &BinaryCompOp,
         a: &Expr,
         b: &Expr,
+        original_expr: &Expr,
     ) -> SemanticAnalyzerResult {
         use BinaryCompOp::*;
 
@@ -200,7 +212,13 @@ impl<'a> SemanticAnalyzer<'a> {
             }
             (GreaterEqual, Type::Float(a), Type::Float(b)) => Type::Boolean(a >= b),
             (GreaterEqual, Type::Str(a), Type::Str(b)) => Type::Boolean(a.ge(&b)),
-            (op, l, r) => return Err(SmntcError::IncompatibleComparation(*op, l, r, None)),
+            (op, l, r) => {
+                let (line, starts_at, ends_at) = original_expr.placement();
+
+                return Err(SmntcError::IncompatibleComparation(
+                    line, starts_at, ends_at, *op, l, r,
+                ));
+            }
         };
 
         Ok(expr_type)
@@ -211,6 +229,7 @@ impl<'a> SemanticAnalyzer<'a> {
         op: &BinaryLogicOp,
         a: &Expr,
         b: &Expr,
+        original_expr: &Expr,
     ) -> SemanticAnalyzerResult {
         use BinaryLogicOp::*;
 
@@ -220,7 +239,13 @@ impl<'a> SemanticAnalyzer<'a> {
         let expr_type = match (op, type_a, type_b) {
             (And, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a && b),
             (Or, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a || b),
-            (op, l, r) => return Err(SmntcError::IncompatibleLogicOp(*op, l, r)),
+            (op, l, r) => {
+                let (line, starts_at, ends_at) = original_expr.placement();
+
+                return Err(SmntcError::IncompatibleLogicOp(
+                    line, starts_at, ends_at, *op, l, r,
+                ));
+            }
         };
 
         Ok(expr_type)
@@ -231,17 +256,33 @@ impl<'a> SemanticAnalyzer<'a> {
 
         match exp_type {
             Type::Boolean(b) => Ok(Type::Boolean(!b)),
-            t => Err(SmntcError::IncompatibleLogicNot(t)),
+            t => {
+                let (line, starts_at, ends_at) = exp.placement();
+                Err(SmntcError::IncompatibleLogicNot(
+                    line, starts_at, ends_at, t,
+                ))
+            }
         }
     }
 
-    fn analyze_unary(&mut self, op: &UnaryOp, exp: &Expr) -> SemanticAnalyzerResult {
+    fn analyze_unary(
+        &mut self,
+        op: &UnaryOp,
+        exp: &Expr,
+        original_expr: &Expr,
+    ) -> SemanticAnalyzerResult {
         let exp_type = self.analyze_one(exp)?;
 
         match (op, exp_type) {
             (_, Type::Integer(x)) => Ok(Type::Integer(x)),
             (_, Type::Float(x)) => Ok(Type::Float(x)),
-            (op, t) => Err(SmntcError::IncompatibleUnaryOp(*op, t)),
+            (op, t) => {
+                let (line, starts_at, ends_at) = original_expr.placement();
+
+                Err(SmntcError::IncompatibleUnaryOp(
+                    line, starts_at, ends_at, *op, t,
+                ))
+            }
         }
     }
 
@@ -256,51 +297,87 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    fn analyze_variable_expr(&mut self, id: &str, line: usize) -> SemanticAnalyzerResult {
+    fn analyze_variable_expr(&mut self, id: &str, token: &Token) -> SemanticAnalyzerResult {
         if let Some(t) = self.get_var(id) {
             Ok(t)
         } else {
-            Err(SmntcError::VariableNotDeclared(line, id.to_string()))
+            let (line, starts_at, ends_at) = token.placement.as_tuple();
+            Err(SmntcError::VariableNotDeclared(
+                line,
+                starts_at,
+                ends_at,
+                id.to_string(),
+            ))
         }
     }
 
     fn analyze_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> SemanticAnalyzerResult {
-        if let Type::Fun(param_type, ret_type) = self.analyze_one(callee)? {
-            if param_type.len() != args.len() {
-                return Err(SmntcError::WrongArity);
-            }
+        match self.analyze_one(callee)? {
+            Type::Fun(param_type, ret_type) => {
+                if param_type.len() != args.len() {
+                    let (line, starts_at, mut ends_at) = callee.placement();
 
-            self.with_new_env(|analyzer| {
-                for (arg, param_var_type) in args.iter().zip(&param_type) {
-                    let arg_type = analyzer.analyze_one(arg)?;
+                    if !args.is_empty() {
+                        let (_, _, last_arg_end) = args.last().unwrap().placement();
 
-                    let arg_var_type: VarType = arg_type.clone().into();
-                    let param_type: Type = param_var_type.into();
-
-                    if arg_var_type != *param_var_type {
-                        return Err(SmntcError::MismatchedTypes(param_type, arg_type, None));
+                        ends_at = last_arg_end + 1;
+                    } else {
+                        ends_at += 2;
                     }
+
+                    return Err(SmntcError::WrongArity(
+                        line,
+                        starts_at,
+                        ends_at,
+                        param_type.len(),
+                        args.len(),
+                    ));
                 }
 
-                Ok(())
-            })?;
+                self.with_new_env(|analyzer| {
+                    for (arg, param_var_type) in args.iter().zip(&param_type) {
+                        let arg_type = analyzer.analyze_one(arg)?;
 
-            Ok((&ret_type).into())
-        } else {
-            Err(SmntcError::NotCallable)
+                        let arg_var_type: VarType = arg_type.clone().into();
+                        let param_type: Type = param_var_type.into();
+
+                        if arg_var_type != *param_var_type {
+                            let (line, (starts_at, ends_at)) =
+                                (arg.get_line(), arg.get_expr_placement());
+                            return Err(SmntcError::MismatchedTypes(
+                                line, starts_at, ends_at, param_type, arg_type,
+                            ));
+                        }
+                    }
+
+                    Ok(())
+                })?;
+
+                Ok((&ret_type).into())
+            }
+            t => {
+                let (line, starts_at, ends_at) = callee.placement();
+                Err(SmntcError::NotCallable(line, starts_at, ends_at, t))
+            }
         }
     }
 
     fn analyze_one(&mut self, exp: &Expr) -> SemanticAnalyzerResult {
         match exp {
-            Expr::BinaryArith(a, op_and_token, b) => self.analyze_bin_arith(&op_and_token.op, a, b),
-            Expr::BinaryComp(a, op_and_token, b) => self.analyze_bin_comp(&op_and_token.op, a, b),
-            Expr::BinaryLogic(a, op_and_token, b) => self.analyze_bin_logic(&op_and_token.op, a, b),
+            Expr::BinaryArith(a, op_and_token, b) => {
+                self.analyze_bin_arith(&op_and_token.op, a, b, exp)
+            }
+            Expr::BinaryComp(a, op_and_token, b) => {
+                self.analyze_bin_comp(&op_and_token.op, a, b, exp)
+            }
+            Expr::BinaryLogic(a, op_and_token, b) => {
+                self.analyze_bin_logic(&op_and_token.op, a, b, exp)
+            }
             Expr::LogicNot((exp, _)) => self.analyze_logic_not(exp),
-            Expr::Unary(op_and_token, exp) => self.analyze_unary(&op_and_token.op, exp),
+            Expr::Unary(op_and_token, expr) => self.analyze_unary(&op_and_token.op, expr, exp),
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
-            Expr::Variable(token, id) => self.analyze_variable_expr(id, token.placement().line),
+            Expr::Variable(token, id) => self.analyze_variable_expr(id, token),
             Expr::Call(callee, args) => self.analyze_call_expr(callee, args),
         }
     }
@@ -311,11 +388,17 @@ impl<'a> SemanticAnalyzer<'a> {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
                     Ok(Type::Boolean(_)) => {}
-                    Ok(t) => self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
-                        Type::Boolean(true),
-                        t,
-                        None,
-                    ))),
+                    Ok(t) => {
+                        let (line, (starts_at, ends_at)) =
+                            (exp.get_line(), exp.get_expr_placement());
+                        self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
+                            line,
+                            starts_at,
+                            ends_at,
+                            Type::Boolean(true),
+                            t,
+                        )))
+                    }
                     Err(err) => self.errors.push(Error::Smntc(err)),
                 },
                 Stmt::ExprStmt(exp) => match self.analyze_one(exp) {
@@ -323,7 +406,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     Err(err) => self.errors.push(Error::Smntc(err)),
                 },
                 Stmt::VarStmt(id, var_type, expr) => {
-                    let error_line = expr.get_line();
+                    let (error_line, starts_at, ends_at) = expr.placement();
 
                     match self.analyze_one(expr) {
                         Ok(t) => match (var_type, t.clone()) {
@@ -332,6 +415,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -342,6 +427,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -352,6 +439,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -362,6 +451,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -372,6 +463,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -382,6 +475,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                     self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             error_line,
+                                            starts_at,
+                                            ends_at,
                                             id.to_string(),
                                         ),
                                     ));
@@ -391,6 +486,8 @@ impl<'a> SemanticAnalyzer<'a> {
                                 self.errors
                                     .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
                                         error_line,
+                                        starts_at,
+                                        ends_at,
                                         expected.clone(),
                                         found,
                                     )))
@@ -411,9 +508,13 @@ impl<'a> SemanticAnalyzer<'a> {
                                 self.analyze(else_branch.as_ref().unwrap()).ok();
                             }
                         }
-                        Ok(_) => self
-                            .errors
-                            .push(Error::Smntc(SmntcError::IfNotLogicalCondition)),
+                        Ok(t) => {
+                            let (line, starts_at, ends_at) = condition.placement();
+                            self.errors
+                                .push(Error::Smntc(SmntcError::IfNotLogicalCondition(
+                                    line, starts_at, ends_at, t,
+                                )))
+                        }
                         Err(err) => self.errors.push(Error::Smntc(err)),
                     };
                 }
@@ -427,6 +528,8 @@ impl<'a> SemanticAnalyzer<'a> {
                         self.errors
                             .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
                                 id_token.placement.line,
+                                id_token.placement.starts_at,
+                                id_token.placement.ends_at,
                                 id_token.lexeme(),
                             )));
                     }
@@ -437,9 +540,12 @@ impl<'a> SemanticAnalyzer<'a> {
                                 .insert_var(&token.lexeme, var_type.into())
                                 .is_some()
                             {
+                                let (line, starts_at, ends_at) = token.placement.as_tuple();
                                 analyzer.errors.push(Error::Smntc(
                                     SmntcError::VariableAlreadyDeclared(
-                                        token.placement.line,
+                                        line,
+                                        starts_at,
+                                        ends_at,
                                         token.lexeme(),
                                     ),
                                 ));
@@ -457,10 +563,11 @@ impl<'a> SemanticAnalyzer<'a> {
                             .collect();
 
                         if ret_type != &VarType::PythonNone && return_stmts.is_empty() {
-                            return Err(SmntcError::MismatchedTypes(
-                                ret_type.into(),
-                                (&VarType::PythonNone).into(),
-                                None,
+                            return Err(SmntcError::MissingReturns(
+                                id_token.placement.line,
+                                id_token.placement.starts_at,
+                                id_token.placement.ends_at,
+                                ret_type.clone(),
                             ));
                         }
 
@@ -471,19 +578,28 @@ impl<'a> SemanticAnalyzer<'a> {
                                     let var_type: VarType = x.clone().into();
 
                                     if &var_type != ret_type {
+                                        let (line, (starts_at, ends_at)) =
+                                            (expr.get_line(), expr.get_expr_placement());
+
                                         return Err(SmntcError::MismatchedTypes(
+                                            line,
+                                            starts_at,
+                                            ends_at,
                                             ret_type.into(),
                                             x,
-                                            None,
                                         ));
                                     }
                                 }
                                 None => {
                                     if ret_type != &VarType::PythonNone {
+                                        let (line, starts_at, ends_at) =
+                                            id_token.placement.as_tuple();
                                         return Err(SmntcError::MismatchedTypes(
+                                            line,
+                                            starts_at,
+                                            ends_at,
                                             ret_type.into(),
                                             (&VarType::PythonNone).into(),
-                                            None,
                                         ));
                                     }
                                 }
