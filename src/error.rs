@@ -48,8 +48,8 @@ pub enum ParserError {
     IndentedElse(usize, usize, usize),
     DanglingElse(usize, usize, usize),
     MaxFuntionArgsReached(usize),
-    MissingFunctionReturnType,
-    MissingParameterType,
+    MissingFunctionReturnType(usize, usize, usize),
+    MissingParameterType(usize, usize, usize),
 }
 #[derive(Debug, Clone)]
 pub enum SmntcError {
@@ -229,7 +229,7 @@ impl Error {
         let error_type = "Semantic";
 
         match error {
-            SmntcError::MismatchedTypes(line, starts_at, ends_at, expected, found) => {
+            SmntcError::MismatchedTypes(line, starts_at, ends_at, expected, found) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -243,9 +243,8 @@ impl Error {
                     found,
                     Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                )
-            }
-            SmntcError::MissingReturns(line, starts_at, ends_at, expected) => {
+                ),
+            SmntcError::MissingReturns(line, starts_at, ends_at, expected) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -256,10 +255,8 @@ impl Error {
                     expected,
                     Color::Yellow), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                )
-            }
-
-            SmntcError::IncompatibleBinArith(line, starts_at, ends_at, op, left, right) => {
+                ),
+            SmntcError::IncompatibleBinArith(line, starts_at, ends_at, op, left, right) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -277,9 +274,8 @@ impl Error {
                             right,
                             Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                ) 
-            }
-            SmntcError::IncompatibleLogicNot(line, starts_at, ends_at, t) => {
+                ),
+            SmntcError::IncompatibleLogicNot(line, starts_at, ends_at, t) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -294,9 +290,8 @@ impl Error {
                             t, 
                             Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                )
-            }
-            SmntcError::IncompatibleUnaryOp(line, starts_at, ends_at, op, t) => {
+                ),
+            SmntcError::IncompatibleUnaryOp(line, starts_at, ends_at, op, t) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -315,9 +310,8 @@ impl Error {
                             t, 
                             Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                )
-            }
-            SmntcError::IncompatibleComparation(line, starts_at, ends_at, op, l, r) => {
+                ),
+            SmntcError::IncompatibleComparation(line, starts_at, ends_at, op, l, r) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -335,9 +329,8 @@ impl Error {
                             r, 
                             Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                ) 
-            }
-            SmntcError::IncompatibleLogicOp(line, starts_at, ends_at,op, l, r) => {
+                ),
+            SmntcError::IncompatibleLogicOp(line, starts_at, ends_at,op, l, r) => 
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -361,9 +354,8 @@ impl Error {
                             r, 
                             Color::Yellow), 
                     Some(self.print_marker(*starts_at, *ends_at, None))
-                )
-            }
-            SmntcError::IncompatibleDeclaration(line, starts_at, ends_at, expected, found) => {
+                ),
+            SmntcError::IncompatibleDeclaration(line, starts_at, ends_at, expected, found) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -378,9 +370,8 @@ impl Error {
                             found, 
                             Color::Reset), 
                     Some(self.print_marker(*starts_at, *ends_at, Some(&format!("evaluates to {}", found))))
-                )
-            }
-            SmntcError::VariableNotDeclared(line, starts_at, ends_at, var_name) => {
+                ),
+            SmntcError::VariableNotDeclared(line, starts_at, ends_at, var_name) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -389,9 +380,8 @@ impl Error {
                     Some(*ends_at), 
                     format!("Attempting to read an undeclared variable '{}'", var_name),
                     Some(self.print_marker(*starts_at, *ends_at, Some("not found in this scope")))
-                )
-            }
-            SmntcError::VariableAlreadyDeclared(line, starts_at, ends_at, var_name) => {
+                ),
+            SmntcError::VariableAlreadyDeclared(line, starts_at, ends_at, var_name) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -400,9 +390,8 @@ impl Error {
                     Some(*ends_at), 
                     format!("Attempting to reassign the variable '{}'", var_name),
                     Some(self.print_marker(*starts_at, *ends_at, Some("reassign is not allowed")))
-                )
-            }
-            SmntcError::IfNotLogicalCondition(line, starts_at, ends_at, t) => {
+                ),
+            SmntcError::IfNotLogicalCondition(line, starts_at, ends_at, t) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -417,9 +406,8 @@ impl Error {
                             t,
                             Color::Yellow),
                     Some(self.print_marker(*starts_at, *ends_at, Some("here")))
-                )
-            }
-            SmntcError::NotCallable(line, starts_at, ends_at, t) => {
+                ),
+            SmntcError::NotCallable(line, starts_at, ends_at, t) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -434,9 +422,8 @@ impl Error {
                             VarType::Function,
                             Color::Yellow),
                     Some(self.print_marker(*starts_at, *ends_at, Some("call happens here")))
-                )
-            }
-            SmntcError::WrongArity(line, starts_at, ends_at, expected, found) => {
+                ),
+            SmntcError::WrongArity(line, starts_at, ends_at, expected, found) =>
                 self.static_error_template(
                     error_type, 
                     source_vec, 
@@ -451,8 +438,7 @@ impl Error {
                             found,
                             Color::Yellow),
                     Some(self.print_marker(*starts_at, *ends_at, Some("here")))
-                )
-            }
+                ),
         }
     }
 
@@ -638,10 +624,43 @@ impl Error {
                 None,
             ),
             // todo write error
-            ParserError::MissingFunctionReturnType => {
-                "Missing function return type error".to_string()
-            }
-            ParserError::MissingParameterType => "Missing parameter type error".to_string(),
+            ParserError::MissingFunctionReturnType(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Expected one of {}'{}', '{}', '{}', '{}', '{}'.", 
+                        Color::White,
+                        VarType::Boolean,
+                        VarType::Integer,
+                        VarType::Float,
+                        VarType::Str,
+                        VarType::PythonNone,),
+                Some(self.print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("here"),
+                )),
+            ),
+            ParserError::MissingParameterType(line, starts_at, ends_at) => self.static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Expected one of {}'{}', '{}', '{}', '{}'.", 
+                        Color::White,
+                        VarType::Boolean,
+                        VarType::Integer,
+                        VarType::Float,
+                        VarType::Str),
+                Some(self.print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("after this"),
+                )),
+            ),
         }
     }
 }

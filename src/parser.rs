@@ -352,7 +352,7 @@ impl<'a> Parser<'a> {
         }
 
         let mut ret_type = VarType::PythonNone;
-        if self.next_is(single(Arrow)).is_some() {
+        if let Some((_, arrow_token)) = self.next_is(single(Arrow)) {
             if let Some((var_type, _)) = self.next_is(|tt| match tt {
                 PythonNone => Some(VarType::PythonNone),
                 Int => Some(VarType::Integer),
@@ -363,7 +363,10 @@ impl<'a> Parser<'a> {
             }) {
                 ret_type = var_type;
             } else if self.next_is(single(Colon)).is_some() {
-                return Err(ParserError::MissingFunctionReturnType);
+                let (line, starts_at, ends_at) = arrow_token.placement.as_tuple();
+                return Err(ParserError::MissingFunctionReturnType(
+                    line, starts_at, ends_at,
+                ));
             }
         }
 
@@ -428,7 +431,7 @@ fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
 
 fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result<(), ParserError> {
     let first_param_id = parser.consume(Identifier)?;
-    parser.consume(Colon)?;
+    let colon_token = parser.consume(Colon)?;
     if let Some((first_param_type, _)) = parser.next_is(|tt| match tt {
         Int => Some(VarType::Integer),
         Float => Some(VarType::Float),
@@ -438,12 +441,13 @@ fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result
     }) {
         params.push((first_param_id, first_param_type));
     } else {
-        return Err(ParserError::MissingParameterType);
+        let (line, starts_at, ends_at) = colon_token.placement.as_tuple();
+        return Err(ParserError::MissingParameterType(line, starts_at, ends_at));
     }
 
     while parser.next_is(single(Comma)).is_some() {
         let param_id = parser.consume(Identifier)?;
-        parser.consume(Colon)?;
+        let colon_token = parser.consume(Colon)?;
         if let Some((param_type, _)) = parser.next_is(|tt| match tt {
             Int => Some(VarType::Integer),
             Float => Some(VarType::Float),
@@ -453,7 +457,8 @@ fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result
         }) {
             params.push((param_id, param_type));
         } else {
-            return Err(ParserError::MissingParameterType);
+            let (line, starts_at, ends_at) = colon_token.placement.as_tuple();
+            return Err(ParserError::MissingParameterType(line, starts_at, ends_at));
         }
     }
 
