@@ -1,4 +1,4 @@
-use crate::error::{Error, ParserError};
+use crate::error::{parser::ParserError, Error};
 use crate::expr::{operations::*, value::Value, *};
 use crate::stmt::Stmt;
 use crate::token::{token_type::TokenType, Token, VarType};

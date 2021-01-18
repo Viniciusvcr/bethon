@@ -1,4 +1,4 @@
-use crate::error::{Error, ScannerError};
+use crate::error::{scanner::ScannerError, Error};
 use crate::token::{number_type::NumberType, token_type::TokenType, Token};
 use num_bigint::BigInt;
 use std::str::Chars;

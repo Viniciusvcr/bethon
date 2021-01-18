@@ -1,6 +1,6 @@
 use crate::{
     environment::{Environment, SemanticEnvironment},
-    error::{Error, SmntcError},
+    error::{semantic::SmntcError, Error},
     expr::{
         operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
         value::Value,

@@ -1,6 +1,6 @@
 use crate::{
     environment::Environment,
-    error::{Error, RuntimeError},
+    error::{runtime::RuntimeError, Error},
     expr::{operations::*, value::Value, *},
     stmt::*,
     token::number_type::NumberType,
