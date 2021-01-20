@@ -383,7 +383,11 @@ impl<'a> SemanticAnalyzer<'a> {
     }
 
     // todo check "main" before everything (because scope)
-    pub fn analyze(&mut self, stmts: &'a [Stmt]) -> Result<(), Vec<Error>> {
+    pub fn analyze(
+        &mut self,
+        stmts: &'a [Stmt],
+        fun_ret_type: Option<VarType>,
+    ) -> Result<(), Vec<Error>> {
         for stmt in stmts {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
@@ -503,9 +507,10 @@ impl<'a> SemanticAnalyzer<'a> {
                             self.insert(condition, Type::Boolean(x));
 
                             if x {
-                                self.analyze(then_branch).ok();
+                                self.analyze(then_branch, fun_ret_type.clone()).ok();
                             } else if else_branch.is_some() {
-                                self.analyze(else_branch.as_ref().unwrap()).ok();
+                                self.analyze(else_branch.as_ref().unwrap(), fun_ret_type.clone())
+                                    .ok();
                             }
                         }
                         Ok(t) => {
@@ -552,7 +557,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             }
                         }
 
-                        analyzer.analyze(&body).ok(); // Errors will already be pushed to self.errors
+                        analyzer.analyze(&body, Some(ret_type.clone())).ok(); // Errors will already be pushed to self.errors
 
                         let return_stmts: Vec<(&Token, &Option<Expr>)> = body
                             .iter()
@@ -571,46 +576,56 @@ impl<'a> SemanticAnalyzer<'a> {
                             ));
                         }
 
-                        for (_, op_expr) in return_stmts {
-                            match op_expr {
-                                Some(expr) => {
-                                    let x = analyzer.analyze_one(expr)?;
-                                    let var_type: VarType = x.clone().into();
-
-                                    if &var_type != ret_type {
-                                        let (line, (starts_at, ends_at)) =
-                                            (expr.get_line(), expr.get_expr_placement());
-
-                                        return Err(SmntcError::MismatchedTypes(
-                                            line,
-                                            starts_at,
-                                            ends_at,
-                                            ret_type.into(),
-                                            x,
-                                        ));
-                                    }
-                                }
-                                None => {
-                                    if ret_type != &VarType::PythonNone {
-                                        let (line, starts_at, ends_at) =
-                                            id_token.placement.as_tuple();
-                                        return Err(SmntcError::MismatchedTypes(
-                                            line,
-                                            starts_at,
-                                            ends_at,
-                                            ret_type.into(),
-                                            (&VarType::PythonNone).into(),
-                                        ));
-                                    }
-                                }
-                            }
-                        }
                         Ok(())
                     }) {
                         self.errors.push(Error::Smntc(err))
                     }
                 }
-                Stmt::ReturnStmt(_, _) => {}
+                Stmt::ReturnStmt(token, op_expr) => match op_expr {
+                    Some(expr) => {
+                        if fun_ret_type.is_some() {
+                            match self.analyze_one(expr) {
+                                Ok(x) => {
+                                    let var_type: VarType = x.clone().into();
+
+                                    if &var_type != fun_ret_type.as_ref().unwrap() {
+                                        let (line, (starts_at, ends_at)) =
+                                            (expr.get_line(), expr.get_expr_placement());
+
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::MismatchedTypes(
+                                                line,
+                                                starts_at,
+                                                ends_at,
+                                                fun_ret_type.as_ref().unwrap().into(),
+                                                x,
+                                            ),
+                                        ));
+                                    }
+                                }
+                                Err(err) => self.errors.push(Error::Smntc(err)),
+                            }
+                        } else {
+                            let (line, starts_at, ends_at) = token.placement.as_tuple();
+
+                            self.errors.push(Error::Smntc(SmntcError::TopLevelReturn(
+                                line, starts_at, ends_at,
+                            )))
+                        }
+                    }
+                    None => {
+                        if fun_ret_type.is_some() {
+                            let (line, starts_at, ends_at) = token.placement.as_tuple();
+                            self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
+                                line,
+                                starts_at,
+                                ends_at,
+                                fun_ret_type.as_ref().unwrap().into(),
+                                (&VarType::PythonNone).into(),
+                            )));
+                        }
+                    }
+                },
             }
         }
 

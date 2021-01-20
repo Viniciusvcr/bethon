@@ -12,7 +12,7 @@ fn run(filename: &str, source_code: &str) {
 
     match lexer.scan_tokens() {
         Ok(vec) => {
-            println!("{:#?}", vec);
+            // println!("{:#?}", vec);
             let mut parser = Parser::new(vec);
 
             match parser.parse() {
@@ -20,7 +20,7 @@ fn run(filename: &str, source_code: &str) {
                     // println!("{:#?}", stmts);
                     let mut pass = SemanticAnalyzer::default();
 
-                    if let Err(errors) = pass.analyze(&stmts) {
+                    if let Err(errors) = pass.analyze(&stmts, None) {
                         let code_vec = create_code_vec(source_code);
                         for error in errors {
                             error.show_error(Some(filename), Some(&code_vec));

@@ -21,6 +21,7 @@ pub enum SmntcError {
     IfNotLogicalCondition(usize, usize, usize, Type),
     NotCallable(usize, usize, usize, Type),
     WrongArity(usize, usize, usize, usize, usize),
+    TopLevelReturn(usize, usize, usize),
 }
 
 impl SmntcError {
@@ -168,7 +169,7 @@ impl SmntcError {
                 *line,
                 Some(*starts_at),
                 Some(*ends_at),
-                format!("Attempting to read an undeclared variable '{}'", var_name),
+                format!("Attempting to read an undeclared variable {}'{}'{}", Color::White, var_name, Color::Reset),
                 Some(print_marker(*starts_at, *ends_at, Some("not found in this scope")))
             ),
             SmntcError::VariableAlreadyDeclared(line, starts_at, ends_at, var_name) => static_error_template(
@@ -225,6 +226,15 @@ impl SmntcError {
                         Color::Yellow),
                 Some(print_marker(*starts_at, *ends_at, Some("here")))
             ),
+            SmntcError::TopLevelReturn(line, starts_at, ends_at) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Top level 'return' is not allowed".to_string(),
+                Some(print_marker(*starts_at, *ends_at, Some("here")))
+            )
         }
     }
 }
