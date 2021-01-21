@@ -49,10 +49,12 @@ impl SmntcError {
                 *line,
                 Some(*starts_at),
                 Some(*ends_at),
-                format!("Defined return type is {}{}{}, but not 'return' found in the function", Color::White,
+                format!("Defined return type is {}{}{}, but function may lack {}'return'{} in some cases ", Color::White,
                 expected,
+                Color::Yellow,
+                Color::White,
                 Color::Yellow),
-                Some(print_marker(*starts_at, *ends_at, None))
+                Some(print_marker(*starts_at, *ends_at, Some("error occurs here")))
             ),
             SmntcError::IncompatibleBinArith(line, starts_at, ends_at, op, left, right) => static_error_template(
                 error_type,

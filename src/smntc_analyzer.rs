@@ -526,6 +526,15 @@ impl<'a> SemanticAnalyzer<'a> {
                 Stmt::Function(id_token, params, body, ret_type) => {
                     let param_types = params.iter().map(|(_, y)| y.clone()).collect();
 
+                    if ret_type != &VarType::PythonNone && !self.validate_return(body) {
+                        self.errors.push(Error::Smntc(SmntcError::MissingReturns(
+                            id_token.placement.line,
+                            id_token.placement.starts_at,
+                            id_token.placement.ends_at,
+                            ret_type.clone(),
+                        )));
+                    }
+
                     if self
                         .insert_var(&id_token.lexeme, Type::Fun(param_types, ret_type.clone()))
                         .is_some()
@@ -558,23 +567,6 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
 
                         analyzer.analyze(&body, Some(ret_type.clone())).ok(); // Errors will already be pushed to self.errors
-
-                        let return_stmts: Vec<(&Token, &Option<Expr>)> = body
-                            .iter()
-                            .filter_map(|stmt| match stmt {
-                                Stmt::ReturnStmt(token, expr) => Some((token, expr)),
-                                _ => None,
-                            })
-                            .collect();
-
-                        if ret_type != &VarType::PythonNone && return_stmts.is_empty() {
-                            return Err(SmntcError::MissingReturns(
-                                id_token.placement.line,
-                                id_token.placement.starts_at,
-                                id_token.placement.ends_at,
-                                ret_type.clone(),
-                            ));
-                        }
 
                         Ok(())
                     }) {
@@ -633,6 +625,30 @@ impl<'a> SemanticAnalyzer<'a> {
             Ok(())
         } else {
             Err(self.errors.clone())
+        }
+    }
+
+    fn validate_return(&self, stmts: &[Stmt]) -> bool {
+        if stmts
+            .iter()
+            .any(|stmt| matches!(stmt, Stmt::ReturnStmt(_, _)))
+        {
+            true
+        } else {
+            let if_stmt = stmts
+                .iter()
+                .filter_map(|stmt| match stmt {
+                    Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+                    _ => None,
+                })
+                .collect::<Vec<(&Vec<Stmt>, &Option<Vec<Stmt>>)>>();
+
+            if let Some((then_branch, else_branch)) = if_stmt.last() {
+                return self.validate_return(then_branch)
+                    && self.validate_return(else_branch.as_ref().unwrap_or(&vec![]));
+            }
+
+            false
         }
     }
 
