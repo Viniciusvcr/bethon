@@ -40,3 +40,28 @@ def j(x: bool) -> int:
 
 def k():
     a = 10
+
+
+def l(a: int) -> int:
+    if a == 2:
+        return 2
+    else:
+        c = 10
+
+    if a == 10:
+        return 10
+    else:
+        return a
+
+
+# dead_code, but valid
+def m(a: int) -> int:
+    if a == 2:
+        return 2
+    else:
+        return 10
+
+    if a == 10:
+        c = 10
+    else:
+        return a

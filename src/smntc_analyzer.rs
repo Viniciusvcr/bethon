@@ -643,12 +643,17 @@ impl<'a> SemanticAnalyzer<'a> {
                 })
                 .collect::<Vec<(&Vec<Stmt>, &Option<Vec<Stmt>>)>>();
 
-            if let Some((then_branch, else_branch)) = if_stmt.last() {
-                return self.validate_return(then_branch)
+            let mut valid = false;
+            for (then_branch, else_branch) in if_stmt.iter().rev() {
+                valid |= self.validate_return(then_branch)
                     && self.validate_return(else_branch.as_ref().unwrap_or(&vec![]));
+
+                if valid {
+                    break;
+                }
             }
 
-            false
+            valid
         }
     }
 
