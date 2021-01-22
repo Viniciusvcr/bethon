@@ -5,7 +5,7 @@ use token_type::TokenType;
 
 use crate::smntc_analyzer::Type;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum VarType {
     Boolean,
     Integer,
@@ -13,6 +13,12 @@ pub enum VarType {
     Str,
     PythonNone,
     Function,
+}
+
+impl Default for VarType {
+    fn default() -> Self {
+        VarType::PythonNone
+    }
 }
 
 impl From<Type> for VarType {
@@ -23,7 +29,7 @@ impl From<Type> for VarType {
             Type::Boolean(_) => VarType::Boolean,
             Type::Null => VarType::PythonNone,
             Type::Str(_) => VarType::Str,
-            Type::Fun(_, _) => VarType::Function,
+            Type::Fun(_, _, _) => VarType::Function,
         }
     }
 }

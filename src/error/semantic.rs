@@ -22,6 +22,7 @@ pub enum SmntcError {
     NotCallable(usize, usize, usize, Type),
     WrongArity(usize, usize, usize, usize, usize),
     TopLevelReturn(usize, usize, usize),
+    UnboundVar,
 }
 
 impl SmntcError {
@@ -236,7 +237,8 @@ impl SmntcError {
                 Some(*ends_at),
                 "Top level 'return' is not allowed".to_string(),
                 Some(print_marker(*starts_at, *ends_at, Some("here")))
-            )
+            ),
+            SmntcError::UnboundVar => "Unbound var".to_string()
         }
     }
 }

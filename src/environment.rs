@@ -67,4 +67,4 @@ where
 }
 
 pub type InterpreterEnvironment = Environment<Value>;
-pub type SemanticEnvironment = Environment<Type>;
+pub type SemanticEnvironment = Environment<(Type, bool)>;
