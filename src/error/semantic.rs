@@ -22,7 +22,7 @@ pub enum SmntcError {
     NotCallable(usize, usize, usize, Type),
     WrongArity(usize, usize, usize, usize, usize),
     TopLevelReturn(usize, usize, usize),
-    UnboundVar,
+    UnboundVar, // write error
 }
 
 impl SmntcError {

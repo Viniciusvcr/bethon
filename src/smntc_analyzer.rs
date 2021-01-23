@@ -61,14 +61,13 @@ impl std::fmt::Display for Type {
     }
 }
 
-#[allow(dead_code)]
-// The semantic analyzer
+#[allow(dead_code)] // todo remove this
+                    // The semantic analyzer
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>, // can't retrieve from this hashmap
     symbol_table: SemanticEnvironment,
     errors: Vec<Error>,
     analyzing_function: bool,
-    fun_ret_type: Option<VarType>,
 }
 
 impl<'a> Default for SemanticAnalyzer<'a> {
@@ -88,7 +87,7 @@ impl<'a> SemanticAnalyzer<'a> {
         result
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] // todo remove this
     fn insert(&mut self, expr: &'a Expr, t: Type) {
         self.types.insert(expr, t);
     }
@@ -125,6 +124,31 @@ impl<'a> SemanticAnalyzer<'a> {
             self.declare_env_vars(then)?;
             if let Some(else_branch) = else_ {
                 self.declare_env_vars(else_branch)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn declare_env_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+        let vec = body.iter().filter_map(|stmt| match stmt {
+            Stmt::Function(id, _, _, _) => Some(id),
+            _ => None,
+        });
+
+        for id in vec {
+            self.declare(&id.lexeme(), (&VarType::Function).into());
+        }
+
+        let another_vec = body.iter().filter_map(|stmt| match stmt {
+            Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+            _ => None,
+        });
+
+        for (then, else_) in another_vec {
+            self.declare_env_funcs(then)?;
+            if let Some(else_branch) = else_ {
+                self.declare_env_funcs(else_branch)?;
             }
         }
 
@@ -350,12 +374,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
             Value::Number(NumberType::Float(x)) => Type::Float(*x),
             Value::Str(x) => Type::Str(x.to_string()),
-            Value::Fun(x) => Type::Fun(
-                SemanticEnvironment::default(),
-                vec![],
-                x.ret_type.clone(),
-                vec![],
-            ),
+            Value::Fun(x) => Type::Fun(SemanticEnvironment::default(), vec![], x.ret_type, vec![]),
         }
     }
 
@@ -395,9 +414,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         args.len(),
                     ));
                 } else if !self.analyzing_function {
-                    // println!("{:#?}", env);
-
-                    let old_env = std::mem::replace(&mut self.symbol_table, env.clone());
+                    let old_env = std::mem::replace(&mut self.symbol_table, env);
                     for (arg, param_var_type) in args.iter().zip(&param_type) {
                         let arg_type = self.analyze_one(arg)?;
 
@@ -414,7 +431,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
 
                     for key in &declared_keys {
-                        if let None = self.get_var(&key) {
+                        if self.get_var(&key).is_none() {
                             self.errors.push(Error::Smntc(SmntcError::UnboundVar));
                         }
                     }
@@ -450,9 +467,16 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    // todo check "main" before everything (because scope)
-    pub fn analyze(&mut self, stmts: &[Stmt]) -> Result<(), Vec<Error>> {
+    pub fn analyze(
+        &mut self,
+        stmts: &[Stmt],
+        fun_ret_type: Option<VarType>,
+    ) -> Result<(), Vec<Error>> {
         if let Err(err) = self.declare_env_vars(stmts) {
+            self.errors.push(Error::Smntc(err));
+        }
+
+        if let Err(err) = self.declare_env_funcs(stmts) {
             self.errors.push(Error::Smntc(err));
         }
 
@@ -555,11 +579,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             (Some(expected), found) => {
                                 self.errors
                                     .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        expected.clone(),
-                                        found,
+                                        error_line, starts_at, ends_at, *expected, found,
                                     )))
                             }
                         },
@@ -573,9 +593,10 @@ impl<'a> SemanticAnalyzer<'a> {
                             // self.insert(condition, Type::Boolean(x));
 
                             if x {
-                                self.analyze(then_branch).ok();
+                                self.analyze(then_branch, fun_ret_type).ok();
                             } else if else_branch.is_some() {
-                                self.analyze(else_branch.as_ref().unwrap()).ok();
+                                self.analyze(else_branch.as_ref().unwrap(), fun_ret_type)
+                                    .ok();
                             }
                         }
                         Ok(t) => {
@@ -589,17 +610,14 @@ impl<'a> SemanticAnalyzer<'a> {
                     };
                 }
                 Stmt::Function(id_token, params, body, ret_type) => {
-                    self.analyzing_function = true;
-                    self.fun_ret_type = Some(ret_type.clone());
-
-                    let param_types: Vec<VarType> = params.iter().map(|(_, y)| y.clone()).collect();
+                    let param_types: Vec<VarType> = params.iter().map(|(_, y)| *y).collect();
 
                     if ret_type != &VarType::PythonNone && !self.validate_return(body) {
                         self.errors.push(Error::Smntc(SmntcError::MissingReturns(
                             id_token.placement.line,
                             id_token.placement.starts_at,
                             id_token.placement.ends_at,
-                            ret_type.clone(),
+                            *ret_type,
                         )));
                     }
 
@@ -608,12 +626,14 @@ impl<'a> SemanticAnalyzer<'a> {
                         Type::Fun(
                             SemanticEnvironment::default(),
                             param_types.clone(),
-                            ret_type.clone(),
+                            *ret_type,
                             vec![],
                         ),
                     );
 
                     let (fun_env, declared_keys) = self.with_new_env(|analyzer| {
+                        analyzer.analyzing_function = true;
+
                         for (token, var_type) in params {
                             if analyzer.define(&token.lexeme, var_type.into()).is_some() {
                                 let (line, starts_at, ends_at) = token.placement.as_tuple();
@@ -628,7 +648,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             }
                         }
 
-                        analyzer.analyze(&body).ok(); // Errors will already be pushed to self.errors
+                        analyzer.analyze(&body, Some(*ret_type)).ok(); // Errors will already be pushed to self.errors
 
                         (
                             analyzer.symbol_table.clone(),
@@ -638,12 +658,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
                     if let Some((_, true)) = self.define(
                         &id_token.lexeme,
-                        Type::Fun(
-                            fun_env,
-                            param_types.clone(),
-                            ret_type.clone(),
-                            declared_keys,
-                        ),
+                        Type::Fun(fun_env, param_types.clone(), *ret_type, declared_keys),
                     ) {
                         self.errors
                             .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
@@ -655,16 +670,16 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
 
                     self.analyzing_function = false;
-                    self.fun_ret_type = None;
                 }
                 Stmt::ReturnStmt(token, op_expr) => match op_expr {
                     Some(expr) => {
-                        if self.fun_ret_type.is_some() {
+                        if fun_ret_type.is_some() {
+                            self.analyzing_function = true; // if fun type is Some, definitely inside a function.
                             match self.analyze_one(expr) {
                                 Ok(x) => {
                                     let var_type: VarType = x.clone().into();
 
-                                    if &var_type != self.fun_ret_type.as_ref().unwrap() {
+                                    if &var_type != fun_ret_type.as_ref().unwrap() {
                                         let (line, (starts_at, ends_at)) =
                                             (expr.get_line(), expr.get_expr_placement());
 
@@ -673,7 +688,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                                 line,
                                                 starts_at,
                                                 ends_at,
-                                                self.fun_ret_type.as_ref().unwrap().into(),
+                                                fun_ret_type.as_ref().unwrap().into(),
                                                 x,
                                             ),
                                         ));
@@ -690,13 +705,13 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     }
                     None => {
-                        if self.fun_ret_type.is_some() {
+                        if fun_ret_type.is_some() {
                             let (line, starts_at, ends_at) = token.placement.as_tuple();
                             self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
                                 line,
                                 starts_at,
                                 ends_at,
-                                self.fun_ret_type.as_ref().unwrap().into(),
+                                fun_ret_type.as_ref().unwrap().into(),
                                 (&VarType::PythonNone).into(),
                             )));
                         }
@@ -747,7 +762,6 @@ impl<'a> SemanticAnalyzer<'a> {
             symbol_table: Environment::default(),
             errors: Vec::default(),
             analyzing_function: false,
-            fun_ret_type: None,
         }
     }
 }
