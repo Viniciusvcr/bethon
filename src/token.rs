@@ -29,7 +29,7 @@ impl From<Type> for VarType {
             Type::Boolean(_) => VarType::Boolean,
             Type::Null => VarType::PythonNone,
             Type::Str(_) => VarType::Str,
-            Type::Fun(_, _, _) => VarType::Function,
+            Type::Fun(_, _, _, _) => VarType::Function,
         }
     }
 }

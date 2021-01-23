@@ -36,6 +36,10 @@ where
     pub fn pop(&mut self) {
         self.env = self.env.previous.clone().unwrap();
     }
+
+    pub fn declared_keys(&self) -> Vec<String> {
+        self.env.declared_keys()
+    }
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
@@ -48,6 +52,27 @@ impl<T> Env<T>
 where
     T: Clone,
 {
+    fn declared_keys(&self) -> Vec<String> {
+        if let Some(prev) = self.previous.clone() {
+            let mut x = self
+                .current
+                .borrow()
+                .keys()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+
+            x.append(&mut prev.declared_keys());
+
+            x
+        } else {
+            self.current
+                .borrow()
+                .keys()
+                .map(|s| s.to_string())
+                .collect()
+        }
+    }
+
     fn new_with_prev(previous: Rc<Self>) -> Self {
         Self {
             previous: Some(previous),
