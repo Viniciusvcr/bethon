@@ -22,7 +22,7 @@ pub enum SmntcError {
     NotCallable(usize, usize, usize, Type),
     WrongArity(usize, usize, usize, usize, usize),
     TopLevelReturn(usize, usize, usize),
-    UnboundVar, // write error
+    UnboundVar(usize, usize, usize, String, String),
 }
 
 impl SmntcError {
@@ -238,7 +238,24 @@ impl SmntcError {
                 "Top level 'return' is not allowed".to_string(),
                 Some(print_marker(*starts_at, *ends_at, Some("here")))
             ),
-            SmntcError::UnboundVar => "Unbound var".to_string()
+            SmntcError::UnboundVar(line, starts_at, ends_at, id, func_name) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Variable or function {}'{}'{} (used inside function {}'{}'{}) is not defined at the moment of call",
+                        Color::White,
+                        id,
+                        Color::Yellow,
+                        Color::White,
+                        func_name,
+                        Color::Yellow),
+                Some(print_marker(
+                        *starts_at,
+                        *ends_at,
+                        Some(&format!("'{}' is probably called before the definition of '{}'", func_name, id))))
+            ),
         }
     }
 }

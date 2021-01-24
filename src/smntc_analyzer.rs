@@ -432,7 +432,15 @@ impl<'a> SemanticAnalyzer<'a> {
 
                     for key in &declared_keys {
                         if self.get_var(&key).is_none() {
-                            self.errors.push(Error::Smntc(SmntcError::UnboundVar));
+                            let (line, starts_at, ends_at) = callee.placement();
+                            let function_name = callee.get_token().lexeme();
+                            self.errors.push(Error::Smntc(SmntcError::UnboundVar(
+                                line,
+                                starts_at,
+                                ends_at,
+                                key.to_string(),
+                                function_name,
+                            )));
                         }
                     }
                     self.symbol_table = old_env;
