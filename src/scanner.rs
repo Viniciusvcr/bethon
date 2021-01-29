@@ -254,7 +254,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn expect(&mut self, string: &str) -> Option<TokenType> {
+    fn expect(&mut self, string: &str) -> Option<()> {
         for c in string.chars() {
             if self.advance() != Some(c) {
                 self.take_while(is_alphanumeric);
@@ -262,7 +262,29 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        Some(TokenType::Dataclass)
+        Some(())
+    }
+
+    fn block_comment_or_string(&mut self) -> Option<TokenType> {
+        if let Some('"') = self.advance() {
+            if let Some('"') = self.peek() {
+                self.advance();
+                self.take_while(|ch| ch != '"');
+                if self.expect("\"\"\"").is_some() {
+                    Some(TokenType::Comment)
+                } else {
+                    None
+                }
+            } else {
+                /*  Here, two '"' have been consumed and
+                    there is no third '"'. So, it's an
+                    empty string.
+                */
+                Some(TokenType::String("".to_string()))
+            }
+        } else {
+            self.string()
+        }
     }
 
     fn scan_token(&mut self) -> Result<Option<TokenType>, Error> {
@@ -292,7 +314,7 @@ impl<'a> Scanner<'a> {
                     Err(error) => return Err(Error::Scanner(error)),
                 },
                 '"' => {
-                    if let Some(string) = self.string() {
+                    if let Some(string) = self.block_comment_or_string() {
                         string
                     } else {
                         return Err(Error::Scanner(ScannerError::UnterminatedString(
@@ -301,8 +323,8 @@ impl<'a> Scanner<'a> {
                     }
                 }
                 '@' => {
-                    if let Some(token) = self.expect("dataclass") {
-                        token
+                    if self.expect("dataclass").is_some() {
+                        Dataclass
                     } else {
                         return Err(Error::Scanner(ScannerError::InvalidToken(
                             self.current_line,

@@ -65,7 +65,7 @@ impl ScannerError {
                 *line,
                 None,
                 None,
-                "Unterminated String. Maybe you forgot a '\"'?".to_string(),
+                "Unterminated String or Block Comment. Maybe you forgot a '\"'?".to_string(),
                 None,
             ),
         }
