@@ -59,4 +59,9 @@ pub enum TokenType {
     Not,
     Or,
     And,
+
+    // dataclass
+    Dataclass,
+    From,
+    Import,
 }

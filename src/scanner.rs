@@ -215,6 +215,8 @@ impl<'a> Scanner<'a> {
         use TokenType::*;
 
         match token {
+            "from" => Some(From),
+            "import" => Some(Import),
             "and" => Some(And),
             "assert" => Some(Assert),
             "class" => Some(Class),
@@ -252,6 +254,17 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    fn expect(&mut self, string: &str) -> Option<TokenType> {
+        for c in string.chars() {
+            if self.advance() != Some(c) {
+                self.take_while(is_alphanumeric);
+                return None;
+            }
+        }
+
+        Some(TokenType::Dataclass)
+    }
+
     fn scan_token(&mut self) -> Result<Option<TokenType>, Error> {
         use TokenType::*;
 
@@ -284,6 +297,18 @@ impl<'a> Scanner<'a> {
                     } else {
                         return Err(Error::Scanner(ScannerError::UnterminatedString(
                             self.current_line,
+                        )));
+                    }
+                }
+                '@' => {
+                    if let Some(token) = self.expect("dataclass") {
+                        token
+                    } else {
+                        return Err(Error::Scanner(ScannerError::InvalidToken(
+                            self.current_line,
+                            self.start_token,
+                            self.end_token,
+                            "Only 'dataclass' is allowed after '@'".to_string(),
                         )));
                     }
                 }
