@@ -115,17 +115,17 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
-        let another_vec = body.iter().filter_map(|stmt| match stmt {
-            Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
-            _ => None,
-        });
+        // let another_vec = body.iter().filter_map(|stmt| match stmt {
+        //     Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+        //     _ => None,
+        // });
 
-        for (then, else_) in another_vec {
-            self.declare_env_vars(then)?;
-            if let Some(else_branch) = else_ {
-                self.declare_env_vars(else_branch)?;
-            }
-        }
+        // for (then, else_) in another_vec {
+        //     self.declare_env_vars(then)?;
+        //     if let Some(else_branch) = else_ {
+        //         self.declare_env_vars(else_branch)?;
+        //     }
+        // }
 
         Ok(())
     }
@@ -140,17 +140,17 @@ impl<'a> SemanticAnalyzer<'a> {
             self.declare(&id.lexeme(), (&VarType::Function).into());
         }
 
-        let another_vec = body.iter().filter_map(|stmt| match stmt {
-            Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
-            _ => None,
-        });
+        // let another_vec = body.iter().filter_map(|stmt| match stmt {
+        //     Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+        //     _ => None,
+        // });
 
-        for (then, else_) in another_vec {
-            self.declare_env_funcs(then)?;
-            if let Some(else_branch) = else_ {
-                self.declare_env_funcs(else_branch)?;
-            }
-        }
+        // for (then, else_) in another_vec {
+        //     self.declare_env_funcs(then)?;
+        //     if let Some(else_branch) = else_ {
+        //         self.declare_env_funcs(else_branch)?;
+        //     }
+        // }
 
         Ok(())
     }
@@ -597,14 +597,40 @@ impl<'a> SemanticAnalyzer<'a> {
                 // FIXME find a way to eval if and else branches without symbol_table colision
                 Stmt::IfStmt(condition, then_branch, else_branch) => {
                     match self.analyze_one(condition) {
-                        Ok(Type::Boolean(x)) => {
+                        Ok(Type::Boolean(_x)) => {
                             // self.insert(condition, Type::Boolean(x));
 
-                            if x {
-                                self.analyze(then_branch, fun_ret_type).ok();
-                            } else if else_branch.is_some() {
-                                self.analyze(else_branch.as_ref().unwrap(), fun_ret_type)
-                                    .ok();
+                            let mut if_declared_keys = self.with_new_env(|analyzer| {
+                                analyzer.analyze(&then_branch, fun_ret_type).ok();
+
+                                analyzer.symbol_table.current()
+                            });
+
+                            let else_declared_keys = if let Some(else_stmts) = else_branch {
+                                self.with_new_env(|analyzer| {
+                                    analyzer.analyze(&else_stmts, fun_ret_type).ok();
+
+                                    analyzer.symbol_table.current()
+                                })
+                            } else {
+                                HashMap::default()
+                            };
+                            if let Err(err) = merge(&mut if_declared_keys, &else_declared_keys) {
+                                self.errors.push(err);
+                            }
+
+                            for (var_id, t) in if_declared_keys {
+                                match self.define(&var_id, t.0) {
+                                    Some((_, true)) => self.errors.push(Error::Smntc(
+                                        SmntcError::VariableAlreadyDeclared(
+                                            1,
+                                            1,
+                                            1,
+                                            var_id.to_string(),
+                                        ),
+                                    )),
+                                    None | Some((_, false)) => {}
+                                }
                             }
                         }
                         Ok(t) => {
@@ -728,6 +754,16 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
+        let declared_keys = self.symbol_table.current_keys();
+        println!("declared_keys: {:?}", declared_keys);
+        for var_id in declared_keys {
+            if !self.validate_declaration(&var_id, stmts) {
+                println!("\tnot valid: {}", var_id);
+            } else {
+                println!("\tvalid: {}", var_id);
+            }
+        }
+
         if self.errors.is_empty() {
             Ok(())
         } else {
@@ -764,6 +800,35 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn validate_declaration(&self, var_id: &str, stmts: &[Stmt]) -> bool {
+        if stmts.iter().any(|stmt| match stmt {
+            Stmt::VarStmt(id, _, _) => id == var_id,
+            _ => false,
+        }) {
+            true
+        } else {
+            let if_stmt = stmts
+                .iter()
+                .filter_map(|stmt| match stmt {
+                    Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+                    _ => None,
+                })
+                .collect::<Vec<(&Vec<Stmt>, &Option<Vec<Stmt>>)>>();
+
+            let mut valid = false;
+            for (then_branch, else_branch) in if_stmt {
+                valid |= self.validate_declaration(var_id, then_branch)
+                    && self.validate_declaration(var_id, else_branch.as_ref().unwrap_or(&vec![]));
+
+                if valid {
+                    break;
+                }
+            }
+
+            valid
+        }
+    }
+
     pub fn new() -> Self {
         SemanticAnalyzer {
             types: HashMap::default(),
@@ -772,4 +837,27 @@ impl<'a> SemanticAnalyzer<'a> {
             analyzing_function: false,
         }
     }
+}
+
+fn merge(
+    x: &mut HashMap<String, (Type, bool)>,
+    y: &HashMap<String, (Type, bool)>,
+) -> Result<(), Error> {
+    for (var_id, t) in y {
+        if let Some((x_type, _)) = x.insert(var_id.to_string(), t.clone()) {
+            let y_type = &t.0;
+
+            if &x_type != y_type {
+                return Err(Error::Smntc(SmntcError::MismatchedTypes(
+                    1,
+                    1,
+                    1,
+                    x_type,
+                    y_type.clone(),
+                )));
+            }
+        }
+    }
+
+    Ok(())
 }

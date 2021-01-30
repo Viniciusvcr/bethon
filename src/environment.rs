@@ -40,6 +40,14 @@ where
     pub fn declared_keys(&self) -> Vec<String> {
         self.env.declared_keys()
     }
+
+    pub fn current(&self) -> HashMap<String, T> {
+        self.env.current.borrow().clone()
+    }
+
+    pub fn current_keys(&self) -> Vec<String> {
+        self.env.current_keys()
+    }
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
@@ -71,6 +79,14 @@ where
                 .map(|s| s.to_string())
                 .collect()
         }
+    }
+
+    fn current_keys(&self) -> Vec<String> {
+        self.current
+            .borrow()
+            .keys()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     fn new_with_prev(previous: Rc<Self>) -> Self {
