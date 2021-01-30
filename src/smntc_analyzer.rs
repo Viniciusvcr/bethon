@@ -10,17 +10,15 @@ use crate::{
     token::{number_type::NumberType, Token, VarType},
 };
 
-use num_bigint::BigInt;
-use num_traits::cast::ToPrimitive;
-use std::{collections::HashMap, f64};
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
-    Integer(BigInt),
-    Float(f64),
-    Boolean(bool),
+    Integer,
+    Float,
+    Boolean,
     Null,
-    Str(String),
+    Str,
     Fun(SemanticEnvironment, Vec<VarType>, VarType, Vec<String>),
 }
 
@@ -33,10 +31,10 @@ impl Default for Type {
 impl std::convert::From<&VarType> for Type {
     fn from(var_type: &VarType) -> Self {
         match var_type {
-            VarType::Boolean => Type::Boolean(false),
-            VarType::Integer => Type::Integer(num_bigint::BigInt::from(0)),
-            VarType::Float => Type::Float(0.0),
-            VarType::Str => Type::Str("".to_string()),
+            VarType::Boolean => Type::Boolean,
+            VarType::Integer => Type::Integer,
+            VarType::Float => Type::Float,
+            VarType::Str => Type::Str,
             VarType::PythonNone => Type::Null,
             VarType::Function => Type::Fun(
                 SemanticEnvironment::default(),
@@ -52,10 +50,10 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Null => write!(f, "None"),
-            Type::Integer(_) => write!(f, "int"),
-            Type::Float(_) => write!(f, "float"),
-            Type::Boolean(_) => write!(f, "bool"),
-            Type::Str(_) => write!(f, "str"),
+            Type::Integer => write!(f, "int"),
+            Type::Float => write!(f, "float"),
+            Type::Boolean => write!(f, "bool"),
+            Type::Str => write!(f, "str"),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
         }
     }
@@ -186,27 +184,27 @@ impl<'a> SemanticAnalyzer<'a> {
         let type_b = self.analyze_one(b)?;
 
         let expr_type = match (op, type_a, type_b) {
-            (Add, Type::Integer(a), Type::Integer(b)) => Type::Integer(a + b),
-            (Add, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() + b),
-            (Add, Type::Float(a), Type::Integer(b)) => Type::Float(a + b.to_f64().unwrap()),
-            (Add, Type::Float(a), Type::Float(b)) => Type::Float(a + b),
-            (Add, Type::Str(a), Type::Str(b)) => Type::Str(format!("{}{}", a, b)),
-            (Sub, Type::Integer(a), Type::Integer(b)) => Type::Integer(a - b),
-            (Sub, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() - b),
-            (Sub, Type::Float(a), Type::Integer(b)) => Type::Float(a - b.to_f64().unwrap()),
-            (Sub, Type::Float(a), Type::Float(b)) => Type::Float(a - b),
-            (Mul, Type::Integer(a), Type::Integer(b)) => Type::Integer(a * b),
-            (Mul, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() * b),
-            (Mul, Type::Float(a), Type::Integer(b)) => Type::Float(a * b.to_f64().unwrap()),
-            (Mul, Type::Float(a), Type::Float(b)) => Type::Float(a * b),
-            (Div, Type::Integer(a), Type::Integer(b)) => Type::Integer(a / b),
-            (Div, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() / b),
-            (Div, Type::Float(a), Type::Integer(b)) => Type::Float(a / b.to_f64().unwrap()),
-            (Div, Type::Float(a), Type::Float(b)) => Type::Float(a / b),
-            (Mod, Type::Integer(a), Type::Integer(b)) => Type::Integer(a % b),
-            (Mod, Type::Integer(a), Type::Float(b)) => Type::Float(a.to_f64().unwrap() % b),
-            (Mod, Type::Float(a), Type::Integer(b)) => Type::Float(a % b.to_f64().unwrap()),
-            (Mod, Type::Float(a), Type::Float(b)) => Type::Float(a % b),
+            (Add, Type::Integer, Type::Integer) => Type::Integer,
+            (Add, Type::Integer, Type::Float) => Type::Float,
+            (Add, Type::Float, Type::Integer) => Type::Float,
+            (Add, Type::Float, Type::Float) => Type::Float,
+            (Add, Type::Str, Type::Str) => Type::Str,
+            (Sub, Type::Integer, Type::Integer) => Type::Integer,
+            (Sub, Type::Integer, Type::Float) => Type::Float,
+            (Sub, Type::Float, Type::Integer) => Type::Float,
+            (Sub, Type::Float, Type::Float) => Type::Float,
+            (Mul, Type::Integer, Type::Integer) => Type::Integer,
+            (Mul, Type::Integer, Type::Float) => Type::Float,
+            (Mul, Type::Float, Type::Integer) => Type::Float,
+            (Mul, Type::Float, Type::Float) => Type::Float,
+            (Div, Type::Integer, Type::Integer) => Type::Integer,
+            (Div, Type::Integer, Type::Float) => Type::Float,
+            (Div, Type::Float, Type::Integer) => Type::Float,
+            (Div, Type::Float, Type::Float) => Type::Float,
+            (Mod, Type::Integer, Type::Integer) => Type::Integer,
+            (Mod, Type::Integer, Type::Float) => Type::Float,
+            (Mod, Type::Float, Type::Integer) => Type::Float,
+            (Mod, Type::Float, Type::Float) => Type::Float,
             (op, l, r) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
                 return Err(SmntcError::IncompatibleBinArith(
@@ -230,69 +228,45 @@ impl<'a> SemanticAnalyzer<'a> {
         let type_a = self.analyze_one(a)?;
         let type_b = self.analyze_one(b)?;
 
-        let error_margin = f64::EPSILON;
-
         let expr_type = match (op, type_a, type_b) {
-            (NotEqual, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a != b),
-            (NotEqual, Type::Integer(a), Type::Float(b)) => {
-                Type::Boolean((a.to_f64().unwrap() - b).abs() > error_margin)
-            }
-            (NotEqual, Type::Float(a), Type::Integer(b)) => {
-                Type::Boolean((a - b.to_f64().unwrap()).abs() > error_margin)
-            }
-            (NotEqual, Type::Float(a), Type::Float(b)) => {
-                Type::Boolean((a - b).abs() > error_margin)
-            }
-            (NotEqual, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a != b),
-            (NotEqual, Type::Str(a), Type::Str(b)) => Type::Boolean(a.ne(&b)),
-            (NotEqual, Type::Null, Type::Null) => Type::Boolean(false),
-            (NotEqual, _, Type::Null) => Type::Boolean(true),
-            (NotEqual, Type::Null, _) => Type::Boolean(true),
-            (Equal, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a == b),
-            (Equal, Type::Integer(a), Type::Float(b)) => {
-                Type::Boolean((a.to_f64().unwrap() - b).abs() < error_margin)
-            }
-            (Equal, Type::Float(a), Type::Integer(b)) => {
-                Type::Boolean((a - b.to_f64().unwrap()).abs() < error_margin)
-            }
-            (Equal, Type::Float(a), Type::Float(b)) => Type::Boolean((a - b).abs() < error_margin),
-            (Equal, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a == b),
-            (Equal, Type::Str(a), Type::Str(b)) => Type::Boolean(a.eq(&b)),
-            (Equal, Type::Null, Type::Null) => Type::Boolean(true),
-            (Equal, _, Type::Null) => Type::Boolean(false),
-            (Equal, Type::Null, _) => Type::Boolean(false),
-            (LessThan, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a < b),
-            (LessThan, Type::Integer(a), Type::Float(b)) => Type::Boolean(a.to_f64().unwrap() < b),
-            (LessThan, Type::Float(a), Type::Integer(b)) => Type::Boolean(a < b.to_f64().unwrap()),
-            (LessThan, Type::Float(a), Type::Float(b)) => Type::Boolean(a < b),
-            (LessThan, Type::Str(a), Type::Str(b)) => Type::Boolean(a.lt(&b)),
-            (LessEqual, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a <= b),
-            (LessEqual, Type::Integer(a), Type::Float(b)) => {
-                Type::Boolean(a.to_f64().unwrap() <= b)
-            }
-            (LessEqual, Type::Float(a), Type::Integer(b)) => {
-                Type::Boolean(a <= b.to_f64().unwrap())
-            }
-            (LessEqual, Type::Float(a), Type::Float(b)) => Type::Boolean(a <= b),
-            (LessEqual, Type::Str(a), Type::Str(b)) => Type::Boolean(a.le(&b)),
-            (GreaterThan, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a > b),
-            (GreaterThan, Type::Integer(a), Type::Float(b)) => {
-                Type::Boolean(a.to_f64().unwrap() > b)
-            }
-            (GreaterThan, Type::Float(a), Type::Integer(b)) => {
-                Type::Boolean(a > b.to_f64().unwrap())
-            }
-            (GreaterThan, Type::Float(a), Type::Float(b)) => Type::Boolean(a > b),
-            (GreaterThan, Type::Str(a), Type::Str(b)) => Type::Boolean(a.gt(&b)),
-            (GreaterEqual, Type::Integer(a), Type::Integer(b)) => Type::Boolean(a >= b),
-            (GreaterEqual, Type::Integer(a), Type::Float(b)) => {
-                Type::Boolean(a.to_f64().unwrap() >= b)
-            }
-            (GreaterEqual, Type::Float(a), Type::Integer(b)) => {
-                Type::Boolean(a >= b.to_f64().unwrap())
-            }
-            (GreaterEqual, Type::Float(a), Type::Float(b)) => Type::Boolean(a >= b),
-            (GreaterEqual, Type::Str(a), Type::Str(b)) => Type::Boolean(a.ge(&b)),
+            (NotEqual, Type::Integer, Type::Integer) => Type::Boolean,
+            (NotEqual, Type::Integer, Type::Float) => Type::Boolean,
+            (NotEqual, Type::Float, Type::Integer) => Type::Boolean,
+            (NotEqual, Type::Float, Type::Float) => Type::Boolean,
+            (NotEqual, Type::Boolean, Type::Boolean) => Type::Boolean,
+            (NotEqual, Type::Str, Type::Str) => Type::Boolean,
+            (NotEqual, Type::Null, Type::Null) => Type::Boolean,
+            (NotEqual, _, Type::Null) => Type::Boolean,
+            (NotEqual, Type::Null, _) => Type::Boolean,
+            (Equal, Type::Integer, Type::Integer) => Type::Boolean,
+            (Equal, Type::Integer, Type::Float) => Type::Boolean,
+            (Equal, Type::Float, Type::Integer) => Type::Boolean,
+            (Equal, Type::Float, Type::Float) => Type::Boolean,
+            (Equal, Type::Boolean, Type::Boolean) => Type::Boolean,
+            (Equal, Type::Str, Type::Str) => Type::Boolean,
+            (Equal, Type::Null, Type::Null) => Type::Boolean,
+            (Equal, _, Type::Null) => Type::Boolean,
+            (Equal, Type::Null, _) => Type::Boolean,
+            (LessThan, Type::Integer, Type::Integer) => Type::Boolean,
+            (LessThan, Type::Integer, Type::Float) => Type::Boolean,
+            (LessThan, Type::Float, Type::Integer) => Type::Boolean,
+            (LessThan, Type::Float, Type::Float) => Type::Boolean,
+            (LessThan, Type::Str, Type::Str) => Type::Boolean,
+            (LessEqual, Type::Integer, Type::Integer) => Type::Boolean,
+            (LessEqual, Type::Integer, Type::Float) => Type::Boolean,
+            (LessEqual, Type::Float, Type::Integer) => Type::Boolean,
+            (LessEqual, Type::Float, Type::Float) => Type::Boolean,
+            (LessEqual, Type::Str, Type::Str) => Type::Boolean,
+            (GreaterThan, Type::Integer, Type::Integer) => Type::Boolean,
+            (GreaterThan, Type::Integer, Type::Float) => Type::Boolean,
+            (GreaterThan, Type::Float, Type::Integer) => Type::Boolean,
+            (GreaterThan, Type::Float, Type::Float) => Type::Boolean,
+            (GreaterThan, Type::Str, Type::Str) => Type::Boolean,
+            (GreaterEqual, Type::Integer, Type::Integer) => Type::Boolean,
+            (GreaterEqual, Type::Integer, Type::Float) => Type::Boolean,
+            (GreaterEqual, Type::Float, Type::Integer) => Type::Boolean,
+            (GreaterEqual, Type::Float, Type::Float) => Type::Boolean,
+            (GreaterEqual, Type::Str, Type::Str) => Type::Boolean,
             (op, l, r) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
 
@@ -318,8 +292,8 @@ impl<'a> SemanticAnalyzer<'a> {
         let type_b = self.analyze_one(b)?;
 
         let expr_type = match (op, type_a, type_b) {
-            (And, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a && b),
-            (Or, Type::Boolean(a), Type::Boolean(b)) => Type::Boolean(a || b),
+            (And, Type::Boolean, Type::Boolean) => Type::Boolean,
+            (Or, Type::Boolean, Type::Boolean) => Type::Boolean,
             (op, l, r) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
 
@@ -336,7 +310,7 @@ impl<'a> SemanticAnalyzer<'a> {
         let exp_type = self.analyze_one(exp)?;
 
         match exp_type {
-            Type::Boolean(b) => Ok(Type::Boolean(!b)),
+            Type::Boolean => Ok(Type::Boolean),
             t => {
                 let (line, starts_at, ends_at) = exp.placement();
                 Err(SmntcError::IncompatibleLogicNot(
@@ -355,8 +329,8 @@ impl<'a> SemanticAnalyzer<'a> {
         let exp_type = self.analyze_one(exp)?;
 
         match (op, exp_type) {
-            (_, Type::Integer(x)) => Ok(Type::Integer(x)),
-            (_, Type::Float(x)) => Ok(Type::Float(x)),
+            (_, Type::Integer) => Ok(Type::Integer),
+            (_, Type::Float) => Ok(Type::Float),
             (op, t) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
 
@@ -370,10 +344,10 @@ impl<'a> SemanticAnalyzer<'a> {
     fn analyze_literal(&self, value: &Value) -> Type {
         match value {
             Value::PythonNone => Type::Null,
-            Value::Bool(b) => Type::Boolean(*b),
-            Value::Number(NumberType::Integer(x)) => Type::Integer(x.clone()),
-            Value::Number(NumberType::Float(x)) => Type::Float(*x),
-            Value::Str(x) => Type::Str(x.to_string()),
+            Value::Bool(_) => Type::Boolean,
+            Value::Number(NumberType::Integer(_)) => Type::Integer,
+            Value::Number(NumberType::Float(_)) => Type::Float,
+            Value::Str(_) => Type::Str,
             Value::Fun(x) => Type::Fun(SemanticEnvironment::default(), vec![], x.ret_type, vec![]),
         }
     }
@@ -491,7 +465,7 @@ impl<'a> SemanticAnalyzer<'a> {
         for stmt in stmts {
             match stmt {
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
-                    Ok(Type::Boolean(_)) => {}
+                    Ok(Type::Boolean) => {}
                     Ok(t) => {
                         let (line, (starts_at, ends_at)) =
                             (exp.get_line(), exp.get_expr_placement());
@@ -499,7 +473,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             line,
                             starts_at,
                             ends_at,
-                            Type::Boolean(true),
+                            Type::Boolean,
                             t,
                         )))
                     }
@@ -514,33 +488,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
                     match self.analyze_one(expr) {
                         Ok(t) => match (var_type, t.clone()) {
-                            (Some(VarType::Boolean), Type::Boolean(_)) => {
-                                match self.define(id, t) {
-                                    Some((_, true)) => self.errors.push(Error::Smntc(
-                                        SmntcError::VariableAlreadyDeclared(
-                                            error_line,
-                                            starts_at,
-                                            ends_at,
-                                            id.to_string(),
-                                        ),
-                                    )),
-                                    None | Some((_, false)) => {}
-                                }
-                            }
-                            (Some(VarType::Integer), Type::Integer(_)) => {
-                                match self.define(id, t) {
-                                    Some((_, true)) => self.errors.push(Error::Smntc(
-                                        SmntcError::VariableAlreadyDeclared(
-                                            error_line,
-                                            starts_at,
-                                            ends_at,
-                                            id.to_string(),
-                                        ),
-                                    )),
-                                    None | Some((_, false)) => {}
-                                }
-                            }
-                            (Some(VarType::Float), Type::Float(_)) => match self.define(id, t) {
+                            (Some(VarType::Boolean), Type::Boolean) => match self.define(id, t) {
                                 Some((_, true)) => self.errors.push(Error::Smntc(
                                     SmntcError::VariableAlreadyDeclared(
                                         error_line,
@@ -551,7 +499,29 @@ impl<'a> SemanticAnalyzer<'a> {
                                 )),
                                 None | Some((_, false)) => {}
                             },
-                            (Some(VarType::Str), Type::Str(_)) => match self.define(id, t) {
+                            (Some(VarType::Integer), Type::Integer) => match self.define(id, t) {
+                                Some((_, true)) => self.errors.push(Error::Smntc(
+                                    SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        starts_at,
+                                        ends_at,
+                                        id.to_string(),
+                                    ),
+                                )),
+                                None | Some((_, false)) => {}
+                            },
+                            (Some(VarType::Float), Type::Float) => match self.define(id, t) {
+                                Some((_, true)) => self.errors.push(Error::Smntc(
+                                    SmntcError::VariableAlreadyDeclared(
+                                        error_line,
+                                        starts_at,
+                                        ends_at,
+                                        id.to_string(),
+                                    ),
+                                )),
+                                None | Some((_, false)) => {}
+                            },
+                            (Some(VarType::Str), Type::Str) => match self.define(id, t) {
                                 Some((_, true)) => self.errors.push(Error::Smntc(
                                     SmntcError::VariableAlreadyDeclared(
                                         error_line,
@@ -594,10 +564,9 @@ impl<'a> SemanticAnalyzer<'a> {
                         Err(err) => self.errors.push(Error::Smntc(err)),
                     }
                 }
-                // FIXME find a way to eval if and else branches without symbol_table colision
                 Stmt::IfStmt(condition, then_branch, else_branch) => {
                     match self.analyze_one(condition) {
-                        Ok(Type::Boolean(_x)) => {
+                        Ok(Type::Boolean) => {
                             // self.insert(condition, Type::Boolean(x));
 
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
@@ -619,17 +588,17 @@ impl<'a> SemanticAnalyzer<'a> {
                                 self.errors.push(err);
                             }
 
+                            // FIXME line, starts_at, ends_at in error yielding
                             for (var_id, t) in if_declared_keys {
-                                match self.define(&var_id, t.0) {
-                                    Some((_, true)) => self.errors.push(Error::Smntc(
+                                if let Some((_, true)) = self.define(&var_id, t.0) {
+                                    self.errors.push(Error::Smntc(
                                         SmntcError::VariableAlreadyDeclared(
                                             1,
                                             1,
                                             1,
                                             var_id.to_string(),
                                         ),
-                                    )),
-                                    None | Some((_, false)) => {}
+                                    ))
                                 }
                             }
                         }
@@ -754,13 +723,11 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
-        let declared_keys = self.symbol_table.current_keys();
-        println!("declared_keys: {:?}", declared_keys);
-        for var_id in declared_keys {
+        for var_id in self.symbol_table.current_keys() {
             if !self.validate_declaration(&var_id, stmts) {
-                println!("\tnot valid: {}", var_id);
-            } else {
-                println!("\tvalid: {}", var_id);
+                self.errors.push(Error::Smntc(SmntcError::PossiblyUnbound(
+                    var_id.to_string(),
+                )));
             }
         }
 
@@ -800,9 +767,11 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    // FIXME failing with function params
     fn validate_declaration(&self, var_id: &str, stmts: &[Stmt]) -> bool {
         if stmts.iter().any(|stmt| match stmt {
             Stmt::VarStmt(id, _, _) => id == var_id,
+            Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,
         }) {
             true

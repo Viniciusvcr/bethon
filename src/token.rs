@@ -24,11 +24,11 @@ impl Default for VarType {
 impl From<Type> for VarType {
     fn from(x: Type) -> Self {
         match x {
-            Type::Integer(_) => VarType::Integer,
-            Type::Float(_) => VarType::Float,
-            Type::Boolean(_) => VarType::Boolean,
+            Type::Integer => VarType::Integer,
+            Type::Float => VarType::Float,
+            Type::Boolean => VarType::Boolean,
             Type::Null => VarType::PythonNone,
-            Type::Str(_) => VarType::Str,
+            Type::Str => VarType::Str,
             Type::Fun(_, _, _, _) => VarType::Function,
         }
     }

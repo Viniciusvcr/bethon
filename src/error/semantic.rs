@@ -23,6 +23,7 @@ pub enum SmntcError {
     WrongArity(usize, usize, usize, usize, usize),
     TopLevelReturn(usize, usize, usize),
     UnboundVar(usize, usize, usize, String, String),
+    PossiblyUnbound(String),
 }
 
 impl SmntcError {
@@ -83,7 +84,7 @@ impl SmntcError {
                 Some(*ends_at),
                 format!("The 'not' operator expects an expression of type {}{}{}, but the expression evaluates to {}{}{}.",
                         Color::White,
-                        Type::Boolean(true),
+                        Type::Boolean,
                         Color::Yellow,
                         Color::White,
                         t,
@@ -138,7 +139,7 @@ impl SmntcError {
                         op,
                         Color::Yellow,
                         Color::White,
-                        Type::Boolean(true),
+                        Type::Boolean,
                         Color::Yellow,
                         Color::White,
                         Type::Null,
@@ -256,6 +257,7 @@ impl SmntcError {
                         *ends_at,
                         Some(&format!("'{}' is probably called before the definition of '{}'", func_name, id))))
             ),
+            SmntcError::PossiblyUnbound(x) => format!("Possibly unbound var {}", x) // todo write error
         }
     }
 }

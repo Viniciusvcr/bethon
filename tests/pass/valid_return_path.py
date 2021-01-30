@@ -1,6 +1,7 @@
 def f(x: bool) -> str:
     if x:
-        return "teste"
+        b = "teste"
+        return b
     else:
         b = "10"
 
@@ -44,7 +45,8 @@ def k():
 
 def l(a: int) -> int:
     if a == 2:
-        return 2
+        c = 2
+        return c
     else:
         c = 10
 
@@ -64,4 +66,5 @@ def m(a: int) -> int:
     if a == 10:
         c = 10
     else:
-        return a
+        c = a
+        return c
