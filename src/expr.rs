@@ -20,7 +20,7 @@ pub enum Expr {
     Unary(OpWithToken<UnaryOp>, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(OpWithToken<Value>),
-    Variable(Token, String),
+    Variable(Token),
     Call(Box<Expr>, Vec<Expr>),
 }
 
@@ -43,7 +43,7 @@ impl Expr {
             Expr::Unary(op_and_token, _) => &op_and_token.token,
             Expr::Grouping(expr) => expr.get_token(),
             Expr::Literal(op_and_token) => &op_and_token.token,
-            Expr::Variable(token, _) => &token,
+            Expr::Variable(token) => &token,
             Expr::Call(callee, _) => callee.get_token(),
         }
     }
@@ -66,7 +66,7 @@ impl Expr {
                 op_and_token.token.placement.starts_at,
                 op_and_token.token.placement.ends_at,
             ),
-            Expr::Variable(token, _) => (token.placement.starts_at, token.placement.ends_at),
+            Expr::Variable(token) => (token.placement.starts_at, token.placement.ends_at),
             Expr::Call(callee, params) => {
                 let (x, mut y) = callee.get_expr_placement();
 
@@ -111,7 +111,7 @@ impl std::fmt::Display for Expr {
             Expr::Unary(op_and_token, expr) => write!(f, "{} {}", op_and_token.op, expr),
             Expr::Grouping(expr) => write!(f, "({})", expr),
             Expr::Literal(value_and_token) => write!(f, "{}", value_and_token.op),
-            Expr::Variable(_token, id) => write!(f, "{}", id),
+            Expr::Variable(token) => write!(f, "{}", token.lexeme()),
             Expr::Call(callee, arguments) => {
                 write!(f, "{}(", callee)?;
                 for arg in arguments {

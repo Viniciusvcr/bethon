@@ -1,5 +1,5 @@
 use crate::{
-    environment::{Environment, SemanticEnvironment},
+    environment::{Environment, SemanticEnvironment, SmntcEnvValue},
     error::{semantic::SmntcError, Error},
     expr::{
         operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
@@ -66,6 +66,7 @@ pub struct SemanticAnalyzer<'a> {
     symbol_table: SemanticEnvironment,
     errors: Vec<Error>,
     analyzing_function: bool,
+    hoisting: bool,
 }
 
 impl<'a> Default for SemanticAnalyzer<'a> {
@@ -90,81 +91,73 @@ impl<'a> SemanticAnalyzer<'a> {
         self.types.insert(expr, t);
     }
 
-    fn declare(&mut self, id: &str, t: Type) {
-        self.symbol_table.define(id.to_string(), (t, false));
+    fn declare(&mut self, id: &str, t: Type, token: &Token) {
+        self.symbol_table
+            .define(id.to_string(), SmntcEnvValue::new(t, false, token.clone()));
     }
 
-    fn define(&mut self, id: &str, t: Type) -> Option<(Type, bool)> {
-        self.symbol_table.define(id.to_string(), (t, true))
+    fn define(&mut self, id: &str, t: Type, token: &Token) -> Option<SmntcEnvValue> {
+        self.symbol_table
+            .define(id.to_string(), SmntcEnvValue::new(t, true, token.clone()))
     }
 
     fn declare_env_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         let vec = body.iter().filter_map(|stmt| match stmt {
-            Stmt::VarStmt(id, var_type, expr) => Some((id, var_type, expr)),
+            Stmt::VarStmt(token, var_type, expr) => Some((token, var_type, expr)),
             _ => None,
         });
 
-        for (id, var_type, expr) in vec {
+        for (token, var_type, expr) in vec {
+            let id = token.lexeme();
+
             if var_type.is_none() {
+                self.hoisting = true;
                 let evaluated_type = self.analyze_one(expr)?;
-                self.declare(&id, evaluated_type);
+                self.declare(&id, evaluated_type, token);
+                self.hoisting = false;
             } else {
-                self.declare(&id, var_type.as_ref().unwrap().into());
+                self.declare(&id, var_type.as_ref().unwrap().into(), token);
             }
         }
 
-        // let another_vec = body.iter().filter_map(|stmt| match stmt {
-        //     Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
-        //     _ => None,
-        // });
+        let another_vec = body.iter().filter_map(|stmt| match stmt {
+            Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
+            _ => None,
+        });
 
-        // for (then, else_) in another_vec {
-        //     self.declare_env_vars(then)?;
-        //     if let Some(else_branch) = else_ {
-        //         self.declare_env_vars(else_branch)?;
-        //     }
-        // }
+        for (then, else_) in another_vec {
+            self.declare_env_vars(then)?;
+            if let Some(else_branch) = else_ {
+                self.declare_env_vars(else_branch)?;
+            }
+        }
 
         Ok(())
     }
 
     fn declare_env_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         let vec = body.iter().filter_map(|stmt| match stmt {
-            Stmt::Function(id, _, _, _) => Some(id),
+            Stmt::Function(token, _, _, _) => Some(token),
             _ => None,
         });
 
-        for id in vec {
-            self.declare(&id.lexeme(), (&VarType::Function).into());
+        for token in vec {
+            self.declare(&token.lexeme(), (&VarType::Function).into(), token);
         }
-
-        // let another_vec = body.iter().filter_map(|stmt| match stmt {
-        //     Stmt::IfStmt(_, then_branch, else_branch) => Some((then_branch, else_branch)),
-        //     _ => None,
-        // });
-
-        // for (then, else_) in another_vec {
-        //     self.declare_env_funcs(then)?;
-        //     if let Some(else_branch) = else_ {
-        //         self.declare_env_funcs(else_branch)?;
-        //     }
-        // }
 
         Ok(())
     }
 
     fn get_var(&mut self, id: &str) -> Option<Type> {
-        let x = self.symbol_table.get(id);
-
-        if let Some((var_type, defined)) = x {
-            if !self.analyzing_function {
-                if defined {
-                    Some(var_type)
+        if let Some(env_value) = self.symbol_table.get(id) {
+            if !self.analyzing_function && !self.hoisting {
+                if env_value.defined {
+                    Some(env_value.t)
                 } else {
                     None
                 }
             } else {
-                Some(var_type)
+                Some(env_value.t)
             }
         } else {
             None
@@ -352,8 +345,8 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    fn analyze_variable_expr(&mut self, id: &str, token: &Token) -> SemanticAnalyzerResult {
-        if let Some(t) = self.get_var(id) {
+    fn analyze_variable_expr(&mut self, token: &Token) -> SemanticAnalyzerResult {
+        if let Some(t) = self.get_var(&token.lexeme()) {
             Ok(t)
         } else {
             let (line, starts_at, ends_at) = token.placement.as_tuple();
@@ -361,7 +354,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 line,
                 starts_at,
                 ends_at,
-                id.to_string(),
+                token.lexeme(),
             ))
         }
     }
@@ -444,7 +437,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Unary(op_and_token, expr) => self.analyze_unary(&op_and_token.op, expr, exp),
             Expr::Grouping(exp) => self.analyze_one(exp),
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
-            Expr::Variable(token, id) => self.analyze_variable_expr(id, token),
+            Expr::Variable(token) => self.analyze_variable_expr(token),
             Expr::Call(callee, args) => self.analyze_call_expr(callee, args),
         }
     }
@@ -484,78 +477,99 @@ impl<'a> SemanticAnalyzer<'a> {
                     Ok(_t) => { /*self.insert(&exp, t)*/ }
                     Err(err) => self.errors.push(Error::Smntc(err)),
                 },
-                Stmt::VarStmt(id, var_type, expr) => {
-                    let (error_line, starts_at, ends_at) = expr.placement();
+                Stmt::VarStmt(token, var_type, expr) => {
+                    let id = token.lexeme();
+                    let (error_line, starts_at, ends_at) = token.placement.as_tuple();
 
                     match self.analyze_one(expr) {
                         Ok(t) => match (var_type, t.clone()) {
-                            (Some(VarType::Boolean), Type::Boolean) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
-                            (Some(VarType::Integer), Type::Integer) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
-                            (Some(VarType::Float), Type::Float) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
-                            (Some(VarType::Str), Type::Str) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
-                            (Some(VarType::PythonNone), Type::Null) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
-                            (None, _) => match self.define(id, t) {
-                                Some((_, true)) => self.errors.push(Error::Smntc(
-                                    SmntcError::VariableAlreadyDeclared(
-                                        error_line,
-                                        starts_at,
-                                        ends_at,
-                                        id.to_string(),
-                                    ),
-                                )),
-                                None | Some((_, false)) => {}
-                            },
+                            (Some(VarType::Boolean), Type::Boolean) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                            (Some(VarType::Integer), Type::Integer) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                            (Some(VarType::Float), Type::Float) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                            (Some(VarType::Str), Type::Str) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                            (Some(VarType::PythonNone), Type::Null) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
+                            (None, _) => {
+                                if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
                             (Some(expected), found) => {
+                                let (error_line, starts_at, ends_at) = expr.placement();
+
                                 self.errors
                                     .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
                                         error_line, starts_at, ends_at, *expected, found,
@@ -591,17 +605,21 @@ impl<'a> SemanticAnalyzer<'a> {
                                 self.errors.push(err);
                             }
 
-                            // FIXME line, starts_at, ends_at in error yielding
-                            for (var_id, t) in if_declared_keys {
-                                if let Some((_, true)) = self.define(&var_id, t.0) {
-                                    self.errors.push(Error::Smntc(
-                                        SmntcError::VariableAlreadyDeclared(
-                                            1,
-                                            1,
-                                            1,
-                                            var_id.to_string(),
-                                        ),
-                                    ))
+                            for (var_id, env_value) in if_declared_keys {
+                                if let Some(x) = self.define(&var_id, env_value.t, &env_value.token)
+                                {
+                                    if x.defined {
+                                        let (error_line, starts_at, ends_at) =
+                                            env_value.token.placement.as_tuple();
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                var_id.to_string(),
+                                            ),
+                                        ));
+                                    }
                                 }
                             }
                         }
@@ -635,13 +653,17 @@ impl<'a> SemanticAnalyzer<'a> {
                             *ret_type,
                             vec![],
                         ),
+                        id_token,
                     );
 
                     let (fun_env, declared_keys) = self.with_new_env(|analyzer| {
                         analyzer.analyzing_function = true;
 
                         for (token, var_type) in params {
-                            if analyzer.define(&token.lexeme, var_type.into()).is_some() {
+                            if analyzer
+                                .define(&token.lexeme, var_type.into(), token)
+                                .is_some()
+                            {
                                 let (line, starts_at, ends_at) = token.placement.as_tuple();
                                 analyzer.errors.push(Error::Smntc(
                                     SmntcError::VariableAlreadyDeclared(
@@ -662,17 +684,20 @@ impl<'a> SemanticAnalyzer<'a> {
                         )
                     });
 
-                    if let Some((_, true)) = self.define(
+                    if let Some(env_value) = self.define(
                         &id_token.lexeme,
                         Type::Fun(fun_env, param_types.clone(), *ret_type, declared_keys),
+                        id_token,
                     ) {
-                        self.errors
-                            .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                id_token.placement.line,
-                                id_token.placement.starts_at,
-                                id_token.placement.ends_at,
-                                id_token.lexeme(),
-                            )));
+                        if env_value.defined {
+                            self.errors
+                                .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                    id_token.placement.line,
+                                    id_token.placement.starts_at,
+                                    id_token.placement.ends_at,
+                                    id_token.lexeme(),
+                                )));
+                        }
                     }
 
                     self.analyzing_function = false;
@@ -726,9 +751,13 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
-        for var_id in self.symbol_table.current_keys() {
+        for (var_id, env_value) in self.symbol_table.current() {
             if !self.validate_declaration(&var_id, stmts, fun_params) {
+                let (line, starts_at, ends_at) = env_value.token.placement.as_tuple();
                 self.errors.push(Error::Smntc(SmntcError::PossiblyUnbound(
+                    line,
+                    starts_at,
+                    ends_at,
                     var_id.to_string(),
                 )));
             }
@@ -777,7 +806,7 @@ impl<'a> SemanticAnalyzer<'a> {
         fun_params: Option<&Vec<(Token, VarType)>>,
     ) -> bool {
         if stmts.iter().any(|stmt| match stmt {
-            Stmt::VarStmt(id, _, _) => id == var_id,
+            Stmt::VarStmt(id, _, _) => id.lexeme() == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,
         }) || fun_params
@@ -819,23 +848,26 @@ impl<'a> SemanticAnalyzer<'a> {
             symbol_table: Environment::default(),
             errors: Vec::default(),
             analyzing_function: false,
+            hoisting: false,
         }
     }
 }
 
 fn merge(
-    x: &mut HashMap<String, (Type, bool)>,
-    y: &HashMap<String, (Type, bool)>,
+    x: &mut HashMap<String, SmntcEnvValue>,
+    y: &HashMap<String, SmntcEnvValue>,
 ) -> Result<(), Error> {
-    for (var_id, t) in y {
-        if let Some((x_type, _)) = x.insert(var_id.to_string(), t.clone()) {
-            let y_type = &t.0;
+    for (var_id, y_env_value) in y {
+        if let Some(x_env_value) = x.insert(var_id.to_string(), y_env_value.clone()) {
+            let x_type = x_env_value.t;
+            let y_type = &y_env_value.t;
 
             if &x_type != y_type {
+                let (line, starts_at, ends_at) = y_env_value.token.placement.as_tuple();
                 return Err(Error::Smntc(SmntcError::MismatchedTypes(
-                    1,
-                    1,
-                    1,
+                    line,
+                    starts_at,
+                    ends_at,
                     x_type,
                     y_type.clone(),
                 )));

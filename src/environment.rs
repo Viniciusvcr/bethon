@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{expr::value::Value, smntc_analyzer::Type};
+use crate::{expr::value::Value, smntc_analyzer::Type, token::Token};
 
 #[derive(PartialEq, Clone, Default, Debug)]
 pub struct Environment<T> {
@@ -107,5 +107,18 @@ where
     }
 }
 
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct SmntcEnvValue {
+    pub t: Type,
+    pub defined: bool,
+    pub token: Token,
+}
+
+impl SmntcEnvValue {
+    pub fn new(t: Type, defined: bool, token: Token) -> Self {
+        Self { t, defined, token }
+    }
+}
+
 pub type InterpreterEnvironment = Environment<Value>;
-pub type SemanticEnvironment = Environment<(Type, bool)>;
+pub type SemanticEnvironment = Environment<SmntcEnvValue>;

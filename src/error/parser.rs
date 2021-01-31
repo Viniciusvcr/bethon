@@ -141,7 +141,6 @@ impl ParserError {
                 "A function can have 255 arguments maximum".to_string(),
                 None,
             ),
-            // todo write error
             ParserError::MissingFunctionReturnType(line, starts_at, ends_at) => {
                 static_error_template(
                     error_type,

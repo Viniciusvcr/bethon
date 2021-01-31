@@ -245,7 +245,7 @@ impl Interpreter {
             Expr::Unary(op_and_token, right) => self.eval_unary_expr(op_and_token, right),
             Expr::Grouping(new_expr) => self.eval_expr(new_expr),
             Expr::Literal(value_and_token) => Ok(value_and_token.clone().op),
-            Expr::Variable(_token, id) => Ok(self.eval_var_expr(id)),
+            Expr::Variable(token) => Ok(self.eval_var_expr(&token.lexeme())),
             Expr::Call(callee, args) => self.eval_call_expr(callee, args),
         }
     }
@@ -321,8 +321,8 @@ impl Interpreter {
                 }
                 Err(error) => Err(error),
             },
-            Stmt::VarStmt(identifier, _var_type, expr) => {
-                match self.eval_var_stmt(identifier, expr) {
+            Stmt::VarStmt(token, _var_type, expr) => {
+                match self.eval_var_stmt(&token.lexeme(), expr) {
                     Ok(()) => Ok(()),
                     Err(error) => Err(error),
                 }

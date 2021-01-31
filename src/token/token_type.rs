@@ -65,3 +65,9 @@ pub enum TokenType {
     From,
     Import,
 }
+
+impl Default for TokenType {
+    fn default() -> Self {
+        TokenType::Blank
+    }
+}

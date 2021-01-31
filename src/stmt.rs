@@ -5,7 +5,7 @@ use crate::{expr::Expr, token::Token};
 pub enum Stmt {
     Assert(Expr),
     ExprStmt(Expr),
-    VarStmt(String, Option<VarType>, Expr),
+    VarStmt(Token, Option<VarType>, Expr),
     IfStmt(Expr, Vec<Stmt>, Option<Vec<Stmt>>),
     Function(Token, Vec<(Token, VarType)>, Vec<Stmt>, VarType),
     ReturnStmt(Token, Option<Expr>),

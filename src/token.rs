@@ -47,7 +47,7 @@ impl std::fmt::Display for VarType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 // Abstracts the data of the position of a Token on the source code
 pub struct Placement {
     pub line: usize,
@@ -69,7 +69,7 @@ impl Placement {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Token {
     pub tt: TokenType,
     pub lexeme: String,

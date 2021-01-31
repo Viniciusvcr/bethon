@@ -23,7 +23,7 @@ pub enum SmntcError {
     WrongArity(usize, usize, usize, usize, usize),
     TopLevelReturn(usize, usize, usize),
     UnboundVar(usize, usize, usize, String, String),
-    PossiblyUnbound(String),
+    PossiblyUnbound(usize, usize, usize, String),
 }
 
 impl SmntcError {
@@ -257,7 +257,18 @@ impl SmntcError {
                         *ends_at,
                         Some(&format!("'{}' is probably called before the definition of '{}'", func_name, id))))
             ),
-            SmntcError::PossiblyUnbound(x) => format!("Possibly unbound var {}", x) // todo write error
+            SmntcError::PossiblyUnbound(line, starts_at, ends_at, var_id) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("{}'{}'{} is possibly unbound. Check that the definition is within both if and else statements.", Color::White, var_id, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some(&format!("'{}' is probably not defined in all branches of the code", var_id))))
+            )
         }
     }
 }

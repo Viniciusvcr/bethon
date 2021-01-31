@@ -101,9 +101,7 @@ impl<'a> Parser<'a> {
 
             Ok(Expr::LogicNot((expr.into(), token)))
         } else if let Some((_, token)) = self.next_is(single(Identifier)) {
-            let var_id = token.lexeme();
-
-            Ok(Expr::Variable(token, var_id))
+            Ok(Expr::Variable(token))
         } else if let Some((_, indent_token)) = self.next_is(single(Indent)) {
             self.find_deindent();
             Err(ParserError::UnexpectedIdent(
@@ -276,7 +274,7 @@ impl<'a> Parser<'a> {
                 let value = self.expression()?;
 
                 match expr {
-                    Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, Some(var_type), value)),
+                    Expr::Variable(token) => Ok(Stmt::VarStmt(token, Some(var_type), value)),
                     _ => Err(ParserError::ExpectedColon(
                         token.placement.line,
                         token.placement.starts_at - 1,
@@ -296,7 +294,7 @@ impl<'a> Parser<'a> {
             let value = self.expression()?;
 
             match expr {
-                Expr::Variable(_token, id) => Ok(Stmt::VarStmt(id, None, value)),
+                Expr::Variable(token) => Ok(Stmt::VarStmt(token, None, value)),
                 _ => Err(ParserError::ExpectedColon(
                     token.placement.line,
                     token.placement.starts_at - 1,
