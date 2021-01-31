@@ -453,6 +453,7 @@ impl<'a> SemanticAnalyzer<'a> {
         &mut self,
         stmts: &[Stmt],
         fun_ret_type: Option<VarType>,
+        fun_params: Option<&Vec<(Token, VarType)>>,
     ) -> Result<(), Vec<Error>> {
         if let Err(err) = self.declare_env_vars(stmts) {
             self.errors.push(Error::Smntc(err));
@@ -570,14 +571,16 @@ impl<'a> SemanticAnalyzer<'a> {
                             // self.insert(condition, Type::Boolean(x));
 
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
-                                analyzer.analyze(&then_branch, fun_ret_type).ok();
+                                analyzer
+                                    .analyze(&then_branch, fun_ret_type, fun_params)
+                                    .ok();
 
                                 analyzer.symbol_table.current()
                             });
 
                             let else_declared_keys = if let Some(else_stmts) = else_branch {
                                 self.with_new_env(|analyzer| {
-                                    analyzer.analyze(&else_stmts, fun_ret_type).ok();
+                                    analyzer.analyze(&else_stmts, fun_ret_type, fun_params).ok();
 
                                     analyzer.symbol_table.current()
                                 })
@@ -651,7 +654,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             }
                         }
 
-                        analyzer.analyze(&body, Some(*ret_type)).ok(); // Errors will already be pushed to self.errors
+                        analyzer.analyze(&body, Some(*ret_type), Some(params)).ok(); // Errors will already be pushed to self.errors
 
                         (
                             analyzer.symbol_table.clone(),
@@ -724,7 +727,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }
 
         for var_id in self.symbol_table.current_keys() {
-            if !self.validate_declaration(&var_id, stmts) {
+            if !self.validate_declaration(&var_id, stmts, fun_params) {
                 self.errors.push(Error::Smntc(SmntcError::PossiblyUnbound(
                     var_id.to_string(),
                 )));
@@ -767,13 +770,21 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    // FIXME failing with function params
-    fn validate_declaration(&self, var_id: &str, stmts: &[Stmt]) -> bool {
+    fn validate_declaration(
+        &self,
+        var_id: &str,
+        stmts: &[Stmt],
+        fun_params: Option<&Vec<(Token, VarType)>>,
+    ) -> bool {
         if stmts.iter().any(|stmt| match stmt {
             Stmt::VarStmt(id, _, _) => id == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,
-        }) {
+        }) || fun_params
+            .unwrap_or(&vec![])
+            .iter()
+            .any(|(token, _)| token.lexeme() == var_id)
+        {
             true
         } else {
             let if_stmt = stmts
@@ -786,8 +797,12 @@ impl<'a> SemanticAnalyzer<'a> {
 
             let mut valid = false;
             for (then_branch, else_branch) in if_stmt {
-                valid |= self.validate_declaration(var_id, then_branch)
-                    && self.validate_declaration(var_id, else_branch.as_ref().unwrap_or(&vec![]));
+                valid |= self.validate_declaration(var_id, then_branch, fun_params)
+                    && self.validate_declaration(
+                        var_id,
+                        else_branch.as_ref().unwrap_or(&vec![]),
+                        fun_params,
+                    );
 
                 if valid {
                     break;
