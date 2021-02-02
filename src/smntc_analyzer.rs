@@ -1,5 +1,5 @@
 use crate::{
-    environment::{Environment, SemanticEnvironment, SmntcEnvValue},
+    environment::{Environment, Import, Module, SemanticEnvironment, SmntcEnvValue},
     error::{semantic::SmntcError, Error},
     expr::{
         operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
@@ -442,8 +442,46 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn analyze_from_import(
+        &mut self,
+        modules: &HashMap<String, Vec<Import>>,
+        module_name: &Token,
+        imports: &[Token],
+    ) {
+        if let Some(module) = modules.get(&module_name.lexeme()) {
+            for name in imports {
+                if let Some(import) = module.iter().find_map(|import| {
+                    if import.name == name.lexeme {
+                        Some(import)
+                    } else {
+                        None
+                    }
+                }) {
+                    self.define(&import.name, import.t.clone(), name);
+                } else {
+                    let (line, starts_at, ends_at) = name.placement.as_tuple();
+                    self.errors.push(Error::Smntc(SmntcError::ModuleNotResolved(
+                        line,
+                        starts_at,
+                        ends_at,
+                        format!("{}.{}", module_name.lexeme(), name.lexeme()),
+                    )));
+                }
+            }
+        } else {
+            let (line, starts_at, ends_at) = module_name.placement.as_tuple();
+            self.errors.push(Error::Smntc(SmntcError::ModuleNotResolved(
+                line,
+                starts_at,
+                ends_at,
+                module_name.lexeme(),
+            )));
+        }
+    }
+
     pub fn analyze(
         &mut self,
+        modules: &Module,
         stmts: &[Stmt],
         fun_ret_type: Option<VarType>,
         fun_params: Option<&Vec<(Token, VarType)>>,
@@ -586,7 +624,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
                                 analyzer
-                                    .analyze(&then_branch, fun_ret_type, fun_params)
+                                    .analyze(modules, &then_branch, fun_ret_type, fun_params)
                                     .ok();
 
                                 analyzer.symbol_table.current()
@@ -594,7 +632,9 @@ impl<'a> SemanticAnalyzer<'a> {
 
                             let else_declared_keys = if let Some(else_stmts) = else_branch {
                                 self.with_new_env(|analyzer| {
-                                    analyzer.analyze(&else_stmts, fun_ret_type, fun_params).ok();
+                                    analyzer
+                                        .analyze(modules, &else_stmts, fun_ret_type, fun_params)
+                                        .ok();
 
                                     analyzer.symbol_table.current()
                                 })
@@ -676,7 +716,9 @@ impl<'a> SemanticAnalyzer<'a> {
                             }
                         }
 
-                        analyzer.analyze(&body, Some(*ret_type), Some(params)).ok(); // Errors will already be pushed to self.errors
+                        analyzer
+                            .analyze(modules, &body, Some(*ret_type), Some(params))
+                            .ok(); // Errors will already be pushed to self.errors
 
                         (
                             analyzer.symbol_table.clone(),
@@ -748,6 +790,9 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     }
                 },
+                Stmt::FromImport(module_name, imports) => {
+                    self.analyze_from_import(modules, module_name, imports)
+                }
             }
         }
 
@@ -807,6 +852,7 @@ impl<'a> SemanticAnalyzer<'a> {
     ) -> bool {
         if stmts.iter().any(|stmt| match stmt {
             Stmt::VarStmt(id, _, _) => id.lexeme() == var_id,
+            Stmt::FromImport(_, x) => x.iter().any(|token| token.lexeme == var_id),
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,
         }) || fun_params

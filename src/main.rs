@@ -1,8 +1,8 @@
-use bethon::error::Error;
 use bethon::interpreter::Interpreter;
 use bethon::parser::Parser;
 use bethon::scanner::{create_code_vec, Scanner};
 use bethon::smntc_analyzer::SemanticAnalyzer;
+use bethon::{environment::Import, error::Error};
 
 use std::{cmp::Ordering, env, process::exit};
 
@@ -12,15 +12,15 @@ fn run(filename: &str, source_code: &str) {
 
     match lexer.scan_tokens() {
         Ok(vec) => {
-            // println!("{:#?}", vec);
+            println!("tokens: {:#?}", vec);
             let mut parser = Parser::new(vec);
 
             match parser.parse() {
                 Ok(stmts) => {
-                    // println!("{:#?}", stmts);
+                    println!("parsed: {:#?}", stmts);
                     let mut pass = SemanticAnalyzer::default();
 
-                    if let Err(errors) = pass.analyze(&stmts, None, None) {
+                    if let Err(errors) = pass.analyze(&Import::imports(), &stmts, None, None) {
                         let code_vec = create_code_vec(source_code);
                         for error in errors {
                             error.show_error(Some(filename), Some(&code_vec));

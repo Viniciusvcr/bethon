@@ -380,6 +380,18 @@ impl<'a> Parser<'a> {
         Ok(Stmt::ReturnStmt(ret_token, Some(expr)))
     }
 
+    fn from_import_statement(&mut self) -> Result<Stmt, ParserError> {
+        let module = self.consume(Identifier)?;
+        self.consume(Import)?;
+
+        let mut imports = vec![self.consume(Identifier)?];
+        while self.next_is(single(Comma)).is_some() {
+            imports.push(self.consume(Identifier)?);
+        }
+
+        Ok(Stmt::FromImport(module, imports))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
@@ -389,6 +401,8 @@ impl<'a> Parser<'a> {
             self.function()
         } else if let Ok(ret_token) = self.consume(Return) {
             self.return_statement(ret_token)
+        } else if self.consume(From).is_ok() {
+            self.from_import_statement()
         } else {
             self.expression_statement()
         }

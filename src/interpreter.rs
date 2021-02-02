@@ -1,5 +1,5 @@
 use crate::{
-    environment::Environment,
+    environment::{Environment, Import, Module},
     error::{runtime::RuntimeError, Error},
     expr::{operations::*, value::Value, *},
     stmt::*,
@@ -297,7 +297,7 @@ impl Interpreter {
             }
 
             for stmt in &fun.body {
-                match interpreter.eval(stmt) {
+                match interpreter.eval(&Import::imports(), stmt) {
                     Err(RuntimeError::Return(value)) => return Ok(value),
                     Err(x) => return Err(x),
                     Ok(()) => {}
@@ -311,7 +311,7 @@ impl Interpreter {
         result
     }
 
-    fn eval(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn eval(&mut self, modules: &Module, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Assert(expr) => self.assert_eval(expr),
             Stmt::ExprStmt(expr) => match self.eval_expr(expr) {
@@ -331,13 +331,13 @@ impl Interpreter {
                 Ok(evalued_condition) => {
                     if evalued_condition == Value::Bool(true) {
                         for then_stmt in then_branch {
-                            self.eval(then_stmt)?;
+                            self.eval(modules, then_stmt)?;
                         }
 
                         Ok(())
                     } else if else_branch.is_some() {
                         for else_stmt in else_branch.as_ref().unwrap() {
-                            self.eval(else_stmt)?;
+                            self.eval(modules, else_stmt)?;
                         }
 
                         Ok(())
@@ -366,14 +366,36 @@ impl Interpreter {
             } else {
                 Value::PythonNone
             })),
+            Stmt::FromImport(module_name, imports) => {
+                let module = modules.get(&module_name.lexeme).unwrap();
+
+                for name in imports {
+                    let import = module
+                        .iter()
+                        .find_map(|import| {
+                            if import.name == name.lexeme {
+                                Some(import)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap();
+
+                    self.environment
+                        .define(import.name.to_string(), import.v.clone());
+                }
+
+                Ok(())
+            }
         }
     }
 
     pub fn interpret(&mut self, stmts: &[Stmt]) -> Option<Error> {
         self.environment = Environment::default();
+        let modules = Import::imports();
 
         for stmt in stmts {
-            if let Err(evaluation) = self.eval(stmt) {
+            if let Err(evaluation) = self.eval(&modules, stmt) {
                 return Some(Error::Runtime(evaluation));
             }
         }

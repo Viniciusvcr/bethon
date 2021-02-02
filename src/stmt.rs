@@ -9,4 +9,5 @@ pub enum Stmt {
     IfStmt(Expr, Vec<Stmt>, Option<Vec<Stmt>>),
     Function(Token, Vec<(Token, VarType)>, Vec<Stmt>, VarType),
     ReturnStmt(Token, Option<Expr>),
+    FromImport(Token, Vec<Token>),
 }
