@@ -30,6 +30,7 @@ impl From<Type> for VarType {
             Type::Null => VarType::PythonNone,
             Type::Str => VarType::Str,
             Type::Fun(_, _, _, _) => VarType::Function,
+            Type::UserDefined(_) => VarType::Function, // todo change to VarType::UserDefined
         }
     }
 }

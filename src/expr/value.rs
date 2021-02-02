@@ -1,4 +1,4 @@
-use crate::token::number_type::NumberType;
+use crate::{smntc_analyzer::UserType, token::number_type::NumberType};
 
 use super::callable::Callable;
 
@@ -9,6 +9,7 @@ pub enum Value {
     Number(NumberType),
     Str(String),
     Fun(Callable),
+    UserDefined(UserType),
 }
 
 impl Default for Value {
@@ -26,6 +27,7 @@ impl std::fmt::Display for Value {
             Value::Number(value) => write!(f, "{}", value),
             Value::Str(value) => write!(f, "{}", value),
             Value::Fun(callable) => write!(f, "fun <{}>", callable),
+            Value::UserDefined(t) => write!(f, "<class {}>", t.name_token.lexeme),
         }
     }
 }

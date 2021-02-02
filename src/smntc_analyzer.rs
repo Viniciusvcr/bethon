@@ -11,6 +11,24 @@ use crate::{
 };
 
 use std::collections::HashMap;
+#[derive(Debug, PartialEq, Clone)]
+pub struct UserType {
+    pub name_token: Token,
+    pub attrs: Vec<(Token, VarType)>,
+}
+
+impl UserType {
+    pub fn new(name_token: &Token, attrs: &[(Token, VarType)]) -> Self {
+        Self {
+            name_token: name_token.clone(),
+            attrs: attrs.to_owned(),
+        }
+    }
+
+    pub fn arity(&self) -> usize {
+        self.attrs.len()
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -20,6 +38,7 @@ pub enum Type {
     Null,
     Str,
     Fun(SemanticEnvironment, Vec<VarType>, VarType, Vec<String>),
+    UserDefined(UserType),
 }
 
 impl Default for Type {
@@ -55,6 +74,7 @@ impl std::fmt::Display for Type {
             Type::Boolean => write!(f, "bool"),
             Type::Str => write!(f, "str"),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
+            Type::UserDefined(x) => write!(f, "<class {}>", x.name_token.lexeme),
         }
     }
 }
@@ -342,6 +362,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Float(_)) => Type::Float,
             Value::Str(_) => Type::Str,
             Value::Fun(x) => Type::Fun(SemanticEnvironment::default(), vec![], x.ret_type, vec![]),
+            Value::UserDefined(t) => Type::UserDefined(t.clone()),
         }
     }
 
@@ -793,7 +814,37 @@ impl<'a> SemanticAnalyzer<'a> {
                 Stmt::FromImport(module_name, imports) => {
                     self.analyze_from_import(modules, module_name, imports)
                 }
-                Stmt::Class(_, _) => {}
+                Stmt::Class(dataclas_token, id, attrs) => {
+                    // todo check VarType::UserDefined in attrs
+                    if self.get_var(&dataclas_token.lexeme[1..]).is_some() {
+                        if let Some(env_value) = self.define(
+                            &id.lexeme(),
+                            Type::UserDefined(UserType::new(id, attrs)),
+                            id,
+                        ) {
+                            if env_value.defined {
+                                let (line, starts_at, ends_at) = id.placement.as_tuple();
+                                self.errors
+                                    .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        line,
+                                        starts_at,
+                                        ends_at,
+                                        id.lexeme(),
+                                    )))
+                            }
+                        }
+                    } else {
+                        // todo better understanding error
+                        let (line, starts_at, ends_at) = dataclas_token.placement.as_tuple();
+                        self.errors
+                            .push(Error::Smntc(SmntcError::VariableNotDeclared(
+                                line,
+                                starts_at,
+                                ends_at,
+                                dataclas_token.lexeme(),
+                            )))
+                    }
+                }
             }
         }
 
@@ -854,6 +905,7 @@ impl<'a> SemanticAnalyzer<'a> {
         if stmts.iter().any(|stmt| match stmt {
             Stmt::VarStmt(id, _, _) => id.lexeme() == var_id,
             Stmt::FromImport(_, x) => x.iter().any(|token| token.lexeme == var_id),
+            Stmt::Class(_, id, _) => id.lexeme == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,
         }) || fun_params

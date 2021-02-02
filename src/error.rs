@@ -1,3 +1,5 @@
+#![allow(clippy::large_enum_variant)]
+
 pub mod parser;
 pub mod runtime;
 pub mod scanner;

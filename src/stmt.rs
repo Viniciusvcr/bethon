@@ -10,5 +10,5 @@ pub enum Stmt {
     Function(Token, Vec<(Token, VarType)>, Vec<Stmt>, VarType),
     ReturnStmt(Token, Option<Expr>),
     FromImport(Token, Vec<Token>),
-    Class(Token, Vec<(Token, VarType)>),
+    Class(Token, Token, Vec<(Token, VarType)>),
 }

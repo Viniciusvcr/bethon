@@ -322,6 +322,7 @@ impl<'a> Scanner<'a> {
                     }
                 }
                 '@' => {
+                    // todo match dataclasses.dataclass too
                     if self.expect("dataclass").is_some() {
                         Dataclass
                     } else {

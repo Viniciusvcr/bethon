@@ -2,6 +2,7 @@ use crate::{
     environment::{Environment, Import, Module},
     error::{runtime::RuntimeError, Error},
     expr::{operations::*, value::Value, *},
+    smntc_analyzer::UserType,
     stmt::*,
     token::number_type::NumberType,
 };
@@ -387,7 +388,12 @@ impl Interpreter {
 
                 Ok(())
             }
-            Stmt::Class(_, _) => Ok(()),
+            Stmt::Class(_, id, attrs) => {
+                self.environment
+                    .define(id.lexeme(), Value::UserDefined(UserType::new(id, attrs)));
+
+                Ok(())
+            }
         }
     }
 
