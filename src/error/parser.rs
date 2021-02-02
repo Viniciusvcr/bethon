@@ -22,6 +22,7 @@ pub enum ParserError {
     MaxFuntionArgsReached(usize),
     MissingFunctionReturnType(usize, usize, usize),
     MissingParameterType(usize, usize, usize),
+    RegularClass(usize, usize, usize),
 }
 
 impl ParserError {
@@ -175,6 +176,19 @@ impl ParserError {
                     VarType::Str
                 ),
                 Some(print_marker(*starts_at, *ends_at, Some("after this"))),
+            ),
+            ParserError::RegularClass(line, starts_at, ends_at) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Regular Python classes are not suported, only Dataclasses".to_string(),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("try marking with '@dataclass' before 'class'"),
+                )),
             ),
         }
     }

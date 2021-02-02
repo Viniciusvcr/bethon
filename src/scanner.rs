@@ -230,7 +230,6 @@ impl<'a> Scanner<'a> {
             "or" => Some(Or),
             "not" => Some(Not),
             "return" => Some(Return),
-            "self" => Some(PythonSelf),
             "int" => Some(Int),
             "float" => Some(Float),
             "str" => Some(Str),

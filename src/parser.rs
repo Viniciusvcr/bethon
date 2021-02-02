@@ -61,6 +61,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn consume_type(&mut self) -> Result<VarType, ParserError> {
+        let current_line = self.current_line;
+
+        // todo add Identifier as a type
+        if let Some((var_type, _)) = self.next_is(|tt| match tt {
+            TokenType::PythonNone => Some(VarType::PythonNone),
+            TokenType::Int => Some(VarType::Integer),
+            TokenType::Float => Some(VarType::Float),
+            TokenType::Str => Some(VarType::Str),
+            TokenType::Bool => Some(VarType::Boolean),
+            _ => None,
+        }) {
+            Ok(var_type)
+        } else {
+            Err(ParserError::Expected(TokenType::Identifier, current_line))
+        }
+    }
+
     fn sync(&mut self, current_line: usize) {
         while let Some(token) = self.peek() {
             if token.placement.line == current_line + 1 || self.is_at_end() {
@@ -392,6 +410,25 @@ impl<'a> Parser<'a> {
         Ok(Stmt::FromImport(module, imports))
     }
 
+    fn class_statement(&mut self) -> Result<Stmt, ParserError> {
+        self.consume(Class)?;
+        let identifier = self.consume(Identifier)?;
+        self.consume(Colon)?;
+
+        self.consume(Indent)?;
+
+        let mut attrs = vec![];
+        while self.next_is(single(Deindent)).is_none() {
+            let attr_name = self.consume(Identifier)?;
+            self.consume(Colon)?;
+            let attr_type = self.consume_type()?;
+
+            attrs.push((attr_name, attr_type))
+        }
+
+        Ok(Stmt::Class(identifier, attrs))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
@@ -403,6 +440,11 @@ impl<'a> Parser<'a> {
             self.return_statement(ret_token)
         } else if self.consume(From).is_ok() {
             self.from_import_statement()
+        } else if self.consume(Dataclass).is_ok() {
+            self.class_statement()
+        } else if let Ok(class_token) = self.consume(Class) {
+            let (line, starts_at, ends_at) = class_token.placement.as_tuple();
+            Err(ParserError::RegularClass(line, starts_at, ends_at))
         } else {
             self.expression_statement()
         }

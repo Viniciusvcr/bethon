@@ -387,6 +387,7 @@ impl Interpreter {
 
                 Ok(())
             }
+            Stmt::Class(_, _) => Ok(()),
         }
     }
 

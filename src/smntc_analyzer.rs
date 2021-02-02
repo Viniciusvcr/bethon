@@ -793,6 +793,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 Stmt::FromImport(module_name, imports) => {
                     self.analyze_from_import(modules, module_name, imports)
                 }
+                Stmt::Class(_, _) => {}
             }
         }
 
