@@ -141,10 +141,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
     fn check_type(&self, var_type: &VarType) -> bool {
         match var_type {
-            VarType::Class(x) => match self.get_var(&x.lexeme) {
-                Some(Type::UserDefined(_)) => true,
-                _ => false,
-            },
+            VarType::Class(x) => matches!(self.get_var(&x.lexeme), Some(Type::UserDefined(_))),
             _ => true,
         }
     }
