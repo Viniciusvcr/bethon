@@ -61,7 +61,7 @@ impl std::convert::From<&VarType> for Type {
                 VarType::Integer,
                 Vec::default(),
             ),
-            VarType::Class => Type::UserDefined(UserType::default()),
+            VarType::Class(_) => Type::UserDefined(UserType::default()),
         }
     }
 }
@@ -75,7 +75,7 @@ impl std::fmt::Display for Type {
             Type::Boolean => write!(f, "bool"),
             Type::Str => write!(f, "str"),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
-            Type::UserDefined(x) => write!(f, "<class {}>", x.name_token.lexeme),
+            Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
         }
     }
 }
@@ -176,7 +176,11 @@ impl<'a> SemanticAnalyzer<'a> {
         });
 
         for token in vec {
-            self.declare(&token.lexeme(), (&VarType::Class).into(), token);
+            self.declare(
+                &token.lexeme(),
+                (&VarType::Class(token.clone())).into(),
+                token,
+            );
         }
 
         Ok(())
@@ -375,7 +379,12 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Number(NumberType::Integer(_)) => Type::Integer,
             Value::Number(NumberType::Float(_)) => Type::Float,
             Value::Str(_) => Type::Str,
-            Value::Fun(x) => Type::Fun(SemanticEnvironment::default(), vec![], x.ret_type, vec![]),
+            Value::Fun(x) => Type::Fun(
+                SemanticEnvironment::default(),
+                vec![],
+                x.ret_type.clone(),
+                vec![],
+            ),
             Value::UserDefined(t) => Type::UserDefined(t.clone()),
             Value::Instance(i) => Type::UserDefined(i.type_name.clone()),
         }
@@ -464,7 +473,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
                 }
 
-                Ok(Type::UserDefined(t.clone()))
+                Ok(Type::UserDefined(t))
             }
             t => {
                 let (line, starts_at, ends_at) = callee.placement();
@@ -646,6 +655,35 @@ impl<'a> SemanticAnalyzer<'a> {
                                     }
                                 }
                             }
+                            (
+                                Some(VarType::Class(declared_name)),
+                                Type::UserDefined(evaluated_type),
+                            ) => {
+                                if declared_name.lexeme != evaluated_type.name_token.lexeme {
+                                    let (error_line, starts_at, ends_at) = expr.placement();
+
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::IncompatibleDeclaration(
+                                            error_line,
+                                            starts_at,
+                                            ends_at,
+                                            var_type.clone().unwrap(),
+                                            t,
+                                        ),
+                                    ))
+                                } else if let Some(env_value) = self.define(&id, t, token) {
+                                    if env_value.defined {
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::VariableAlreadyDeclared(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                id.to_string(),
+                                            ),
+                                        ));
+                                    }
+                                }
+                            }
                             (None, _) => {
                                 if let Some(env_value) = self.define(&id, t, token) {
                                     if env_value.defined {
@@ -665,7 +703,11 @@ impl<'a> SemanticAnalyzer<'a> {
 
                                 self.errors
                                     .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
-                                        error_line, starts_at, ends_at, *expected, found,
+                                        error_line,
+                                        starts_at,
+                                        ends_at,
+                                        expected.clone(),
+                                        found,
                                     )))
                             }
                         },
@@ -679,7 +721,12 @@ impl<'a> SemanticAnalyzer<'a> {
 
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
                                 analyzer
-                                    .analyze(modules, &then_branch, fun_ret_type, fun_params)
+                                    .analyze(
+                                        modules,
+                                        &then_branch,
+                                        fun_ret_type.clone(),
+                                        fun_params,
+                                    )
                                     .ok();
 
                                 analyzer.symbol_table.current()
@@ -688,7 +735,12 @@ impl<'a> SemanticAnalyzer<'a> {
                             let else_declared_keys = if let Some(else_stmts) = else_branch {
                                 self.with_new_env(|analyzer| {
                                     analyzer
-                                        .analyze(modules, &else_stmts, fun_ret_type, fun_params)
+                                        .analyze(
+                                            modules,
+                                            &else_stmts,
+                                            fun_ret_type.clone(),
+                                            fun_params,
+                                        )
                                         .ok();
 
                                     analyzer.symbol_table.current()
@@ -729,14 +781,14 @@ impl<'a> SemanticAnalyzer<'a> {
                     };
                 }
                 Stmt::Function(id_token, params, body, ret_type) => {
-                    let param_types: Vec<VarType> = params.iter().map(|(_, y)| *y).collect();
+                    let param_types: Vec<VarType> = params.iter().map(|(_, y)| y.clone()).collect();
 
                     if ret_type != &VarType::PythonNone && !self.validate_return(body) {
                         self.errors.push(Error::Smntc(SmntcError::MissingReturns(
                             id_token.placement.line,
                             id_token.placement.starts_at,
                             id_token.placement.ends_at,
-                            *ret_type,
+                            ret_type.clone(),
                         )));
                     }
 
@@ -745,7 +797,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         Type::Fun(
                             SemanticEnvironment::default(),
                             param_types.clone(),
-                            *ret_type,
+                            ret_type.clone(),
                             vec![],
                         ),
                         id_token,
@@ -772,7 +824,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
 
                         analyzer
-                            .analyze(modules, &body, Some(*ret_type), Some(params))
+                            .analyze(modules, &body, Some(ret_type.clone()), Some(params))
                             .ok(); // Errors will already be pushed to self.errors
 
                         (
@@ -783,7 +835,12 @@ impl<'a> SemanticAnalyzer<'a> {
 
                     if let Some(env_value) = self.define(
                         &id_token.lexeme,
-                        Type::Fun(fun_env, param_types.clone(), *ret_type, declared_keys),
+                        Type::Fun(
+                            fun_env,
+                            param_types.clone(),
+                            ret_type.clone(),
+                            declared_keys,
+                        ),
                         id_token,
                     ) {
                         if env_value.defined {

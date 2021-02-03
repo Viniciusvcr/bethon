@@ -51,6 +51,25 @@ impl<'a> Parser<'a> {
         None
     }
 
+    fn next_is_type(&mut self) -> Option<(VarType, Token)> {
+        if let Some(token) = self.tokens.first() {
+            if let Some(t) = match token.tt {
+                TokenType::PythonNone => Some(VarType::PythonNone),
+                TokenType::Int => Some(VarType::Integer),
+                TokenType::Float => Some(VarType::Float),
+                TokenType::Str => Some(VarType::Str),
+                TokenType::Bool => Some(VarType::Boolean),
+                TokenType::Identifier => Some(VarType::Class(token.clone())),
+                _ => None,
+            } {
+                self.advance();
+                return Some((t, token.clone()));
+            }
+        }
+
+        None
+    }
+
     fn consume(&mut self, tt: TokenType) -> Result<Token, ParserError> {
         let current_line = self.current_line;
 
@@ -61,10 +80,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // todo use next_is_type
     fn consume_type(&mut self) -> Result<VarType, ParserError> {
         let current_line = self.current_line;
 
-        // todo add Identifier as a type
         if let Some((var_type, _)) = self.next_is(|tt| match tt {
             TokenType::PythonNone => Some(VarType::PythonNone),
             TokenType::Int => Some(VarType::Integer),
@@ -74,6 +93,8 @@ impl<'a> Parser<'a> {
             _ => None,
         }) {
             Ok(var_type)
+        } else if let Some((_, token)) = self.next_is(single(Identifier)) {
+            Ok(VarType::Class(token))
         } else {
             Err(ParserError::Expected(TokenType::Identifier, current_line))
         }
@@ -279,14 +300,7 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
 
         if let Some((_, _token)) = self.next_is(single(Colon)) {
-            if let Some((var_type, token)) = self.next_is(|tt| match tt {
-                PythonNone => Some(VarType::PythonNone),
-                Int => Some(VarType::Integer),
-                Float => Some(VarType::Float),
-                Str => Some(VarType::Str),
-                Bool => Some(VarType::Boolean),
-                _ => None,
-            }) {
+            if let Some((var_type, token)) = self.next_is_type() {
                 self.consume(Equal)?;
 
                 let value = self.expression()?;
@@ -343,7 +357,6 @@ impl<'a> Parser<'a> {
         Ok(stmts)
     }
 
-    // todo add multiple elif branches
     fn if_statement(&mut self) -> Result<Stmt, ParserError> {
         let condition = self.expression()?;
 
@@ -357,6 +370,7 @@ impl<'a> Parser<'a> {
         Ok(Stmt::IfStmt(condition, then_branch, else_branch))
     }
 
+    // todo use consume_type
     fn function(&mut self) -> Result<Stmt, ParserError> {
         let fun_id = self.consume(Identifier)?;
         self.consume(LeftParen)?;
@@ -483,6 +497,7 @@ fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
     }
 }
 
+// todo use consume_type
 fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result<(), ParserError> {
     let first_param_id = parser.consume(Identifier)?;
     let colon_token = parser.consume(Colon)?;

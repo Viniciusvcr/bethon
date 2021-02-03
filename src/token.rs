@@ -5,7 +5,7 @@ use token_type::TokenType;
 
 use crate::smntc_analyzer::Type;
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     Boolean,
     Integer,
@@ -13,7 +13,7 @@ pub enum VarType {
     Str,
     PythonNone,
     Function,
-    Class,
+    Class(Token),
 }
 
 impl Default for VarType {
@@ -45,7 +45,7 @@ impl std::fmt::Display for VarType {
             VarType::Str => write!(f, "str"),
             VarType::PythonNone => write!(f, "None"),
             VarType::Function => write!(f, "function"),
-            VarType::Class => write!(f, "class"),
+            VarType::Class(token) => write!(f, "{}", token.lexeme),
         }
     }
 }

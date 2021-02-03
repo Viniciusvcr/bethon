@@ -3,6 +3,7 @@ use crate::{interpreter::UserInstance, smntc_analyzer::UserType, token::number_t
 use super::callable::Callable;
 
 #[derive(Clone, PartialEq, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Value {
     PythonNone,
     Bool(bool),
@@ -28,7 +29,7 @@ impl std::fmt::Display for Value {
             Value::Number(value) => write!(f, "{}", value),
             Value::Str(value) => write!(f, "{}", value),
             Value::Fun(callable) => write!(f, "fun <{}>", callable),
-            Value::UserDefined(t) => write!(f, "<class {}>", t.name_token.lexeme),
+            Value::UserDefined(t) => write!(f, "{}", t.name_token.lexeme),
             Value::Instance(instance) => {
                 write!(
                     f,

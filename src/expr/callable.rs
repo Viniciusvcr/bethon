@@ -45,7 +45,7 @@ impl Callable {
     pub fn param_types(&self) -> Vec<VarType> {
         let mut ret = vec![];
         for (_, var_type) in &self.params {
-            ret.push(*var_type);
+            ret.push(var_type.clone());
         }
 
         ret

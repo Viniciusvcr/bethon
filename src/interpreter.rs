@@ -396,7 +396,7 @@ impl Interpreter {
                         fun_id.clone(),
                         params.clone(),
                         fun_body.clone(),
-                        *ret_type,
+                        ret_type.clone(),
                     )),
                 );
 

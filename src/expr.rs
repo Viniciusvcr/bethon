@@ -12,6 +12,7 @@ use operations::*;
 use value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum Expr {
     BinaryArith(Box<Expr>, OpWithToken<BinaryOp>, Box<Expr>),
     BinaryComp(Box<Expr>, OpWithToken<BinaryCompOp>, Box<Expr>),
