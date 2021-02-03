@@ -139,6 +139,16 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn check_type(&self, var_type: &VarType) -> bool {
+        match var_type {
+            VarType::Class(x) => match self.get_var(&x.lexeme) {
+                Some(Type::UserDefined(_)) => true,
+                _ => false,
+            },
+            _ => true,
+        }
+    }
+
     #[allow(dead_code)]
     fn hoist_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         self.hoisting = true;
@@ -212,7 +222,7 @@ impl<'a> SemanticAnalyzer<'a> {
         Ok(())
     }
 
-    fn get_var(&mut self, id: &str) -> Option<Type> {
+    fn get_var(&self, id: &str) -> Option<Type> {
         if let Some(env_value) = self.symbol_table.get(id) {
             if !self.analyzing_function && !self.hoisting {
                 if env_value.defined {
@@ -857,6 +867,18 @@ impl<'a> SemanticAnalyzer<'a> {
                         analyzer.analyzing_function = true;
 
                         for (token, var_type) in params {
+                            if !analyzer.check_type(var_type) {
+                                let (line, starts_at, ends_at) = token.placement.as_tuple();
+                                analyzer
+                                    .errors
+                                    .push(Error::Smntc(SmntcError::TypeNotDefined(
+                                        line,
+                                        starts_at,
+                                        ends_at,
+                                        token.lexeme(),
+                                    )))
+                            }
+
                             if analyzer
                                 .define(&token.lexeme, var_type.into(), token)
                                 .is_some()
@@ -956,19 +978,14 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
                 Stmt::Class(dataclas_token, id, attrs) => {
                     for (token, var_type) in attrs {
-                        if let VarType::Class(x) = var_type {
-                            match self.get_var(&x.lexeme) {
-                                Some(Type::UserDefined(_)) => {}
-                                _ => {
-                                    let (line, starts_at, ends_at) = token.placement.as_tuple();
-                                    self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
-                                        line,
-                                        starts_at,
-                                        ends_at,
-                                        token.lexeme(),
-                                    )))
-                                }
-                            }
+                        if !self.check_type(var_type) {
+                            let (line, starts_at, ends_at) = token.placement.as_tuple();
+                            self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                                line,
+                                starts_at,
+                                ends_at,
+                                token.lexeme(),
+                            )))
                         }
                     }
 
