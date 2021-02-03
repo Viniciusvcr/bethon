@@ -81,7 +81,8 @@ impl std::fmt::Display for Type {
 }
 
 #[allow(dead_code)] // todo remove this
-                    // The semantic analyzer
+
+// The semantic analyzer
 pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>, // can't retrieve from this hashmap
     symbol_table: SemanticEnvironment,
@@ -122,7 +123,9 @@ impl<'a> SemanticAnalyzer<'a> {
             .define(id.to_string(), SmntcEnvValue::new(t, true, token.clone()))
     }
 
+    #[allow(dead_code)]
     fn hoist_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+        self.hoisting = true;
         let vec = body.iter().filter_map(|stmt| match stmt {
             Stmt::VarStmt(token, var_type, expr) => Some((token, var_type, expr)),
             _ => None,
@@ -132,10 +135,8 @@ impl<'a> SemanticAnalyzer<'a> {
             let id = token.lexeme();
 
             if var_type.is_none() {
-                self.hoisting = true;
                 let evaluated_type = self.analyze_one(expr)?;
                 self.declare(&id, evaluated_type, token);
-                self.hoisting = false;
             } else {
                 self.declare(&id, var_type.as_ref().unwrap().into(), token);
             }
@@ -153,10 +154,13 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
+        self.hoisting = false;
         Ok(())
     }
 
     fn hoist_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+        self.hoisting = true;
+
         let vec = body.iter().filter_map(|stmt| match stmt {
             Stmt::Function(token, _, _, _) => Some(token),
             _ => None,
@@ -166,10 +170,14 @@ impl<'a> SemanticAnalyzer<'a> {
             self.declare(&token.lexeme(), (&VarType::Function).into(), token);
         }
 
+        self.hoisting = false;
+
         Ok(())
     }
 
     fn hoist_classes(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+        self.hoisting = true;
+
         let vec = body.iter().filter_map(|stmt| match stmt {
             Stmt::Class(_, token, _) => Some(token),
             _ => None,
@@ -182,6 +190,8 @@ impl<'a> SemanticAnalyzer<'a> {
                 token,
             );
         }
+
+        self.hoisting = false;
 
         Ok(())
     }
@@ -407,7 +417,7 @@ impl<'a> SemanticAnalyzer<'a> {
     fn analyze_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> SemanticAnalyzerResult {
         match self.analyze_one(callee)? {
             Type::Fun(env, param_type, ret_type, declared_keys) => {
-                if param_type.len() != args.len() {
+                if !self.hoisting && (param_type.len() != args.len()) {
                     let (line, starts_at, mut ends_at) = callee.placement();
 
                     if !args.is_empty() {
@@ -455,6 +465,7 @@ impl<'a> SemanticAnalyzer<'a> {
                             )));
                         }
                     }
+
                     self.symbol_table = old_env;
                 }
 
@@ -570,13 +581,13 @@ impl<'a> SemanticAnalyzer<'a> {
             self.errors.push(Error::Smntc(err));
         }
 
-        if let Err(err) = self.hoist_vars(stmts) {
-            self.errors.push(Error::Smntc(err));
-        }
-
         if let Err(err) = self.hoist_funcs(stmts) {
             self.errors.push(Error::Smntc(err));
         }
+
+        // if let Err(err) = self.hoist_vars(stmts) {
+        //     self.errors.push(Error::Smntc(err));
+        // }
 
         for stmt in stmts {
             match stmt {
@@ -884,7 +895,14 @@ impl<'a> SemanticAnalyzer<'a> {
                                 Ok(x) => {
                                     let var_type: VarType = x.clone().into();
 
-                                    if &var_type != fun_ret_type.as_ref().unwrap() {
+                                    let equal = match (fun_ret_type.as_ref().unwrap(), &var_type) {
+                                        (VarType::Class(x), VarType::Class(y)) => {
+                                            x.lexeme == y.lexeme
+                                        }
+                                        _ => &var_type == fun_ret_type.as_ref().unwrap(),
+                                    };
+
+                                    if !equal {
                                         let (line, (starts_at, ends_at)) =
                                             (expr.get_line(), expr.get_expr_placement());
 

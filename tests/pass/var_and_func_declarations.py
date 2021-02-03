@@ -8,9 +8,11 @@ def foo() -> int:
     return g() + inner_fun()
 
 
-def g() -> int:
-    return a
-
-
 a = 10
+
+
+def g() -> int:
+    return a  # 'a' is not in the same scope, but it is accessible
+
+
 assert foo() == a + 25

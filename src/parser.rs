@@ -80,21 +80,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // todo use next_is_type
     fn consume_type(&mut self) -> Result<VarType, ParserError> {
         let current_line = self.current_line;
 
-        if let Some((var_type, _)) = self.next_is(|tt| match tt {
-            TokenType::PythonNone => Some(VarType::PythonNone),
-            TokenType::Int => Some(VarType::Integer),
-            TokenType::Float => Some(VarType::Float),
-            TokenType::Str => Some(VarType::Str),
-            TokenType::Bool => Some(VarType::Boolean),
-            _ => None,
-        }) {
+        if let Some((var_type, _)) = self.next_is_type() {
             Ok(var_type)
-        } else if let Some((_, token)) = self.next_is(single(Identifier)) {
-            Ok(VarType::Class(token))
         } else {
             Err(ParserError::Expected(TokenType::Identifier, current_line))
         }
@@ -370,7 +360,6 @@ impl<'a> Parser<'a> {
         Ok(Stmt::IfStmt(condition, then_branch, else_branch))
     }
 
-    // todo use consume_type
     fn function(&mut self) -> Result<Stmt, ParserError> {
         let fun_id = self.consume(Identifier)?;
         self.consume(LeftParen)?;
@@ -383,14 +372,7 @@ impl<'a> Parser<'a> {
 
         let mut ret_type = VarType::PythonNone;
         if let Some((_, arrow_token)) = self.next_is(single(Arrow)) {
-            if let Some((var_type, _)) = self.next_is(|tt| match tt {
-                PythonNone => Some(VarType::PythonNone),
-                Int => Some(VarType::Integer),
-                Float => Some(VarType::Float),
-                Str => Some(VarType::Str),
-                Bool => Some(VarType::Boolean),
-                _ => None,
-            }) {
+            if let Some((var_type, _)) = self.next_is_type() {
                 ret_type = var_type;
             } else if self.next_is(single(Colon)).is_some() {
                 let (line, starts_at, ends_at) = arrow_token.placement.as_tuple();
@@ -497,17 +479,10 @@ fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
     }
 }
 
-// todo use consume_type
 fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result<(), ParserError> {
     let first_param_id = parser.consume(Identifier)?;
     let colon_token = parser.consume(Colon)?;
-    if let Some((first_param_type, _)) = parser.next_is(|tt| match tt {
-        Int => Some(VarType::Integer),
-        Float => Some(VarType::Float),
-        Str => Some(VarType::Str),
-        Bool => Some(VarType::Boolean),
-        _ => None,
-    }) {
+    if let Ok(first_param_type) = parser.consume_type() {
         params.push((first_param_id, first_param_type));
     } else {
         let (line, starts_at, ends_at) = colon_token.placement.as_tuple();

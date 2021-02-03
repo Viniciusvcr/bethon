@@ -37,6 +37,7 @@ where
         self.env = self.env.previous.clone().unwrap();
     }
 
+    // FIXME this should return all identifiers in use
     pub fn declared_keys(&self) -> Vec<String> {
         self.env.declared_keys()
     }
