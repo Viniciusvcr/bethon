@@ -461,6 +461,26 @@ impl<'a> SemanticAnalyzer<'a> {
                 Ok((&ret_type).into())
             }
             Type::UserDefined(t) => {
+                if !self.hoisting && (args.len() != t.attrs.len()) {
+                    let (line, starts_at, mut ends_at) = callee.placement();
+
+                    if !args.is_empty() {
+                        let (_, _, last_arg_end) = args.last().unwrap().placement();
+
+                        ends_at = last_arg_end + 1;
+                    } else {
+                        ends_at += 2;
+                    }
+
+                    return Err(SmntcError::WrongArity(
+                        line,
+                        starts_at,
+                        ends_at,
+                        t.attrs.len(),
+                        args.len(),
+                    ));
+                }
+
                 for (arg, (_, attr_vartype)) in args.iter().zip(&t.attrs) {
                     let arg_type = self.analyze_one(arg)?;
                     let attr_type = attr_vartype.into();
