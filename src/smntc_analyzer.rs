@@ -18,6 +18,13 @@ pub struct UserType {
 }
 
 impl UserType {
+    pub fn from_var_type(name_token: &Token) -> Self {
+        Self {
+            name_token: name_token.clone(),
+            attrs: Vec::default(),
+        }
+    }
+
     pub fn new(name_token: &Token, attrs: &[(Token, VarType)]) -> Self {
         Self {
             name_token: name_token.clone(),
@@ -61,7 +68,7 @@ impl std::convert::From<&VarType> for Type {
                 VarType::Integer,
                 Vec::default(),
             ),
-            VarType::Class(_) => Type::UserDefined(UserType::default()),
+            VarType::Class(x) => Type::UserDefined(UserType::from_var_type(x)),
         }
     }
 }
@@ -121,6 +128,15 @@ impl<'a> SemanticAnalyzer<'a> {
     fn define(&mut self, id: &str, t: Type, token: &Token) -> Option<SmntcEnvValue> {
         self.symbol_table
             .define(id.to_string(), SmntcEnvValue::new(t, true, token.clone()))
+    }
+
+    fn compare_types(&self, x: &Type, y: &Type) -> bool {
+        match (x, y) {
+            (Type::UserDefined(a), Type::UserDefined(b)) => {
+                a.name_token.lexeme == b.name_token.lexeme
+            }
+            _ => x == y,
+        }
     }
 
     #[allow(dead_code)]
@@ -428,27 +444,26 @@ impl<'a> SemanticAnalyzer<'a> {
                         ends_at += 2;
                     }
 
-                    return Err(SmntcError::WrongArity(
+                    self.errors.push(Error::Smntc(SmntcError::WrongArity(
                         line,
                         starts_at,
                         ends_at,
                         param_type.len(),
                         args.len(),
-                    ));
+                    )));
                 } else if !self.analyzing_function {
                     let old_env = std::mem::replace(&mut self.symbol_table, env);
                     for (arg, param_var_type) in args.iter().zip(&param_type) {
                         let arg_type = self.analyze_one(arg)?;
 
-                        let arg_var_type: VarType = arg_type.clone().into();
                         let param_type: Type = param_var_type.into();
 
-                        if arg_var_type != *param_var_type {
+                        if !self.compare_types(&arg_type, &param_type) {
                             let (line, (starts_at, ends_at)) =
                                 (arg.get_line(), arg.get_expr_placement());
-                            return Err(SmntcError::MismatchedTypes(
+                            self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
                                 line, starts_at, ends_at, param_type, arg_type,
-                            ));
+                            )));
                         }
                     }
 
@@ -483,23 +498,27 @@ impl<'a> SemanticAnalyzer<'a> {
                         ends_at += 2;
                     }
 
-                    return Err(SmntcError::WrongArity(
+                    self.errors.push(Error::Smntc(SmntcError::WrongArity(
                         line,
                         starts_at,
                         ends_at,
                         t.attrs.len(),
                         args.len(),
-                    ));
+                    )));
                 }
 
                 for (arg, (_, attr_vartype)) in args.iter().zip(&t.attrs) {
                     let arg_type = self.analyze_one(arg)?;
                     let attr_type = attr_vartype.into();
 
-                    if arg_type != attr_type {
+                    if !self.compare_types(&arg_type, &attr_type) {
                         let (line, starts_at, ends_at) = arg.placement();
                         self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
-                            line, starts_at, ends_at, attr_type, arg_type,
+                            line,
+                            starts_at,
+                            ends_at,
+                            attr_type.clone(),
+                            arg_type,
                         )));
                     }
                 }
@@ -893,18 +912,10 @@ impl<'a> SemanticAnalyzer<'a> {
                             self.analyzing_function = true; // if fun type is Some, definitely inside a function.
                             match self.analyze_one(expr) {
                                 Ok(x) => {
-                                    let var_type: VarType = x.clone().into();
-
-                                    let equal = match (fun_ret_type.as_ref().unwrap(), &var_type) {
-                                        (VarType::Class(x), VarType::Class(y)) => {
-                                            x.lexeme == y.lexeme
-                                        }
-                                        _ => &var_type == fun_ret_type.as_ref().unwrap(),
-                                    };
-
-                                    if !equal {
-                                        let (line, (starts_at, ends_at)) =
-                                            (expr.get_line(), expr.get_expr_placement());
+                                    if !self
+                                        .compare_types(&fun_ret_type.as_ref().unwrap().into(), &x)
+                                    {
+                                        let (line, starts_at, ends_at) = expr.placement();
 
                                         self.errors.push(Error::Smntc(
                                             SmntcError::MismatchedTypes(
@@ -944,7 +955,23 @@ impl<'a> SemanticAnalyzer<'a> {
                     self.analyze_from_import(modules, module_name, imports)
                 }
                 Stmt::Class(dataclas_token, id, attrs) => {
-                    // todo check VarType::UserDefined in attrs
+                    for (token, var_type) in attrs {
+                        if let VarType::Class(x) = var_type {
+                            match self.get_var(&x.lexeme) {
+                                Some(Type::UserDefined(_)) => {}
+                                _ => {
+                                    let (line, starts_at, ends_at) = token.placement.as_tuple();
+                                    self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                                        line,
+                                        starts_at,
+                                        ends_at,
+                                        token.lexeme(),
+                                    )))
+                                }
+                            }
+                        }
+                    }
+
                     if self.get_var(&dataclas_token.lexeme[1..]).is_some() {
                         if let Some(env_value) = self.define(
                             &id.lexeme(),
@@ -1040,7 +1067,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }) || fun_params
             .unwrap_or(&vec![])
             .iter()
-            .any(|(token, _)| token.lexeme() == var_id)
+            .any(|(token, _)| token.lexeme == var_id)
         {
             true
         } else {

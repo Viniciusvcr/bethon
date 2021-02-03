@@ -492,13 +492,7 @@ fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result
     while parser.next_is(single(Comma)).is_some() {
         let param_id = parser.consume(Identifier)?;
         let colon_token = parser.consume(Colon)?;
-        if let Some((param_type, _)) = parser.next_is(|tt| match tt {
-            Int => Some(VarType::Integer),
-            Float => Some(VarType::Float),
-            Str => Some(VarType::Str),
-            Bool => Some(VarType::Boolean),
-            _ => None,
-        }) {
+        if let Ok(param_type) = parser.consume_type() {
             params.push((param_id, param_type));
         } else {
             let (line, starts_at, ends_at) = colon_token.placement.as_tuple();

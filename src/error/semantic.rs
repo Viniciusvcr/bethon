@@ -25,6 +25,7 @@ pub enum SmntcError {
     UnboundVar(usize, usize, usize, String, String),
     PossiblyUnbound(usize, usize, usize, String),
     ModuleNotResolved(usize, usize, usize, String),
+    TypeNotDefined(usize, usize, usize, String),
 }
 
 impl SmntcError {
@@ -277,6 +278,18 @@ impl SmntcError {
                 Some(*starts_at),
                 Some(*ends_at),
                 format!("{}'{}'{} could not be resolved", Color::White, module_name, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    None))
+            ),
+            SmntcError::TypeNotDefined(line, starts_at, ends_at, name) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Type of {}'{}'{} is not a primitive or defined type", Color::White, name, Color::Yellow),
                 Some(print_marker(
                     *starts_at,
                     *ends_at,
