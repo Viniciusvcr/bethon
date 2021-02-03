@@ -1,15 +1,38 @@
+use std::collections::HashMap;
+
 use crate::{
     environment::{Environment, Import, Module},
     error::{runtime::RuntimeError, Error},
     expr::{operations::*, value::Value, *},
     smntc_analyzer::UserType,
     stmt::*,
-    token::number_type::NumberType,
+    token::{number_type::NumberType, Token},
 };
 use callable::Callable;
 use num_traits::ToPrimitive;
 
 pub type InterpreterResult = std::result::Result<Value, RuntimeError>;
+
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct UserInstance {
+    pub type_name: UserType,
+    pub attrs: HashMap<String, Value>,
+}
+
+impl UserInstance {
+    pub fn new(type_name: &UserType, attrs: &[(Token, Value)]) -> Self {
+        let mut hash = HashMap::default();
+
+        for (id, value) in attrs {
+            hash.insert(id.lexeme(), value.clone());
+        }
+
+        Self {
+            type_name: type_name.clone(),
+            attrs: hash,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -218,16 +241,33 @@ impl Interpreter {
     }
 
     fn eval_call_expr(&mut self, callee: &Expr, args: &[Expr]) -> InterpreterResult {
-        if let Value::Fun(fun) = self.eval_expr(callee)? {
-            let mut eval_args = vec![];
+        match self.eval_expr(callee)? {
+            Value::Fun(fun) => {
+                let mut eval_args = vec![];
 
-            for expr in args {
-                eval_args.push(self.eval_expr(expr)?);
+                for expr in args {
+                    eval_args.push(self.eval_expr(expr)?);
+                }
+
+                fun.call(self, &eval_args)
             }
+            Value::UserDefined(t) => {
+                let mut eval_args = vec![];
 
-            fun.call(self, &eval_args)
-        } else {
-            panic!("not callable")
+                for expr in args {
+                    eval_args.push(self.eval_expr(expr)?);
+                }
+
+                let evalued_args: Vec<(Token, Value)> = t
+                    .attrs
+                    .iter()
+                    .zip(eval_args)
+                    .map(|((attr_token, _), val)| (attr_token.clone(), val))
+                    .collect();
+
+                Ok(Value::Instance(UserInstance::new(&t, &evalued_args)))
+            }
+            _ => panic!("not callable"),
         }
     }
 

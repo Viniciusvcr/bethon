@@ -1,4 +1,4 @@
-use crate::{smntc_analyzer::UserType, token::number_type::NumberType};
+use crate::{interpreter::UserInstance, smntc_analyzer::UserType, token::number_type::NumberType};
 
 use super::callable::Callable;
 
@@ -10,6 +10,7 @@ pub enum Value {
     Str(String),
     Fun(Callable),
     UserDefined(UserType),
+    Instance(UserInstance),
 }
 
 impl Default for Value {
@@ -28,6 +29,31 @@ impl std::fmt::Display for Value {
             Value::Str(value) => write!(f, "{}", value),
             Value::Fun(callable) => write!(f, "fun <{}>", callable),
             Value::UserDefined(t) => write!(f, "<class {}>", t.name_token.lexeme),
+            Value::Instance(instance) => {
+                write!(
+                    f,
+                    "{}({})",
+                    instance.type_name.name_token.lexeme,
+                    format_attrs(instance)
+                )
+            }
         }
     }
+}
+
+fn format_attrs(instance: &UserInstance) -> String {
+    let mut buffer = "".to_string();
+
+    for (attr, _) in &instance.type_name.attrs {
+        buffer.push_str(&format!(
+            "{}={}, ",
+            attr.lexeme,
+            instance.attrs.get(&attr.lexeme).unwrap()
+        ));
+    }
+
+    buffer.pop();
+    buffer.pop();
+
+    buffer
 }

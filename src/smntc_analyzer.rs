@@ -11,7 +11,7 @@ use crate::{
 };
 
 use std::collections::HashMap;
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct UserType {
     pub name_token: Token,
     pub attrs: Vec<(Token, VarType)>,
@@ -61,6 +61,7 @@ impl std::convert::From<&VarType> for Type {
                 VarType::Integer,
                 Vec::default(),
             ),
+            VarType::Class => Type::UserDefined(UserType::default()),
         }
     }
 }
@@ -121,7 +122,7 @@ impl<'a> SemanticAnalyzer<'a> {
             .define(id.to_string(), SmntcEnvValue::new(t, true, token.clone()))
     }
 
-    fn declare_env_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+    fn hoist_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         let vec = body.iter().filter_map(|stmt| match stmt {
             Stmt::VarStmt(token, var_type, expr) => Some((token, var_type, expr)),
             _ => None,
@@ -146,16 +147,16 @@ impl<'a> SemanticAnalyzer<'a> {
         });
 
         for (then, else_) in another_vec {
-            self.declare_env_vars(then)?;
+            self.hoist_vars(then)?;
             if let Some(else_branch) = else_ {
-                self.declare_env_vars(else_branch)?;
+                self.hoist_vars(else_branch)?;
             }
         }
 
         Ok(())
     }
 
-    fn declare_env_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+    fn hoist_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         let vec = body.iter().filter_map(|stmt| match stmt {
             Stmt::Function(token, _, _, _) => Some(token),
             _ => None,
@@ -163,6 +164,19 @@ impl<'a> SemanticAnalyzer<'a> {
 
         for token in vec {
             self.declare(&token.lexeme(), (&VarType::Function).into(), token);
+        }
+
+        Ok(())
+    }
+
+    fn hoist_classes(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+        let vec = body.iter().filter_map(|stmt| match stmt {
+            Stmt::Class(_, token, _) => Some(token),
+            _ => None,
+        });
+
+        for token in vec {
+            self.declare(&token.lexeme(), (&VarType::Class).into(), token);
         }
 
         Ok(())
@@ -363,6 +377,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Value::Str(_) => Type::Str,
             Value::Fun(x) => Type::Fun(SemanticEnvironment::default(), vec![], x.ret_type, vec![]),
             Value::UserDefined(t) => Type::UserDefined(t.clone()),
+            Value::Instance(i) => Type::UserDefined(i.type_name.clone()),
         }
     }
 
@@ -436,6 +451,21 @@ impl<'a> SemanticAnalyzer<'a> {
 
                 Ok((&ret_type).into())
             }
+            Type::UserDefined(t) => {
+                for (arg, (_, attr_vartype)) in args.iter().zip(&t.attrs) {
+                    let arg_type = self.analyze_one(arg)?;
+                    let attr_type = attr_vartype.into();
+
+                    if arg_type != attr_type {
+                        let (line, starts_at, ends_at) = arg.placement();
+                        self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
+                            line, starts_at, ends_at, attr_type, arg_type,
+                        )));
+                    }
+                }
+
+                Ok(Type::UserDefined(t.clone()))
+            }
             t => {
                 let (line, starts_at, ends_at) = callee.placement();
                 Err(SmntcError::NotCallable(line, starts_at, ends_at, t))
@@ -507,11 +537,15 @@ impl<'a> SemanticAnalyzer<'a> {
         fun_ret_type: Option<VarType>,
         fun_params: Option<&Vec<(Token, VarType)>>,
     ) -> Result<(), Vec<Error>> {
-        if let Err(err) = self.declare_env_vars(stmts) {
+        if let Err(err) = self.hoist_classes(stmts) {
             self.errors.push(Error::Smntc(err));
         }
 
-        if let Err(err) = self.declare_env_funcs(stmts) {
+        if let Err(err) = self.hoist_vars(stmts) {
+            self.errors.push(Error::Smntc(err));
+        }
+
+        if let Err(err) = self.hoist_funcs(stmts) {
             self.errors.push(Error::Smntc(err));
         }
 

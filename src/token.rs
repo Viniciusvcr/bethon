@@ -13,6 +13,7 @@ pub enum VarType {
     Str,
     PythonNone,
     Function,
+    Class,
 }
 
 impl Default for VarType {
@@ -44,6 +45,7 @@ impl std::fmt::Display for VarType {
             VarType::Str => write!(f, "str"),
             VarType::PythonNone => write!(f, "None"),
             VarType::Function => write!(f, "function"),
+            VarType::Class => write!(f, "class"),
         }
     }
 }
