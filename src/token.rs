@@ -31,7 +31,7 @@ impl From<Type> for VarType {
             Type::Null => VarType::PythonNone,
             Type::Str => VarType::Str,
             Type::Fun(_, _, _, _) => VarType::Function,
-            Type::UserDefined(x) => VarType::Class(x.name_token.clone()),
+            Type::UserDefined(x) => VarType::Class(x.name_token),
         }
     }
 }
