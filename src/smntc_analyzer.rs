@@ -570,7 +570,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         {
                             return Ok(var_type.into());
                         } else {
-                            let (line, starts_at, ends_at) = expr.placement();
+                            let (line, starts_at, ends_at) = name.placement.as_tuple();
                             return Err(SmntcError::NoAttributeInType(
                                 line,
                                 starts_at,
