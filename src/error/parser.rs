@@ -1,4 +1,4 @@
-use crate::token::{token_type::TokenType, VarType};
+use crate::common::{symbol::token_type::TokenType, typings::var_type::VarType};
 
 use super::{print_marker, static_error_template, Color};
 

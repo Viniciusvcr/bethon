@@ -1,5 +1,11 @@
-use crate::error::{scanner::ScannerError, Error};
-use crate::token::{number_type::NumberType, token_type::TokenType, Token};
+use crate::{
+    common::{
+        symbol::{token::Token, token_type::TokenType},
+        typings::number_type::NumberType,
+    },
+    error::{scanner::ScannerError, Error},
+};
+
 use num_bigint::BigInt;
 use std::str::Chars;
 

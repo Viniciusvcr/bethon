@@ -1,4 +1,4 @@
-use crate::expr::{operations::BinaryCompOp, value::Value};
+use crate::common::{grammar::operations::BinaryCompOp, typings::value::Value};
 
 use super::{blue_pipe, print_marker, Color};
 

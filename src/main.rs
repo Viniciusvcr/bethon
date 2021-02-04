@@ -1,8 +1,10 @@
-use bethon::interpreter::Interpreter;
-use bethon::parser::Parser;
-use bethon::scanner::{create_code_vec, Scanner};
-use bethon::smntc_analyzer::SemanticAnalyzer;
-use bethon::{environment::Import, error::Error};
+use bethon::{
+    common::import::Import,
+    create_code_vec,
+    error::Error,
+    frontend::{parser::Parser, scanner::Scanner, smntc_analyzer::SemanticAnalyzer},
+    interpreter::Interpreter,
+};
 
 use std::{cmp::Ordering, env, process::exit};
 

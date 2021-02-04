@@ -1,13 +1,16 @@
 use std::fmt::Debug;
 
 use crate::{
-    environment::Environment,
+    common::{
+        environment::Environment,
+        symbol::token::Token,
+        typings::{value::Value, var_type::VarType},
+    },
     interpreter::{Interpreter, InterpreterResult},
-    stmt::Stmt,
-    token::{Token, VarType},
 };
 
-use super::Value;
+use super::stmt::Stmt;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Callable {
     pub env: Environment<Value>,

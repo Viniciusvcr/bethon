@@ -1,5 +1,6 @@
-use crate::token::VarType;
-use crate::{expr::Expr, token::Token};
+use crate::common::{symbol::token::Token, typings::var_type::VarType};
+
+use super::expr::Expr;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {

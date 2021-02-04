@@ -1,7 +1,6 @@
-use crate::{
-    expr::operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
-    smntc_analyzer::Type,
-    token::VarType,
+use crate::common::{
+    grammar::operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
+    typings::{types::Type, var_type::VarType},
 };
 
 use super::{print_marker, static_error_template, Color};

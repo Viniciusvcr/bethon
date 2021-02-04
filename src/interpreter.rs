@@ -1,38 +1,21 @@
-use std::collections::HashMap;
-
-use crate::{
-    environment::{Environment, Import, Module},
-    error::{runtime::RuntimeError, Error},
-    expr::{operations::*, value::Value, *},
-    smntc_analyzer::UserType,
-    stmt::*,
-    token::{number_type::NumberType, Token},
-};
-use callable::Callable;
 use num_traits::ToPrimitive;
 
+use crate::{
+    common::{
+        environment::Environment,
+        grammar::{callable::Callable, expr::Expr, operations::*, stmt::Stmt},
+        import::{Import, Module},
+        symbol::token::Token,
+        typings::{
+            number_type::NumberType,
+            user_type::{UserInstance, UserType},
+            value::Value,
+        },
+    },
+    error::{runtime::RuntimeError, Error},
+};
+
 pub type InterpreterResult = std::result::Result<Value, RuntimeError>;
-
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct UserInstance {
-    pub type_name: UserType,
-    pub attrs: HashMap<String, Value>,
-}
-
-impl UserInstance {
-    pub fn new(type_name: &UserType, attrs: &[(Token, Value)]) -> Self {
-        let mut hash = HashMap::default();
-
-        for (id, value) in attrs {
-            hash.insert(id.lexeme(), value.clone());
-        }
-
-        Self {
-            type_name: type_name.clone(),
-            attrs: hash,
-        }
-    }
-}
 
 #[derive(Default)]
 pub struct Interpreter {

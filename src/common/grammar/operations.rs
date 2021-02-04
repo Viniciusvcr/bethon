@@ -1,4 +1,4 @@
-use crate::token::{Placement, Token};
+use crate::common::symbol::token::{Placement, Token};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct OpWithToken<Op> {

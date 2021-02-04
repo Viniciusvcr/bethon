@@ -1,6 +1,9 @@
-use crate::{interpreter::UserInstance, smntc_analyzer::UserType, token::number_type::NumberType};
+use crate::common::grammar::callable::Callable;
 
-use super::callable::Callable;
+use super::{
+    number_type::NumberType,
+    user_type::{UserInstance, UserType},
+};
 
 #[derive(Clone, PartialEq, Debug)]
 #[allow(clippy::large_enum_variant)]

@@ -1,5 +1,4 @@
-use bethon::create_code_vec;
-use bethon::scanner::Scanner;
+use bethon::{create_code_vec, frontend::scanner::Scanner};
 
 #[test]
 fn create_code_vec_three_lines() {

@@ -1,91 +1,18 @@
-use crate::{
-    environment::{Environment, Import, Module, SemanticEnvironment, SmntcEnvValue},
-    error::{semantic::SmntcError, Error},
-    expr::{
-        operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
-        value::Value,
-        Expr,
-    },
-    stmt::Stmt,
-    token::{number_type::NumberType, Token, VarType},
-};
-
 use std::collections::HashMap;
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct UserType {
-    pub name_token: Token,
-    pub attrs: Vec<(Token, VarType)>,
-}
 
-impl UserType {
-    pub fn from_var_type(name_token: &Token) -> Self {
-        Self {
-            name_token: name_token.clone(),
-            attrs: Vec::default(),
-        }
-    }
-
-    pub fn new(name_token: &Token, attrs: &[(Token, VarType)]) -> Self {
-        Self {
-            name_token: name_token.clone(),
-            attrs: attrs.to_owned(),
-        }
-    }
-
-    pub fn arity(&self) -> usize {
-        self.attrs.len()
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Type {
-    Integer,
-    Float,
-    Boolean,
-    Null,
-    Str,
-    Fun(SemanticEnvironment, Vec<VarType>, VarType, Vec<String>),
-    UserDefined(UserType),
-}
-
-impl Default for Type {
-    fn default() -> Self {
-        Type::Null
-    }
-}
-
-impl std::convert::From<&VarType> for Type {
-    fn from(var_type: &VarType) -> Self {
-        match var_type {
-            VarType::Boolean => Type::Boolean,
-            VarType::Integer => Type::Integer,
-            VarType::Float => Type::Float,
-            VarType::Str => Type::Str,
-            VarType::PythonNone => Type::Null,
-            VarType::Function => Type::Fun(
-                SemanticEnvironment::default(),
-                Vec::default(),
-                VarType::Integer,
-                Vec::default(),
-            ),
-            VarType::Class(x) => Type::UserDefined(UserType::from_var_type(x)),
-        }
-    }
-}
-
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Null => write!(f, "None"),
-            Type::Integer => write!(f, "int"),
-            Type::Float => write!(f, "float"),
-            Type::Boolean => write!(f, "bool"),
-            Type::Str => write!(f, "str"),
-            Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
-            Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
-        }
-    }
-}
+use crate::{
+    common::{
+        environment::{Environment, SemanticEnvironment, SmntcEnvValue},
+        grammar::{expr::Expr, operations::*, stmt::Stmt},
+        import::{Import, Module},
+        symbol::token::Token,
+        typings::{
+            number_type::NumberType, types::Type, user_type::UserType, value::Value,
+            var_type::VarType,
+        },
+    },
+    error::{semantic::SmntcError, Error},
+};
 
 #[allow(dead_code)] // todo remove this
 

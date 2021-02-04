@@ -1,4 +1,4 @@
-use super::number_type::NumberType;
+use crate::common::typings::number_type::NumberType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {

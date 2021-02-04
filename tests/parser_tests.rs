@@ -1,5 +1,7 @@
-use bethon::parser::Parser;
-use bethon::token::{token_type::TokenType, Token};
+use bethon::{
+    common::symbol::{token::Token, token_type::TokenType},
+    frontend::parser::Parser,
+};
 
 #[test]
 fn empty_code() {

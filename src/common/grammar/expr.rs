@@ -1,15 +1,12 @@
-pub mod callable;
-pub mod operations;
-pub mod value;
+use crate::common::{symbol::token::Token, typings::value::Value};
 
-use crate::token::Token;
+use super::operations::BinaryOp;
+use super::operations::*;
+
 use std::{
     hash::{Hash, Hasher},
     usize,
 };
-
-use operations::*;
-use value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
 #[allow(clippy::large_enum_variant)]

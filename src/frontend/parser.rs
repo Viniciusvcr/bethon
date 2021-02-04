@@ -1,7 +1,13 @@
-use crate::error::{parser::ParserError, Error};
-use crate::expr::{operations::*, value::Value, *};
-use crate::stmt::Stmt;
-use crate::token::{token_type::TokenType, Token, VarType};
+use TokenType::*;
+
+use crate::{
+    common::{
+        grammar::{expr::Expr, operations::*, stmt::Stmt},
+        symbol::{token::Token, token_type::TokenType},
+        typings::{value::Value, var_type::VarType},
+    },
+    error::{parser::ParserError, Error},
+};
 
 type ParserResult = std::result::Result<Expr, ParserError>;
 
@@ -10,7 +16,6 @@ pub struct Parser<'a> {
     current_line: usize,
 }
 
-use TokenType::*;
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
         Self {
