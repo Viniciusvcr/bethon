@@ -26,6 +26,8 @@ pub enum SmntcError {
     PossiblyUnbound(usize, usize, usize, String),
     ModuleNotResolved(usize, usize, usize, String),
     TypeNotDefined(usize, usize, usize, String),
+    NoAttributeInType(usize, usize, usize, String, String),
+    NotObject(usize, usize, usize, Type),
 }
 
 impl SmntcError {
@@ -290,6 +292,30 @@ impl SmntcError {
                 Some(*starts_at),
                 Some(*ends_at),
                 format!("Type of {}'{}'{} is not a primitive or defined type", Color::White, name, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    None))
+            ),
+            SmntcError::NoAttributeInType(line, starts_at, ends_at, attr_name, class_name) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Type {}'{}'{} has no attribute {}'{}'{}", Color::White, class_name, Color::Yellow, Color::White, attr_name, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    None))
+            ),
+            SmntcError::NotObject(line, starts_at, ends_at, name) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Primitive type {}'{}'{} has no attribute fields", Color::White, name, Color::Yellow),
                 Some(print_marker(
                     *starts_at,
                     *ends_at,

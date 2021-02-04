@@ -23,6 +23,7 @@ pub enum Expr {
     Literal(OpWithToken<Value>),
     Variable(Token),
     Call(Box<Expr>, Vec<Expr>),
+    Get(Box<Expr>, Token),
 }
 
 impl Hash for &Expr {
@@ -46,6 +47,7 @@ impl Expr {
             Expr::Literal(op_and_token) => &op_and_token.token,
             Expr::Variable(token) => &token,
             Expr::Call(callee, _) => callee.get_token(),
+            Expr::Get(_, token) => token,
         }
     }
 
@@ -81,6 +83,7 @@ impl Expr {
 
                 (x, y + 1)
             }
+            Expr::Get(_, token) => (token.placement.starts_at - 1, token.placement.ends_at),
         }
     }
 
@@ -120,6 +123,7 @@ impl std::fmt::Display for Expr {
                 }
                 write!(f, ")")
             }
+            Expr::Get(_, token) => write!(f, ".{}", token.lexeme),
         }
     }
 }

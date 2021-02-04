@@ -26,6 +26,14 @@ def _build_person(name: str, age: int, w_pos: Point) -> Person:
 
 
 p1 = build_person("Vinícius", 21, 10.0, 20.0)
-p2 = _build_person("Vinícius", 21, Point(10.0, 20.0))
+p2 = _build_person("Vinícius", 21, Point(30.0, 40.0))
 
-# todo add assertion after GetExpr implementation
+assert p1.name == "Vinícius"
+assert p1.age == 21
+assert p1.w_pos.x == 10.0
+assert p1.w_pos.y == 20.0
+
+assert p2.name == "Vinícius"
+assert p2.age == 21
+assert p2.w_pos.x == 30.0
+assert p2.w_pos.y == 40.0

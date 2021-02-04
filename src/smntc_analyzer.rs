@@ -556,6 +556,35 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Literal(value_and_token) => Ok(self.analyze_literal(&value_and_token.op)),
             Expr::Variable(token) => self.analyze_variable_expr(token),
             Expr::Call(callee, args) => self.analyze_call_expr(callee, args),
+            Expr::Get(expr, name) => {
+                let expr_type = self.analyze_one(expr)?;
+
+                if let Type::UserDefined(t) = expr_type.clone() {
+                    if let Some(Type::UserDefined(complete_type)) =
+                        self.get_var(&t.name_token.lexeme)
+                    {
+                        if let Some((_, var_type)) = complete_type
+                            .attrs
+                            .iter()
+                            .find(|(token, _)| token.lexeme == name.lexeme)
+                        {
+                            return Ok(var_type.into());
+                        } else {
+                            let (line, starts_at, ends_at) = expr.placement();
+                            return Err(SmntcError::NoAttributeInType(
+                                line,
+                                starts_at,
+                                ends_at,
+                                name.lexeme(),
+                                t.name_token.lexeme(),
+                            ));
+                        }
+                    }
+                }
+
+                let (line, starts_at, ends_at) = expr.placement();
+                Err(SmntcError::NotObject(line, starts_at, ends_at, expr_type))
+            }
         }
     }
 

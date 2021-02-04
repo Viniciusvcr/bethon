@@ -13,4 +13,7 @@ p1 = Point(10.0, 20.0)
 # explicit
 p2: Point = Point(20.0, 30.0)
 
-# todo add assertion after GetExpression implementation
+assert p1.x == 10.0
+assert p1.y == 20.0
+assert p2.x == 20.0
+assert p2.y == 30.0

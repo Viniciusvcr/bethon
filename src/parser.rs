@@ -179,6 +179,9 @@ impl<'a> Parser<'a> {
         loop {
             if self.next_is(single(LeftParen)).is_some() {
                 expr = self.finish_call(expr)?;
+            } else if self.next_is(single(Dot)).is_some() {
+                let name = self.consume(Identifier)?;
+                expr = Expr::Get(expr.into(), name);
             } else {
                 break;
             }

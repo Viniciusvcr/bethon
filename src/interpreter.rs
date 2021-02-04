@@ -288,6 +288,15 @@ impl Interpreter {
             Expr::Literal(value_and_token) => Ok(value_and_token.clone().op),
             Expr::Variable(token) => Ok(self.eval_var_expr(&token.lexeme())),
             Expr::Call(callee, args) => self.eval_call_expr(callee, args),
+            Expr::Get(expr, field) => {
+                let obj = self.eval_expr(expr)?;
+
+                if let Value::Instance(instance) = obj {
+                    Ok(instance.attrs.get(&field.lexeme).unwrap().clone())
+                } else {
+                    panic!("no field {} in {}", field.lexeme, obj)
+                }
+            }
         }
     }
 
