@@ -44,6 +44,7 @@ impl Interpreter {
         match (op, left, right) {
             (Sub, Number(a), Number(b)) => Ok(Number(a.clone() - b.clone())),
             (Add, Number(a), Number(b)) => Ok(Number(a.clone() + b.clone())),
+            (Add, Value::Str(a), Value::Str(b)) => Ok(Str(format!("{}{}", a, b))),
             (Div, Number(NumberType::Integer(a)), Number(NumberType::Integer(b))) => {
                 if *b != num_bigint::BigInt::from(0) {
                     Ok(Value::Number(NumberType::Integer(a / b)))
