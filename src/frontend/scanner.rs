@@ -292,6 +292,12 @@ impl<'a> Scanner<'a> {
         }
     }
 
+    fn decorator(&mut self) -> TokenType {
+        self.take_while(|c| is_alphanumeric(c) || c == '.');
+
+        TokenType::Decorator
+    }
+
     fn scan_token(&mut self) -> Result<Option<TokenType>, Error> {
         use TokenType::*;
 
@@ -327,19 +333,7 @@ impl<'a> Scanner<'a> {
                         )));
                     }
                 }
-                '@' => {
-                    // todo match dataclasses.dataclass too
-                    if self.expect("dataclass").is_some() {
-                        Dataclass
-                    } else {
-                        return Err(Error::Scanner(ScannerError::InvalidToken(
-                            self.current_line,
-                            self.start_token,
-                            self.end_token,
-                            "Only 'dataclass' is allowed after '@'".to_string(),
-                        )));
-                    }
-                }
+                '@' => self.decorator(),
                 '!' => {
                     if self.match_char('=') {
                         BangEqual

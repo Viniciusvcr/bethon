@@ -552,6 +552,26 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn analyze_import(&mut self, modules: &HashMap<String, Vec<Import>>, module_name: &Token) {
+        if let Some(module) = modules.get(&module_name.lexeme) {
+            for import in module {
+                self.define(
+                    &format!("{}.{}", module_name.lexeme, import.name),
+                    import.t.clone(),
+                    module_name,
+                );
+            }
+        } else {
+            let (line, starts_at, ends_at) = module_name.placement.as_tuple();
+            self.errors.push(Error::Smntc(SmntcError::ModuleNotResolved(
+                line,
+                starts_at,
+                ends_at,
+                module_name.lexeme(),
+            )));
+        }
+    }
+
     pub fn analyze(
         &mut self,
         modules: &Module,
@@ -929,6 +949,7 @@ impl<'a> SemanticAnalyzer<'a> {
                 Stmt::FromImport(module_name, imports) => {
                     self.analyze_from_import(modules, module_name, imports)
                 }
+                Stmt::Import(module) => self.analyze_import(modules, module),
                 Stmt::Class(dataclas_token, id, attrs) => {
                     for (token, var_type) in attrs {
                         if !self.check_type(var_type) {
@@ -1031,6 +1052,7 @@ impl<'a> SemanticAnalyzer<'a> {
         if stmts.iter().any(|stmt| match stmt {
             Stmt::VarStmt(id, _, _) => id.lexeme() == var_id,
             Stmt::FromImport(_, x) => x.iter().any(|token| token.lexeme == var_id),
+            Stmt::Import(_) => true,
             Stmt::Class(_, id, _) => id.lexeme == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             _ => false,

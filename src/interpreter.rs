@@ -420,6 +420,18 @@ impl Interpreter {
 
                 Ok(())
             }
+            Stmt::Import(module_name) => {
+                let module = modules.get(&module_name.lexeme).unwrap();
+
+                for import in module {
+                    self.environment.define(
+                        format!("{}.{}", module_name.lexeme, import.name),
+                        import.v.clone(),
+                    );
+                }
+
+                Ok(())
+            }
             Stmt::Class(_, id, attrs) => {
                 self.environment
                     .define(id.lexeme(), Value::UserDefined(UserType::new(id, attrs)));

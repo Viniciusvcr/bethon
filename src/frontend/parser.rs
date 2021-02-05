@@ -414,6 +414,12 @@ impl<'a> Parser<'a> {
         Ok(Stmt::FromImport(module, imports))
     }
 
+    fn import_statement(&mut self) -> Result<Stmt, ParserError> {
+        let module = self.consume(Identifier)?;
+
+        Ok(Stmt::Import(module))
+    }
+
     fn class_statement(&mut self, dataclass_token: Token) -> Result<Stmt, ParserError> {
         self.consume(Class)?;
         let identifier = self.consume(Identifier)?;
@@ -444,7 +450,9 @@ impl<'a> Parser<'a> {
             self.return_statement(ret_token)
         } else if self.consume(From).is_ok() {
             self.from_import_statement()
-        } else if let Ok(dataclass_token) = self.consume(Dataclass) {
+        } else if self.consume(Import).is_ok() {
+            self.import_statement()
+        } else if let Ok(dataclass_token) = self.consume(Decorator) {
             self.class_statement(dataclass_token)
         } else if let Ok(class_token) = self.consume(Class) {
             let (line, starts_at, ends_at) = class_token.placement.as_tuple();

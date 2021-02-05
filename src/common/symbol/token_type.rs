@@ -60,7 +60,7 @@ pub enum TokenType {
     And,
 
     // dataclass
-    Dataclass,
+    Decorator,
     From,
     Import,
 }
