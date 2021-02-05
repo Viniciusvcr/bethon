@@ -150,12 +150,14 @@ impl Interpreter {
             (BinaryCompOp::NotEqual, Value::PythonNone, Value::PythonNone) => Value::Bool(false),
             (BinaryCompOp::NotEqual, _, Value::PythonNone) => Value::Bool(true),
             (BinaryCompOp::NotEqual, Value::PythonNone, _) => Value::Bool(true),
+            (BinaryCompOp::NotEqual, Value::Instance(a), Value::Instance(b)) => Value::Bool(a != b),
             (BinaryCompOp::Equal, Value::Number(a), Value::Number(b)) => Value::Bool(a == b),
             (BinaryCompOp::Equal, Value::Bool(a), Value::Bool(b)) => Value::Bool(a == b),
             (BinaryCompOp::Equal, Value::Str(a), Value::Str(b)) => Value::Bool(a == b),
             (BinaryCompOp::Equal, Value::PythonNone, Value::PythonNone) => Value::Bool(true),
             (BinaryCompOp::Equal, _, Value::PythonNone) => Value::Bool(false),
             (BinaryCompOp::Equal, Value::PythonNone, _) => Value::Bool(false),
+            (BinaryCompOp::Equal, Value::Instance(a), Value::Instance(b)) => Value::Bool(a == b),
             (BinaryCompOp::LessThan, Value::Number(a), Value::Number(b)) => Value::Bool(a < b),
             // todo how to compare strings?
             (BinaryCompOp::LessThan, Value::Str(a), Value::Str(b)) => {

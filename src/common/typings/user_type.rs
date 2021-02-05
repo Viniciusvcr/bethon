@@ -30,7 +30,7 @@ impl UserType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct UserInstance {
     pub type_name: UserType,
     pub attrs: HashMap<String, Value>,
@@ -47,6 +47,22 @@ impl UserInstance {
         Self {
             type_name: type_name.clone(),
             attrs: hash,
+        }
+    }
+}
+
+impl PartialEq for UserInstance {
+    fn eq(&self, other: &Self) -> bool {
+        if self.type_name.name_token.lexeme != other.type_name.name_token.lexeme {
+            false
+        } else {
+            for (x_key, x_val) in self.attrs.iter() {
+                if x_val != other.attrs.get(x_key).unwrap() {
+                    return false;
+                }
+            }
+
+            true
         }
     }
 }
