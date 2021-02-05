@@ -48,6 +48,7 @@ pub enum TokenType {
     True,
     False,
     PythonNone,
+    Print,
     If,
     Elif,
     Else,

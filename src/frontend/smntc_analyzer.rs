@@ -593,6 +593,13 @@ impl<'a> SemanticAnalyzer<'a> {
 
         for stmt in stmts {
             match stmt {
+                Stmt::Print(_, exprs) => {
+                    for expr in exprs {
+                        if let Err(err) = self.analyze_one(expr) {
+                            self.errors.push(Error::Smntc(err));
+                        }
+                    }
+                }
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
                     Ok(Type::Boolean) => {}
                     Ok(t) => {

@@ -13,4 +13,5 @@ pub enum Stmt {
     FromImport(Token, Vec<Token>),
     Import(Token),
     Class(Token, Token, Vec<(Token, VarType)>),
+    Print(Token, Vec<Expr>),
 }

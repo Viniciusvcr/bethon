@@ -31,7 +31,7 @@ impl std::fmt::Display for Value {
             Value::Bool(true) => write!(f, "True"),
             Value::Number(value) => write!(f, "{}", value),
             Value::Str(value) => write!(f, "{}", value),
-            Value::Fun(callable) => write!(f, "fun <{}>", callable),
+            Value::Fun(callable) => write!(f, "{}", callable),
             Value::UserDefined(t) => write!(f, "{}", t.name_token.lexeme),
             Value::Instance(instance) => {
                 write!(

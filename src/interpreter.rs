@@ -344,14 +344,24 @@ impl Interpreter {
         result
     }
 
+    fn eval_print(&mut self, exprs: &[Expr]) -> Result<(), RuntimeError> {
+        for expr in exprs {
+            let val = self.eval_expr(expr)?;
+
+            print!("{} ", val);
+        }
+
+        println!();
+
+        Ok(())
+    }
+
     fn eval(&mut self, modules: &Module, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
+            Stmt::Print(_, exprs) => self.eval_print(exprs),
             Stmt::Assert(expr) => self.assert_eval(expr),
             Stmt::ExprStmt(expr) => match self.eval_expr(expr) {
-                Ok(value) => {
-                    println!("{}", value);
-                    Ok(())
-                }
+                Ok(_) => Ok(()),
                 Err(error) => Err(error),
             },
             Stmt::VarStmt(token, _var_type, expr) => {

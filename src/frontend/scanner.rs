@@ -221,6 +221,7 @@ impl<'a> Scanner<'a> {
         use TokenType::*;
 
         match token {
+            "print" => Some(Print),
             "from" => Some(From),
             "import" => Some(Import),
             "and" => Some(And),

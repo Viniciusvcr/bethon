@@ -439,6 +439,17 @@ impl<'a> Parser<'a> {
         Ok(Stmt::Class(dataclass_token, identifier, attrs))
     }
 
+    fn print_statement(&mut self, print_token: Token) -> Result<Stmt, ParserError> {
+        self.consume(LeftParen)?;
+        let mut exprs = vec![];
+        while self.next_is(single(RightParen)).is_none() {
+            exprs.push(self.expression()?);
+            self.next_is(single(Comma));
+        }
+
+        Ok(Stmt::Print(print_token, exprs))
+    }
+
     fn statement(&mut self) -> Result<Stmt, ParserError> {
         if self.consume(Assert).is_ok() {
             self.assert()
@@ -457,6 +468,8 @@ impl<'a> Parser<'a> {
         } else if let Ok(class_token) = self.consume(Class) {
             let (line, starts_at, ends_at) = class_token.placement.as_tuple();
             Err(ParserError::RegularClass(line, starts_at, ends_at))
+        } else if let Ok(print_token) = self.consume(Print) {
+            self.print_statement(print_token)
         } else {
             self.expression_statement()
         }
