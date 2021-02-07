@@ -200,4 +200,8 @@ p1 = Point(10.0, 20.0)
 assert p1 != origin
 ```
 
-> Be careful using assert, if the expression does not evaluate to True, the program will exit with an error.
+Be careful using assert, if the expression does not evaluate to True, the program will exit with an error. Try this:
+
+```python
+assert 10 + 10 == 10
+```
