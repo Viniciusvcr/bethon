@@ -57,6 +57,70 @@ Like Python, Bethon's primitive types are:
 
 There is also the `None` type, which represents an empty value.
 
+### Operators
+
+#### Assignment operator
+
+| Operator |   Usage    |       Description       |
+| :------: | :--------: | :---------------------: |
+|    =     | var = expr | Assigns `expr` to `var` |
+
+#### Comparison operators
+
+| Operator |    Usage     |       Description        |
+| :------: | :----------: | :----------------------: |
+|    ==    | expr == expr |   Equality comparison    |
+|    !=    | expr != expr |  Nonequality comparison  |
+|    >     | expr > expr  | Greater than comparison  |
+|    >=    | expr >= expr | Greater equal comparison |
+|    <     | expr < expr  |   Less than comparison   |
+|    <=    | expr <= expr |  Less equal comparison   |
+
+#### Binary arithmetic operators
+
+| Operator |    Usage     |          Description          |
+| :------: | :----------: | :---------------------------: |
+|    +     | expr + expr  |      Arithmetic addition      |
+|    -     | expr - expr  |    Arithmetic subtraction     |
+|    \*    | expr \* expr |   Arithmetic multiplication   |
+|    /     | expr / expr  |      Arithmetic division      |
+|    %     | expr % expr  | Arithmetic remainder operator |
+
+#### Unary operators
+
+| Operator | Usage |       Description        |
+| :------: | :---: | :----------------------: |
+|    +     | +expr | Returns `expr` unchanged |
+|    -     | -expr |   Arithmetic negation    |
+
+#### Logical operators
+
+| Operator |     Usage     | Description |
+| :------: | :-----------: | :---------: |
+|   and    | epxr and epxr | Logical and |
+|    or    | epxr or expr  | Logical or  |
+|   not    |   not epxr    | Logical not |
+
+> An expression ('expr') is any value produced or written into (literal) the program
+
+#### Operator precedence
+
+The operator precedence matches the Python's rule of precedence:
+
+|     Operator     |
+| :--------------: |
+|        or        |
+|       and        |
+|       not        |
+|       and        |
+| == != > >= < <=  |
+|       + -        |
+|      \* / %      |
+| unary +, unary - |
+|     (`expr`)     |
+
+> Operators in the same box have the same precedence and are evaluated left-to-right in the code
+
 ### User defined types
 
 #### Classes
