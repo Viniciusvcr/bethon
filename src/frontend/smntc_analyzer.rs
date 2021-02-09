@@ -21,7 +21,7 @@ pub struct SemanticAnalyzer<'a> {
     types: HashMap<&'a Expr, Type>, // can't retrieve from this hashmap
     symbol_table: SemanticEnvironment,
     errors: Vec<Error>,
-    analyzing_function: bool,
+    analyzing_function: Vec<bool>,
     hoisting: bool,
 }
 
@@ -73,7 +73,6 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    #[allow(dead_code)]
     fn hoist_vars(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
         self.hoisting = true;
         let vec = body.iter().filter_map(|stmt| match stmt {
@@ -85,8 +84,19 @@ impl<'a> SemanticAnalyzer<'a> {
             let id = token.lexeme();
 
             if var_type.is_none() {
-                let evaluated_type = self.analyze_one(expr)?;
-                self.declare(&id, evaluated_type, token);
+                match expr {
+                    Expr::Call(callee, _) => {
+                        if let Some(Type::Fun(_, _, ret_type, _)) =
+                            self.get_var(&callee.get_token().lexeme())
+                        {
+                            self.declare(&id, (&ret_type).into(), token);
+                        }
+                    }
+                    _ => {
+                        let evaluated_type = self.analyze_one(expr)?;
+                        self.declare(&id, evaluated_type, token);
+                    }
+                }
             } else {
                 self.declare(&id, var_type.as_ref().unwrap().into(), token);
             }
@@ -112,12 +122,21 @@ impl<'a> SemanticAnalyzer<'a> {
         self.hoisting = true;
 
         let vec = body.iter().filter_map(|stmt| match stmt {
-            Stmt::Function(token, _, _, _) => Some(token),
+            Stmt::Function(token, params, _, ret_type) => Some((token, params, ret_type)),
             _ => None,
         });
 
-        for token in vec {
-            self.declare(&token.lexeme(), (&VarType::Function).into(), token);
+        for (token, params, ret_type) in vec {
+            self.declare(
+                &token.lexeme(),
+                Type::Fun(
+                    SemanticEnvironment::default(),
+                    params.iter().map(|(_, t)| t.clone()).collect(),
+                    ret_type.clone(),
+                    vec![],
+                ),
+                token,
+            );
         }
 
         self.hoisting = false;
@@ -148,7 +167,7 @@ impl<'a> SemanticAnalyzer<'a> {
 
     fn get_var(&self, id: &str) -> Option<Type> {
         if let Some(env_value) = self.symbol_table.get(id) {
-            if !self.analyzing_function && !self.hoisting {
+            if self.analyzing_function.is_empty() && !self.hoisting {
                 if env_value.defined {
                     Some(env_value.t)
                 } else {
@@ -387,7 +406,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         param_type.len(),
                         args.len(),
                     )));
-                } else if !self.analyzing_function {
+                } else if self.analyzing_function.is_empty() {
                     let old_env = std::mem::replace(&mut self.symbol_table, env);
                     for (arg, param_var_type) in args.iter().zip(&param_type) {
                         let arg_type = self.analyze_one(arg)?;
@@ -589,9 +608,9 @@ impl<'a> SemanticAnalyzer<'a> {
             self.errors.push(Error::Smntc(err));
         }
 
-        // if let Err(err) = self.hoist_vars(stmts) {
-        //     self.errors.push(Error::Smntc(err));
-        // }
+        if let Err(err) = self.hoist_vars(stmts) {
+            self.errors.push(Error::Smntc(err));
+        }
 
         for stmt in stmts {
             match stmt {
@@ -846,7 +865,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     );
 
                     let (fun_env, declared_keys) = self.with_new_env(|analyzer| {
-                        analyzer.analyzing_function = true;
+                        analyzer.analyzing_function.push(true);
 
                         for (token, var_type) in params {
                             if !analyzer.check_type(var_type) {
@@ -881,10 +900,9 @@ impl<'a> SemanticAnalyzer<'a> {
                             .analyze(modules, &body, Some(ret_type.clone()), Some(params))
                             .ok(); // Errors will already be pushed to self.errors
 
-                        (
-                            analyzer.symbol_table.clone(),
-                            analyzer.symbol_table.declared_keys(),
-                        )
+                        let mut declared_keys = vec![];
+                        analyzer.declared_keys(body, &mut declared_keys);
+                        (analyzer.symbol_table.clone(), declared_keys)
                     });
 
                     if let Some(env_value) = self.define(
@@ -908,12 +926,11 @@ impl<'a> SemanticAnalyzer<'a> {
                         }
                     }
 
-                    self.analyzing_function = false;
+                    self.analyzing_function.pop();
                 }
                 Stmt::ReturnStmt(token, op_expr) => match op_expr {
                     Some(expr) => {
                         if fun_ret_type.is_some() {
-                            self.analyzing_function = true; // if fun type is Some, definitely inside a function.
                             match self.analyze_one(expr) {
                                 Ok(x) => {
                                     if !self
@@ -1098,12 +1115,80 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
+    fn declared_keys(&mut self, stmts: &[Stmt], declared_keys: &mut Vec<String>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Assert(expr) => declared_keys.append(&mut self.expr_keys(expr)),
+                Stmt::ExprStmt(expr) => declared_keys.append(&mut self.expr_keys(expr)),
+
+                Stmt::VarStmt(name, _, expr) => {
+                    declared_keys.push(name.lexeme());
+                    declared_keys.append(&mut self.expr_keys(expr));
+                }
+                Stmt::IfStmt(expr, then_branch, else_branch) => {
+                    declared_keys.append(&mut self.expr_keys(expr));
+                    self.declared_keys(then_branch, declared_keys);
+                    self.declared_keys(else_branch.as_ref().unwrap_or(&vec![]), declared_keys);
+                }
+                Stmt::Function(token, params, _, _) => {
+                    declared_keys.push(token.lexeme());
+                    for (token, _) in params {
+                        declared_keys.push(token.lexeme());
+                    }
+                }
+                Stmt::FromImport(_, _) => {}
+                Stmt::Import(_) => {}
+                Stmt::ReturnStmt(_, expr) => {
+                    if let Some(expr) = expr {
+                        declared_keys.append(&mut self.expr_keys(expr));
+                    }
+                }
+                Stmt::Class(_, token, _) => declared_keys.push(token.lexeme()),
+                Stmt::Print(_, exprs) => {
+                    for expr in exprs {
+                        declared_keys.append(&mut self.expr_keys(expr));
+                    }
+                }
+            }
+        }
+    }
+
+    fn expr_keys(&mut self, expr: &Expr) -> Vec<String> {
+        match expr {
+            Expr::BinaryArith(l, _, r) => {
+                let mut l_name = self.expr_keys(l);
+                let mut r_name = self.expr_keys(r);
+                l_name.append(&mut r_name);
+                l_name
+            }
+            Expr::BinaryComp(l, _, r) => {
+                let mut l_name = self.expr_keys(l);
+                let mut r_name = self.expr_keys(r);
+                l_name.append(&mut r_name);
+                l_name
+            }
+            Expr::BinaryLogic(l, _, r) => {
+                let mut l_name = self.expr_keys(l);
+                let mut r_name = self.expr_keys(r);
+                l_name.append(&mut r_name);
+                l_name
+            }
+            Expr::LogicNot((expr, _)) => self.expr_keys(expr),
+            Expr::Unary(_, r) => self.expr_keys(r),
+            Expr::Grouping(expr) => self.expr_keys(expr),
+            Expr::Literal(_) => vec![],
+            Expr::Variable(token) => vec![token.lexeme()],
+            Expr::Call(callee, _params) => self.expr_keys(callee),
+            Expr::Get(_, token) => vec![token.lexeme()],
+        }
+    }
+
     pub fn new() -> Self {
         SemanticAnalyzer {
             types: HashMap::default(),
             symbol_table: Environment::default(),
             errors: Vec::default(),
-            analyzing_function: false,
+            analyzing_function: vec![],
             hoisting: false,
         }
     }
