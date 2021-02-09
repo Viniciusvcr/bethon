@@ -70,6 +70,19 @@ pub enum BinaryCompOp {
     GreaterEqual,
 }
 
+impl BinaryCompOp {
+    pub fn to_word(&self) -> String {
+        match self {
+            BinaryCompOp::NotEqual => "not equal to".to_string(),
+            BinaryCompOp::Equal => "equal to".to_string(),
+            BinaryCompOp::LessThan => "less than".to_string(),
+            BinaryCompOp::LessEqual => "less equal to".to_string(),
+            BinaryCompOp::GreaterThan => "greater than".to_string(),
+            BinaryCompOp::GreaterEqual => "greater equal to".to_string(),
+        }
+    }
+}
+
 impl std::fmt::Display for BinaryCompOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

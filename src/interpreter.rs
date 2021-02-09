@@ -294,7 +294,6 @@ impl Interpreter {
         Ok(())
     }
 
-    // todo Change 'val' to the result of the expression
     fn assert_eval(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
         match expr {
             Expr::BinaryComp(left, op_and_token, right) => {
@@ -303,10 +302,10 @@ impl Interpreter {
                 match value {
                     Ok(val) if val != Value::Bool(true) => Err(RuntimeError::CompAssertionFailed(
                         op_and_token.get_token_line(),
-                        format!("{}", left),
-                        format!("{}", right),
+                        *left.clone(),
                         op_and_token.op,
-                        val,
+                        self.eval_expr(left)?,
+                        self.eval_expr(right)?,
                     )),
                     Err(error) => Err(error),
                     _ => Ok(()),
