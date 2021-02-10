@@ -902,6 +902,17 @@ impl<'a> SemanticAnalyzer<'a> {
                                             ));
                                         }
                                     }
+                                } else {
+                                    let (error_line, starts_at, ends_at) = expr.placement();
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::IncompatibleDeclaration(
+                                            error_line,
+                                            starts_at,
+                                            ends_at,
+                                            var_type.clone().unwrap(),
+                                            t,
+                                        ),
+                                    ))
                                 }
                             }
                             (None, Type::Literal(x)) => {
