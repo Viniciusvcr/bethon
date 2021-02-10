@@ -299,6 +299,19 @@ impl<'a> Scanner<'a> {
         TokenType::Decorator
     }
 
+    fn parse_digit(&mut self) -> Result<TokenType, Error> {
+        if let Some(number) = self.number() {
+            Ok(number)
+        } else {
+            Err(Error::Scanner(ScannerError::InvalidToken(
+                self.current_line,
+                self.start_token,
+                self.end_token,
+                format!("Failed parsing number {}", &self.consumed()),
+            )))
+        }
+    }
+
     fn scan_token(&mut self) -> Result<Option<TokenType>, Error> {
         use TokenType::*;
 
@@ -310,7 +323,13 @@ impl<'a> Scanner<'a> {
                 ']' => RightSqBracket,
                 ',' => Comma,
                 '.' => Dot,
-                '-' => self.match_or_else('>', TokenType::Arrow, TokenType::Minus),
+                '-' => {
+                    if is_digit(self.peek().unwrap_or_default()) {
+                        self.parse_digit()?
+                    } else {
+                        self.match_or_else('>', TokenType::Arrow, TokenType::Minus)
+                    }
+                }
                 '%' => Mod,
                 '+' => Plus,
                 '/' => Slash,
@@ -348,16 +367,7 @@ impl<'a> Scanner<'a> {
                 }
                 c => {
                     if is_digit(c) {
-                        if let Some(number) = self.number() {
-                            number
-                        } else {
-                            return Err(Error::Scanner(ScannerError::InvalidToken(
-                                self.current_line,
-                                self.start_token,
-                                self.end_token,
-                                format!("Failed parsing number {}", &self.consumed()),
-                            )));
-                        }
+                        self.parse_digit()?
                     } else if is_alpha(c) {
                         self.indentifier_or_keyword()
                     } else {
