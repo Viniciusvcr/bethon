@@ -1,16 +1,33 @@
-use crate::common::environment::SemanticEnvironment;
+use crate::common::{environment::SemanticEnvironment, symbol::token::Token};
 
-use super::{user_type::UserType, var_type::VarType};
+use super::{literal_type::LiteralType, user_type::UserType, var_type::VarType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
     Integer,
     Float,
     Boolean,
-    Null,
     Str,
-    Fun(SemanticEnvironment, Vec<VarType>, VarType, Vec<String>),
+    Literal(LiteralType),
+    Null,
+    Fun(
+        SemanticEnvironment,
+        Vec<(Token, VarType)>,
+        VarType,
+        Vec<String>,
+    ),
     UserDefined(UserType),
+}
+
+impl Type {
+    pub fn fmt(x: &Type, y: &Type) -> (Type, Type) {
+        match (x, y) {
+            (Type::Literal(a), Type::Literal(b)) => (a.to_primitive_type(), b.to_primitive_type()),
+            (Type::Literal(_), t) => (x.to_owned(), t.to_owned()),
+            (t, Type::Literal(b)) => (t.to_owned(), b.to_primitive_type()),
+            (a, b) => (a.to_owned(), b.to_owned()),
+        }
+    }
 }
 
 impl Default for Type {
@@ -26,6 +43,7 @@ impl std::convert::From<&VarType> for Type {
             VarType::Integer => Type::Integer,
             VarType::Float => Type::Float,
             VarType::Str => Type::Str,
+            VarType::Literal(x) => Type::Literal(x.to_owned()),
             VarType::PythonNone => Type::Null,
             VarType::Function => Type::Fun(
                 SemanticEnvironment::default(),
@@ -46,6 +64,7 @@ impl std::fmt::Display for Type {
             Type::Float => write!(f, "float"),
             Type::Boolean => write!(f, "bool"),
             Type::Str => write!(f, "str"),
+            Type::Literal(x) => write!(f, "{}", x),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
             Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
         }
