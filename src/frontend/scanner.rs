@@ -317,6 +317,7 @@ impl<'a> Scanner<'a> {
 
         if let Some(c) = self.advance() {
             let token = match c {
+                '|' => Pipe,
                 '(' => LeftParen,
                 ')' => RightParen,
                 '[' => LeftSqBracket,

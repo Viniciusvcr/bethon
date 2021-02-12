@@ -21,6 +21,7 @@ pub enum TokenType {
     String(String),
     Number(NumberType),
 
+    Pipe,
     LeftParen,
     RightParen,
     LeftSqBracket,

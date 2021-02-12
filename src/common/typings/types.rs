@@ -17,6 +17,7 @@ pub enum Type {
         Vec<String>,
     ),
     UserDefined(UserType),
+    Union(Vec<(Type, Token)>),
 }
 
 impl Type {
@@ -52,6 +53,12 @@ impl std::convert::From<&VarType> for Type {
                 Vec::default(),
             ),
             VarType::Class(x) => Type::UserDefined(UserType::from_var_type(x)),
+            VarType::Union(types) => Type::Union(
+                types
+                    .iter()
+                    .map(|(t, token)| (t.into(), token.to_owned()))
+                    .collect(),
+            ),
         }
     }
 }
@@ -67,6 +74,19 @@ impl std::fmt::Display for Type {
             Type::Literal(x) => write!(f, "{}", x),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
             Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
+            Type::Union(types) => {
+                let mut str = "".to_string();
+
+                types
+                    .iter()
+                    .for_each(|(t, _)| str.push_str(&format!("{} | ", t)));
+
+                str.pop();
+                str.pop();
+                str.pop();
+
+                write!(f, "{}", str)
+            }
         }
     }
 }

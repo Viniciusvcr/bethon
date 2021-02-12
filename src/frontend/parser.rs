@@ -58,7 +58,21 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn next_is_type(&mut self) -> Option<(VarType, Token)> {
+    fn union(&mut self, first: (VarType, Token)) -> Option<Vec<(VarType, Token)>> {
+        let mut types = vec![first];
+
+        while let Some(t) = self.is_type() {
+            types.push(t);
+
+            if self.next_is(single(Pipe)).is_none() {
+                return Some(types);
+            }
+        }
+
+        Some(types)
+    }
+
+    fn is_type(&mut self) -> Option<(VarType, Token)> {
         if let Some(token) = self.tokens.first() {
             if let Some(t) = match &token.tt {
                 TokenType::PythonNone => Some(VarType::PythonNone),
@@ -84,6 +98,22 @@ impl<'a> Parser<'a> {
         }
 
         None
+    }
+
+    fn next_is_type(&mut self) -> Option<(VarType, Token)> {
+        if let Some((var_type, token)) = self.is_type() {
+            if self.next_is(single(Pipe)).is_some() {
+                if let Some(union) = self.union((var_type, token.clone())) {
+                    Some((VarType::Union(union), token))
+                } else {
+                    None
+                }
+            } else {
+                Some((var_type, token))
+            }
+        } else {
+            None
+        }
     }
 
     fn consume(&mut self, tt: TokenType) -> Result<Token, ParserError> {

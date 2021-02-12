@@ -12,6 +12,7 @@ pub enum VarType {
     PythonNone,
     Function,
     Class(Token),
+    Union(Vec<(VarType, Token)>),
 }
 
 impl Default for VarType {
@@ -31,6 +32,12 @@ impl From<Type> for VarType {
             Type::Literal(x) => VarType::Literal(x),
             Type::Fun(_, _, _, _) => VarType::Function,
             Type::UserDefined(x) => VarType::Class(x.name_token),
+            Type::Union(types) => VarType::Union(
+                types
+                    .iter()
+                    .map(|(t, token)| (t.clone().into(), token.to_owned()))
+                    .collect(),
+            ),
         }
     }
 }
@@ -46,6 +53,19 @@ impl std::fmt::Display for VarType {
             VarType::PythonNone => write!(f, "None"),
             VarType::Function => write!(f, "function"),
             VarType::Class(token) => write!(f, "{}", token.lexeme),
+            VarType::Union(types) => {
+                let mut str = "".to_string();
+
+                types
+                    .iter()
+                    .for_each(|(t, _)| str.push_str(&format!("{} | ", t)));
+
+                str.pop();
+                str.pop();
+                str.pop();
+
+                write!(f, "{}", str)
+            }
         }
     }
 }
