@@ -49,7 +49,7 @@ impl std::fmt::Display for VarType {
             VarType::Integer => write!(f, "int"),
             VarType::Float => write!(f, "float"),
             VarType::Str => write!(f, "str"),
-            VarType::Literal(x) => write!(f, "{}", x),
+            VarType::Literal(x) => write!(f, "Literal[{}]", x),
             VarType::PythonNone => write!(f, "None"),
             VarType::Function => write!(f, "function"),
             VarType::Class(token) => write!(f, "{}", token.lexeme),

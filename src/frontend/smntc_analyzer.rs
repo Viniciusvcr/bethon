@@ -67,6 +67,16 @@ impl<'a> SemanticAnalyzer<'a> {
             (Type::Literal(LiteralType::Float(_)), Type::Float) => true,
             (Type::Literal(LiteralType::Str(_)), Type::Str) => true,
             (Type::Literal(LiteralType::Boolean(_)), Type::Boolean) => true,
+            (Type::Union(a), Type::Union(b)) => {
+                for (t_a, _) in a {
+                    if !b.iter().any(|(t_b, _)| t_a == t_b) {
+                        return false;
+                    }
+                }
+
+                true
+            }
+            (_, Type::Union(union)) => union.iter().any(|(t, _)| self.compare_types(found, t)),
             _ => found == expected,
         }
     }
@@ -889,7 +899,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(VarType::Literal(_)), Type::Literal(_)) => {
-                                if self.compare_types(&var_type.as_ref().unwrap().into(), &t) {
+                                if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
                                     if let Some(env_value) = self.define(&id, t, token) {
                                         if env_value.defined {
                                             self.errors.push(Error::Smntc(
@@ -915,6 +925,74 @@ impl<'a> SemanticAnalyzer<'a> {
                                     ))
                                 }
                             }
+                            (Some(VarType::Union(union)), Type::Literal(literal)) => {
+                                if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
+                                    let res = union.iter().any(|(var_type, _)| match var_type {
+                                        VarType::Literal(lit) => lit.clone() == literal,
+                                        _ => false,
+                                    });
+
+                                    if let Some(env_value) = self.define(
+                                        &id,
+                                        if res {
+                                            t.clone()
+                                        } else {
+                                            literal.to_primitive_type()
+                                        },
+                                        token,
+                                    ) {
+                                        if env_value.defined {
+                                            self.errors.push(Error::Smntc(
+                                                SmntcError::VariableAlreadyDeclared(
+                                                    error_line,
+                                                    starts_at,
+                                                    ends_at,
+                                                    id.to_string(),
+                                                ),
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    let (error_line, starts_at, ends_at) = expr.placement();
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::IncompatibleDeclaration(
+                                            error_line,
+                                            starts_at,
+                                            ends_at,
+                                            var_type.clone().unwrap(),
+                                            t,
+                                        ),
+                                    ))
+                                }
+                            }
+                            (Some(VarType::Union(_)), _) => {
+                                if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
+                                    if let Some(env_value) = self.define(&id, t, token) {
+                                        if env_value.defined {
+                                            self.errors.push(Error::Smntc(
+                                                SmntcError::VariableAlreadyDeclared(
+                                                    error_line,
+                                                    starts_at,
+                                                    ends_at,
+                                                    id.to_string(),
+                                                ),
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    let (error_line, starts_at, ends_at) = expr.placement();
+                                    self.errors.push(Error::Smntc(
+                                        SmntcError::IncompatibleDeclaration(
+                                            error_line,
+                                            starts_at,
+                                            ends_at,
+                                            var_type.clone().unwrap(),
+                                            t,
+                                        ),
+                                    ))
+                                }
+                            }
+
                             (None, Type::Literal(x)) => {
                                 if let Some(env_value) =
                                     self.define(&id, x.to_primitive_type(), token)

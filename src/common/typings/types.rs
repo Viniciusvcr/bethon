@@ -71,7 +71,7 @@ impl std::fmt::Display for Type {
             Type::Float => write!(f, "float"),
             Type::Boolean => write!(f, "bool"),
             Type::Str => write!(f, "str"),
-            Type::Literal(x) => write!(f, "{}", x),
+            Type::Literal(x) => write!(f, "Literal[{}]", x),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
             Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
             Type::Union(types) => {
