@@ -58,18 +58,18 @@ impl<'a> Parser<'a> {
         None
     }
 
-    fn union(&mut self, first: (VarType, Token)) -> Option<Vec<(VarType, Token)>> {
+    fn union(&mut self, first: (VarType, Token)) -> Vec<(VarType, Token)> {
         let mut types = vec![first];
 
         while let Some(t) = self.is_type() {
             types.push(t);
 
             if self.next_is(single(Pipe)).is_none() {
-                return Some(types);
+                return types;
             }
         }
 
-        Some(types)
+        types
     }
 
     fn is_type(&mut self) -> Option<(VarType, Token)> {
@@ -103,11 +103,8 @@ impl<'a> Parser<'a> {
     fn next_is_type(&mut self) -> Option<(VarType, Token)> {
         if let Some((var_type, token)) = self.is_type() {
             if self.next_is(single(Pipe)).is_some() {
-                if let Some(union) = self.union((var_type, token.clone())) {
-                    Some((VarType::Union(union), token))
-                } else {
-                    None
-                }
+                let union = self.union((var_type, token.clone()));
+                Some((VarType::Union(union), token))
             } else {
                 Some((var_type, token))
             }

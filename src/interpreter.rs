@@ -142,8 +142,8 @@ impl Interpreter {
         self.unary_op(op, &eval_right)
     }
 
-    fn binary_comp_op(&self, left: &Value, op: &BinaryCompOp, right: &Value) -> InterpreterResult {
-        let evaluated_value = match (op, left, right) {
+    fn binary_comp_op(&self, left: &Value, op: &BinaryCompOp, right: &Value) -> Value {
+        match (op, left, right) {
             (BinaryCompOp::NotEqual, Value::Number(a), Value::Number(b)) => Value::Bool(a != b),
             (BinaryCompOp::NotEqual, Value::Bool(a), Value::Bool(b)) => Value::Bool(a != b),
             (BinaryCompOp::NotEqual, Value::Str(a), Value::Str(b)) => Value::Bool(a != b),
@@ -176,9 +176,7 @@ impl Interpreter {
                 Value::Bool(a.chars().count() >= b.chars().count())
             }
             _ => panic!("interpreter::binary_comp_op failed unexpectedly"),
-        };
-
-        Ok(evaluated_value)
+        }
     }
 
     fn eval_binary_comp_expr(
@@ -191,22 +189,15 @@ impl Interpreter {
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
-        self.binary_comp_op(&eval_left, op, &eval_right)
+        Ok(self.binary_comp_op(&eval_left, op, &eval_right))
     }
 
-    fn binary_logic_op(
-        &self,
-        left: &Value,
-        op: &BinaryLogicOp,
-        right: &Value,
-    ) -> InterpreterResult {
-        let evaluated_value = match (op, left, right) {
+    fn binary_logic_op(&self, left: &Value, op: &BinaryLogicOp, right: &Value) -> Value {
+        match (op, left, right) {
             (BinaryLogicOp::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
             (BinaryLogicOp::Or, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a || *b),
             _ => panic!("interpreter::binary_logic_op failed unexpectedly"),
-        };
-
-        Ok(evaluated_value)
+        }
     }
 
     fn eval_binary_logic_expr(
@@ -219,7 +210,7 @@ impl Interpreter {
         let eval_left = self.eval_expr(left)?;
         let eval_right = self.eval_expr(right)?;
 
-        self.binary_logic_op(&eval_left, op, &eval_right)
+        Ok(self.binary_logic_op(&eval_left, op, &eval_right))
     }
 
     fn eval_var_expr(&self, id: &str) -> Value {

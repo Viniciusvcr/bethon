@@ -133,7 +133,7 @@ impl<'a> SemanticAnalyzer<'a> {
         Ok(())
     }
 
-    fn hoist_funcs(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+    fn hoist_funcs(&mut self, body: &[Stmt]) {
         self.hoisting = true;
 
         let vec = body.iter().filter_map(|stmt| match stmt {
@@ -155,11 +155,9 @@ impl<'a> SemanticAnalyzer<'a> {
         }
 
         self.hoisting = false;
-
-        Ok(())
     }
 
-    fn hoist_classes(&mut self, body: &[Stmt]) -> Result<(), SmntcError> {
+    fn hoist_classes(&mut self, body: &[Stmt]) {
         self.hoisting = true;
 
         let vec = body.iter().filter_map(|stmt| match stmt {
@@ -176,8 +174,6 @@ impl<'a> SemanticAnalyzer<'a> {
         }
 
         self.hoisting = false;
-
-        Ok(())
     }
 
     fn get_var(&self, id: &str) -> Option<Type> {
@@ -696,13 +692,8 @@ impl<'a> SemanticAnalyzer<'a> {
         fun_ret_type: Option<VarType>,
         fun_params: Option<&Vec<(Token, VarType)>>,
     ) -> Result<(), Vec<Error>> {
-        if let Err(err) = self.hoist_classes(stmts) {
-            self.errors.push(Error::Smntc(err));
-        }
-
-        if let Err(err) = self.hoist_funcs(stmts) {
-            self.errors.push(Error::Smntc(err));
-        }
+        self.hoist_classes(stmts);
+        self.hoist_funcs(stmts);
 
         if let Err(err) = self.hoist_vars(stmts) {
             self.errors.push(Error::Smntc(err));
