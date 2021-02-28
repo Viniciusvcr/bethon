@@ -1432,7 +1432,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Literal(_) => vec![],
             Expr::Variable(token) => vec![token.lexeme()],
             Expr::Call(callee, _params) => self.expr_keys(callee),
-            Expr::Get(_, token) => vec![token.lexeme()],
+            Expr::Get(_, _token) => vec![],
         }
     }
 
