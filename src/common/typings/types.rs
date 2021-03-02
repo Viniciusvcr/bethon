@@ -1,6 +1,6 @@
 use crate::common::{environment::SemanticEnvironment, symbol::token::Token};
 
-use super::{literal_type::LiteralType, user_type::UserType, var_type::VarType};
+use super::{user_type::UserType, var_type::VarType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -8,7 +8,6 @@ pub enum Type {
     Float,
     Boolean,
     Str,
-    Literal(LiteralType),
     Null,
     Fun(
         SemanticEnvironment,
@@ -22,12 +21,7 @@ pub enum Type {
 
 impl Type {
     pub fn fmt(x: &Type, y: &Type) -> (Type, Type) {
-        match (x, y) {
-            (Type::Literal(a), Type::Literal(b)) => (a.to_primitive_type(), b.to_primitive_type()),
-            (Type::Literal(_), t) => (x.to_owned(), t.to_owned()),
-            (t, Type::Literal(b)) => (t.to_owned(), b.to_primitive_type()),
-            (a, b) => (a.to_owned(), b.to_owned()),
-        }
+        (x.to_owned(), y.to_owned())
     }
 }
 
@@ -44,7 +38,6 @@ impl std::convert::From<&VarType> for Type {
             VarType::Integer => Type::Integer,
             VarType::Float => Type::Float,
             VarType::Str => Type::Str,
-            VarType::Literal(x) => Type::Literal(x.to_owned()),
             VarType::PythonNone => Type::Null,
             VarType::Function => Type::Fun(
                 SemanticEnvironment::default(),
@@ -71,7 +64,6 @@ impl std::fmt::Display for Type {
             Type::Float => write!(f, "float"),
             Type::Boolean => write!(f, "bool"),
             Type::Str => write!(f, "str"),
-            Type::Literal(x) => write!(f, "Literal[{}]", x),
             Type::Fun(_, _, ret, _) => write!(f, "<function> -> {}", ret),
             Type::UserDefined(x) => write!(f, "{}", x.name_token.lexeme),
             Type::Union(types) => {

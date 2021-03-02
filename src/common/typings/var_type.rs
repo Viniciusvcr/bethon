@@ -1,6 +1,6 @@
 use crate::common::symbol::token::Token;
 
-use super::{literal_type::LiteralType, types::Type};
+use super::types::Type;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
@@ -8,7 +8,6 @@ pub enum VarType {
     Integer,
     Float,
     Str,
-    Literal(LiteralType),
     PythonNone,
     Function,
     Class(Token),
@@ -29,7 +28,6 @@ impl From<Type> for VarType {
             Type::Boolean => VarType::Boolean,
             Type::Null => VarType::PythonNone,
             Type::Str => VarType::Str,
-            Type::Literal(x) => VarType::Literal(x),
             Type::Fun(_, _, _, _) => VarType::Function,
             Type::UserDefined(x) => VarType::Class(x.name_token),
             Type::Union(types) => VarType::Union(
@@ -49,7 +47,6 @@ impl std::fmt::Display for VarType {
             VarType::Integer => write!(f, "int"),
             VarType::Float => write!(f, "float"),
             VarType::Str => write!(f, "str"),
-            VarType::Literal(x) => write!(f, "Literal[{}]", x),
             VarType::PythonNone => write!(f, "None"),
             VarType::Function => write!(f, "function"),
             VarType::Class(token) => write!(f, "{}", token.lexeme),
