@@ -441,6 +441,7 @@ impl Interpreter {
 
                 Ok(())
             }
+            Stmt::TypeAlias(_, _) => Ok(()),
         }
     }
 

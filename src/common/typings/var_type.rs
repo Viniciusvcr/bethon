@@ -36,6 +36,7 @@ impl From<Type> for VarType {
                     .map(|(t, token)| (t.clone().into(), token.to_owned()))
                     .collect(),
             ),
+            Type::Alias(id, _) => VarType::Class(id),
         }
     }
 }

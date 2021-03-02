@@ -348,14 +348,26 @@ impl<'a> Parser<'a> {
                 ))
             }
         } else if let Some((_, token)) = self.next_is(single(Equal)) {
-            let value = self.expression()?;
+            let token = match expr {
+                Expr::Variable(token) => token,
+                _ => {
+                    return Err(ParserError::ExpectedColon(
+                        token.placement.line,
+                        token.placement.starts_at - 1,
+                    ))
+                }
+            };
 
-            match expr {
-                Expr::Variable(token) => Ok(Stmt::VarStmt(token, None, value)),
-                _ => Err(ParserError::ExpectedColon(
-                    token.placement.line,
-                    token.placement.starts_at - 1,
-                )),
+            // FIXME can't return TypeAlias if starts with Classes
+            match self.expression() {
+                Ok(exp) => Ok(Stmt::VarStmt(token, None, exp)),
+                Err(err) => {
+                    if let ParserError::MissingExpression(_) = err {
+                        Ok(Stmt::TypeAlias(token, self.consume_type()?))
+                    } else {
+                        Err(err)
+                    }
+                }
             }
         } else {
             Ok(Stmt::ExprStmt(expr))

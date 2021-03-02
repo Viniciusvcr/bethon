@@ -14,4 +14,5 @@ pub enum Stmt {
     Import(Token),
     Class(Token, Token, Vec<(Token, VarType)>),
     Print(Token, Vec<Expr>),
+    TypeAlias(Token, VarType),
 }

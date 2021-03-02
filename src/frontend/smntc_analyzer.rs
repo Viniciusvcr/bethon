@@ -60,7 +60,19 @@ impl<'a> SemanticAnalyzer<'a> {
     fn compare_types(&self, found: &Type, expected: &Type) -> bool {
         match (found, expected) {
             (Type::UserDefined(a), Type::UserDefined(b)) => {
-                a.name_token.lexeme == b.name_token.lexeme
+                if let Some(aliased) = self.get_var(&b.name_token.lexeme) {
+                    if let Type::Alias(_, _) = aliased {
+                        // get_var gets the complete Type::Alias from the symbol_table
+                        // so we recursively call compare_types
+                        self.compare_types(found, &aliased)
+                    } else {
+                        // if aliased is not Type::Alias, we have two classes
+                        // so we check if the names are the same
+                        a.name_token.lexeme == b.name_token.lexeme
+                    }
+                } else {
+                    false
+                }
             }
             (Type::Union(a), Type::Union(b)) => {
                 for (t_a, _) in a {
@@ -72,13 +84,33 @@ impl<'a> SemanticAnalyzer<'a> {
                 true
             }
             (_, Type::Union(union)) => union.iter().any(|(t, _)| self.compare_types(found, t)),
+            (left, Type::UserDefined(id)) => {
+                // In this case, UserDefined will be representing a TypeAlias (VarType into Type)
+                if let Some(aliased) = self.get_var(&id.name_token.lexeme) {
+                    if let Type::Alias(_, _) = aliased {
+                        // get_var gets the complete Type::Alias from the symbol_table
+                        // so we recursively call compare_types
+                        self.compare_types(left, &aliased)
+                    } else {
+                        // if aliased is not Type::Alias, it cannot compare.
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            (left, Type::Alias(_, t)) => self.compare_types(left, t),
             _ => found == expected,
         }
     }
 
     fn check_type(&self, var_type: &VarType) -> bool {
         match var_type {
-            VarType::Class(x) => matches!(self.get_var(&x.lexeme), Some(Type::UserDefined(_))),
+            VarType::Class(x) => matches!(
+                self.get_var(&x.lexeme),
+                Some(Type::UserDefined(_)) | Some(Type::Alias(_, _))
+            ),
+            VarType::Union(union) => union.iter().all(|(t, _)| self.check_type(t)),
             _ => true,
         }
     }
@@ -95,13 +127,17 @@ impl<'a> SemanticAnalyzer<'a> {
 
             if var_type.is_none() {
                 match expr {
-                    Expr::Call(callee, _) => {
-                        if let Some(Type::Fun(_, _, ret_type, _)) =
-                            self.get_var(&callee.get_token().lexeme())
-                        {
-                            self.declare(&id, (&ret_type).into(), token);
+                    Expr::Call(callee, _) => match self.get_var(&callee.get_token().lexeme()) {
+                        Some(Type::Fun(_, _, ret_type, _)) => {
+                            self.declare(&id, (&ret_type).into(), token)
                         }
-                    }
+                        Some(t) => {
+                            if let Type::UserDefined(_) = t {
+                                self.declare(&id, t, token)
+                            }
+                        }
+                        _ => {}
+                    },
                     _ => {
                         let evaluated_type = self.analyze_one(expr)?;
                         self.declare(&id, evaluated_type, token);
@@ -703,13 +739,34 @@ impl<'a> SemanticAnalyzer<'a> {
                                     }
                                 }
                             }
-                            (
-                                Some(VarType::Class(declared_name)),
-                                Type::UserDefined(evaluated_type),
-                            ) => {
-                                if declared_name.lexeme != evaluated_type.name_token.lexeme {
-                                    let (error_line, starts_at, ends_at) = expr.placement();
+                            (Some(VarType::Class(_)), Type::UserDefined(_)) => {
+                                if self.check_type(var_type.as_ref().unwrap()) {
+                                    if !self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
+                                        let (error_line, starts_at, ends_at) = expr.placement();
 
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::IncompatibleDeclaration(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                var_type.clone().unwrap(),
+                                                t,
+                                            ),
+                                        ))
+                                    } else if let Some(env_value) = self.define(&id, t, token) {
+                                        if env_value.defined {
+                                            self.errors.push(Error::Smntc(
+                                                SmntcError::VariableAlreadyDeclared(
+                                                    error_line,
+                                                    starts_at,
+                                                    ends_at,
+                                                    id.to_string(),
+                                                ),
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    let (error_line, starts_at, ends_at) = expr.placement();
                                     self.errors.push(Error::Smntc(
                                         SmntcError::IncompatibleDeclaration(
                                             error_line,
@@ -719,17 +776,6 @@ impl<'a> SemanticAnalyzer<'a> {
                                             t,
                                         ),
                                     ))
-                                } else if let Some(env_value) = self.define(&id, t, token) {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
                                 }
                             }
                             (Some(VarType::Union(_)), _) => {
@@ -774,16 +820,42 @@ impl<'a> SemanticAnalyzer<'a> {
                                 }
                             }
                             (Some(expected), found) => {
-                                let (error_line, starts_at, ends_at) = expr.placement();
+                                if self.check_type(expected) {
+                                    if self.compare_types(&found, &expected.into()) {
+                                        if let Some(env_value) = self.define(&id, found, token) {
+                                            if env_value.defined {
+                                                self.errors.push(Error::Smntc(
+                                                    SmntcError::VariableAlreadyDeclared(
+                                                        error_line,
+                                                        starts_at,
+                                                        ends_at,
+                                                        id.to_string(),
+                                                    ),
+                                                ));
+                                            }
+                                        }
+                                    } else {
+                                        let (error_line, starts_at, ends_at) = expr.placement();
 
-                                self.errors
-                                    .push(Error::Smntc(SmntcError::IncompatibleDeclaration(
-                                        error_line,
+                                        self.errors.push(Error::Smntc(
+                                            SmntcError::IncompatibleDeclaration(
+                                                error_line,
+                                                starts_at,
+                                                ends_at,
+                                                expected.clone(),
+                                                found,
+                                            ),
+                                        ))
+                                    }
+                                } else {
+                                    let (line, starts_at, ends_at) = token.placement.as_tuple();
+                                    self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                                        line,
                                         starts_at,
                                         ends_at,
-                                        expected.clone(),
-                                        found,
+                                        token.lexeme(),
                                     )))
+                                }
                             }
                         },
                         Err(err) => self.errors.push(Error::Smntc(err)),
@@ -866,6 +938,17 @@ impl<'a> SemanticAnalyzer<'a> {
                             id_token.placement.ends_at,
                             ret_type.clone(),
                         )));
+                    }
+
+                    // todo change error to "return type" is not primitive or defined type"
+                    if !self.check_type(ret_type) {
+                        let (line, starts_at, ends_at) = id_token.placement.as_tuple();
+                        self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                            line,
+                            starts_at,
+                            ends_at,
+                            id_token.lexeme(),
+                        )))
                     }
 
                     self.declare(
@@ -1028,6 +1111,34 @@ impl<'a> SemanticAnalyzer<'a> {
                             )))
                     }
                 }
+                Stmt::TypeAlias(t, ty) => {
+                    let aliased: Type = ty.into();
+
+                    if self.check_type(ty) {
+                        if let Some(env_value) =
+                            self.define(&t.lexeme(), Type::Alias(t.to_owned(), aliased.into()), t)
+                        {
+                            if env_value.defined {
+                                let (line, starts_at, ends_at) = t.placement.as_tuple();
+                                self.errors
+                                    .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                        line,
+                                        starts_at,
+                                        ends_at,
+                                        t.lexeme(),
+                                    )))
+                            }
+                        }
+                    } else {
+                        let (line, starts_at, ends_at) = t.placement.as_tuple();
+                        self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                            line,
+                            starts_at,
+                            ends_at,
+                            t.lexeme(),
+                        )))
+                    }
+                }
             }
         }
 
@@ -1093,6 +1204,8 @@ impl<'a> SemanticAnalyzer<'a> {
             Stmt::Import(_) => true,
             Stmt::Class(_, id, _) => id.lexeme == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
+            Stmt::TypeAlias(id, _) => id.lexeme() == var_id,
+
             _ => false,
         }) || fun_params
             .unwrap_or(&vec![])
@@ -1161,6 +1274,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         declared_keys.append(&mut self.expr_keys(expr));
                     }
                 }
+                Stmt::TypeAlias(_, _) => {}
             }
         }
     }

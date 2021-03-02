@@ -17,6 +17,7 @@ pub enum Type {
     ),
     UserDefined(UserType),
     Union(Vec<(Type, Token)>),
+    Alias(Token, Box<Type>),
 }
 
 impl Type {
@@ -79,6 +80,7 @@ impl std::fmt::Display for Type {
 
                 write!(f, "{}", str)
             }
+            Type::Alias(id, _) => write!(f, "{}", id.lexeme),
         }
     }
 }
