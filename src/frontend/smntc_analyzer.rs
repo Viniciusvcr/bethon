@@ -7,8 +7,8 @@ use crate::{
         import::{Import, Module},
         symbol::token::Token,
         typings::{
-            literal_type::LiteralType, number_type::NumberType, types::Type, user_type::UserType,
-            value::Value, var_type::VarType,
+            number_type::NumberType, types::Type, user_type::UserType, value::Value,
+            var_type::VarType,
         },
     },
     error::{semantic::SmntcError, Error},
@@ -62,11 +62,6 @@ impl<'a> SemanticAnalyzer<'a> {
             (Type::UserDefined(a), Type::UserDefined(b)) => {
                 a.name_token.lexeme == b.name_token.lexeme
             }
-            (Type::Literal(a), Type::Literal(b)) => a == b,
-            (Type::Literal(LiteralType::Integer(_)), Type::Integer) => true,
-            (Type::Literal(LiteralType::Float(_)), Type::Float) => true,
-            (Type::Literal(LiteralType::Str(_)), Type::Str) => true,
-            (Type::Literal(LiteralType::Boolean(_)), Type::Boolean) => true,
             (Type::Union(a), Type::Union(b)) => {
                 for (t_a, _) in a {
                     if !b.iter().any(|(t_b, _)| t_a == t_b) {
@@ -206,39 +201,10 @@ impl<'a> SemanticAnalyzer<'a> {
 
         let expr_type = match (op, type_a, type_b) {
             (Add, Type::Str, Type::Str) => Type::Str,
-            (Add, Type::Str, Type::Literal(LiteralType::Str(_))) => Type::Str,
-            (Add, Type::Literal(LiteralType::Str(_)), Type::Str) => Type::Str,
-            (Add, Type::Literal(LiteralType::Str(_)), Type::Literal(LiteralType::Str(_))) => {
-                Type::Str
-            }
-
             (_, Type::Integer, Type::Integer) => Type::Integer,
             (_, Type::Integer, Type::Float) => Type::Float,
             (_, Type::Float, Type::Integer) => Type::Float,
             (_, Type::Float, Type::Float) => Type::Float,
-
-            (_, Type::Integer, Type::Literal(LiteralType::Integer(_))) => Type::Integer,
-            (_, Type::Integer, Type::Literal(LiteralType::Float(_))) => Type::Float,
-            (_, Type::Float, Type::Literal(LiteralType::Integer(_))) => Type::Float,
-            (_, Type::Float, Type::Literal(LiteralType::Float(_))) => Type::Float,
-
-            (_, Type::Literal(LiteralType::Integer(_)), Type::Integer) => Type::Integer,
-            (_, Type::Literal(LiteralType::Integer(_)), Type::Float) => Type::Float,
-            (_, Type::Literal(LiteralType::Float(_)), Type::Integer) => Type::Float,
-            (_, Type::Literal(LiteralType::Float(_)), Type::Float) => Type::Float,
-
-            (_, Type::Literal(LiteralType::Integer(_)), Type::Literal(LiteralType::Integer(_))) => {
-                Type::Integer
-            }
-            (_, Type::Literal(LiteralType::Integer(_)), Type::Literal(LiteralType::Float(_))) => {
-                Type::Float
-            }
-            (_, Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Integer(_))) => {
-                Type::Float
-            }
-            (_, Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Float(_))) => {
-                Type::Float
-            }
             (op, l, r) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
                 return Err(SmntcError::IncompatibleBinArith(
@@ -258,88 +224,30 @@ impl<'a> SemanticAnalyzer<'a> {
         original_expr: &Expr,
     ) -> SemanticAnalyzerResult {
         fn eq(l: &Type, r: &Type) -> bool {
-            match (l, r) {
-                (Type::Integer, Type::Integer) => true,
-                (Type::Integer, Type::Float) => true,
-                (Type::Float, Type::Integer) => true,
-                (Type::Float, Type::Float) => true,
-                (Type::Boolean, Type::Boolean) => true,
-                (Type::Str, Type::Str) => true,
-                (Type::Null, Type::Null) => true,
-                (_, Type::Null) => true,
-                (Type::Null, _) => true,
-                (Type::UserDefined(_), Type::UserDefined(_)) => true,
-                (
-                    Type::Literal(LiteralType::Boolean(_)),
-                    Type::Literal(LiteralType::Boolean(_)),
-                ) => true,
-                (
-                    Type::Literal(LiteralType::Integer(_)),
-                    Type::Literal(LiteralType::Integer(_)),
-                ) => true,
-                (Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Integer(_))) => {
-                    true
-                }
-                (Type::Literal(LiteralType::Integer(_)), Type::Literal(LiteralType::Float(_))) => {
-                    true
-                }
-                (Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Float(_))) => {
-                    true
-                }
-                (Type::Literal(LiteralType::Str(_)), Type::Literal(LiteralType::Str(_))) => true,
-                (Type::Boolean, Type::Literal(LiteralType::Boolean(_))) => true,
-                (Type::Integer, Type::Literal(LiteralType::Integer(_))) => true,
-                (Type::Float, Type::Literal(LiteralType::Integer(_))) => true,
-                (Type::Integer, Type::Literal(LiteralType::Float(_))) => true,
-                (Type::Float, Type::Literal(LiteralType::Float(_))) => true,
-                (Type::Str, Type::Literal(LiteralType::Str(_))) => true,
-                (Type::Literal(LiteralType::Boolean(_)), Type::Boolean) => true,
-                (Type::Literal(LiteralType::Integer(_)), Type::Integer) => true,
-                (Type::Literal(LiteralType::Float(_)), Type::Integer) => true,
-                (Type::Literal(LiteralType::Integer(_)), Type::Float) => true,
-                (Type::Literal(LiteralType::Float(_)), Type::Float) => true,
-                (Type::Literal(LiteralType::Str(_)), Type::Str) => true,
-                _ => false,
-            }
+            matches!(
+                (l, r),
+                (Type::Integer, Type::Integer)
+                    | (Type::Integer, Type::Float)
+                    | (Type::Float, Type::Integer)
+                    | (Type::Float, Type::Float)
+                    | (Type::Boolean, Type::Boolean)
+                    | (Type::Str, Type::Str)
+                    | (Type::Null, Type::Null)
+                    | (_, Type::Null)
+                    | (Type::Null, _)
+                    | (Type::UserDefined(_), Type::UserDefined(_))
+            )
         }
 
         fn cmp(l: &Type, r: &Type) -> bool {
-            match (l, r) {
-                (Type::Integer, Type::Integer) => true,
-                (Type::Integer, Type::Float) => true,
-                (Type::Float, Type::Integer) => true,
-                (Type::Float, Type::Float) => true,
-
-                (Type::Str, Type::Str) => true,
-                (Type::Literal(LiteralType::Str(_)), Type::Str) => true,
-                (Type::Str, Type::Literal(LiteralType::Str(_))) => true,
-                (Type::Literal(LiteralType::Str(_)), Type::Literal(LiteralType::Str(_))) => true,
-
-                (
-                    Type::Literal(LiteralType::Integer(_)),
-                    Type::Literal(LiteralType::Integer(_)),
-                ) => true,
-                (Type::Literal(LiteralType::Integer(_)), Type::Literal(LiteralType::Float(_))) => {
-                    true
-                }
-                (Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Integer(_))) => {
-                    true
-                }
-                (Type::Literal(LiteralType::Float(_)), Type::Literal(LiteralType::Float(_))) => {
-                    true
-                }
-
-                (Type::Integer, Type::Literal(LiteralType::Integer(_))) => true,
-                (Type::Integer, Type::Literal(LiteralType::Float(_))) => true,
-                (Type::Float, Type::Literal(LiteralType::Integer(_))) => true,
-                (Type::Float, Type::Literal(LiteralType::Float(_))) => true,
-
-                (Type::Literal(LiteralType::Integer(_)), Type::Integer) => true,
-                (Type::Literal(LiteralType::Float(_)), Type::Integer) => true,
-                (Type::Literal(LiteralType::Integer(_)), Type::Float) => true,
-                (Type::Literal(LiteralType::Float(_)), Type::Float) => true,
-                _ => false,
-            }
+            matches!(
+                (l, r),
+                (Type::Integer, Type::Integer)
+                    | (Type::Integer, Type::Float)
+                    | (Type::Float, Type::Integer)
+                    | (Type::Float, Type::Float)
+                    | (Type::Str, Type::Str)
+            )
         }
 
         use BinaryCompOp::*;
@@ -386,11 +294,6 @@ impl<'a> SemanticAnalyzer<'a> {
         let type_b = self.analyze_one(b)?;
 
         let expr_type = match (op, type_a, type_b) {
-            (_, Type::Literal(LiteralType::Boolean(_)), Type::Literal(LiteralType::Boolean(_))) => {
-                Type::Boolean
-            }
-            (_, Type::Boolean, Type::Literal(LiteralType::Boolean(_))) => Type::Boolean,
-            (_, Type::Literal(LiteralType::Boolean(_)), Type::Boolean) => Type::Boolean,
             (_, Type::Boolean, Type::Boolean) => Type::Boolean,
             (op, l, r) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
@@ -408,7 +311,6 @@ impl<'a> SemanticAnalyzer<'a> {
         let exp_type = self.analyze_one(exp)?;
 
         match exp_type {
-            Type::Literal(LiteralType::Boolean(_)) => Ok(Type::Boolean),
             Type::Boolean => Ok(Type::Boolean),
             t => {
                 let (line, starts_at, ends_at) = exp.placement();
@@ -428,9 +330,7 @@ impl<'a> SemanticAnalyzer<'a> {
         let exp_type = self.analyze_one(exp)?;
 
         match (op, exp_type) {
-            (_, Type::Literal(LiteralType::Integer(_))) => Ok(Type::Integer),
             (_, Type::Integer) => Ok(Type::Integer),
-            (_, Type::Literal(LiteralType::Float(_))) => Ok(Type::Float),
             (_, Type::Float) => Ok(Type::Float),
             (op, t) => {
                 let (line, starts_at, ends_at) = original_expr.placement();
@@ -445,10 +345,10 @@ impl<'a> SemanticAnalyzer<'a> {
     fn analyze_literal(&self, value: &Value) -> Type {
         match value {
             Value::PythonNone => Type::Null,
-            Value::Bool(x) => Type::Literal(LiteralType::Boolean(*x)),
-            Value::Number(NumberType::Integer(x)) => Type::Literal(LiteralType::Integer(x.clone())),
-            Value::Number(NumberType::Float(x)) => Type::Literal(LiteralType::Float(*x)),
-            Value::Str(x) => Type::Literal(LiteralType::Str(x.to_string())),
+            Value::Bool(_) => Type::Boolean,
+            Value::Number(NumberType::Integer(_)) => Type::Integer,
+            Value::Number(NumberType::Float(_)) => Type::Float,
+            Value::Str(_) => Type::Str,
             Value::Fun(x) => Type::Fun(
                 SemanticEnvironment::default(),
                 vec![],
@@ -710,7 +610,6 @@ impl<'a> SemanticAnalyzer<'a> {
                 }
                 Stmt::Assert(exp) => match self.analyze_one(exp) {
                     Ok(Type::Boolean) => {}
-                    Ok(Type::Literal(LiteralType::Boolean(_))) => {}
                     Ok(t) => {
                         let (line, (starts_at, ends_at)) =
                             (exp.get_line(), exp.get_expr_placement());
@@ -748,35 +647,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                     }
                                 }
                             }
-                            (Some(VarType::Boolean), Type::Literal(LiteralType::Boolean(_))) => {
-                                if let Some(env_value) = self.define(&id, t, token) {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
-                                }
-                            }
                             (Some(VarType::Integer), Type::Integer) => {
-                                if let Some(env_value) = self.define(&id, t, token) {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
-                                }
-                            }
-                            (Some(VarType::Integer), Type::Literal(LiteralType::Integer(_))) => {
                                 if let Some(env_value) = self.define(&id, t, token) {
                                     if env_value.defined {
                                         self.errors.push(Error::Smntc(
@@ -804,35 +675,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                     }
                                 }
                             }
-                            (Some(VarType::Float), Type::Literal(LiteralType::Float(_))) => {
-                                if let Some(env_value) = self.define(&id, t, token) {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
-                                }
-                            }
                             (Some(VarType::Str), Type::Str) => {
-                                if let Some(env_value) = self.define(&id, t, token) {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
-                                }
-                            }
-                            (Some(VarType::Str), Type::Literal(LiteralType::Str(_))) => {
                                 if let Some(env_value) = self.define(&id, t, token) {
                                     if env_value.defined {
                                         self.errors.push(Error::Smntc(
@@ -889,73 +732,6 @@ impl<'a> SemanticAnalyzer<'a> {
                                     }
                                 }
                             }
-                            (Some(VarType::Literal(_)), Type::Literal(_)) => {
-                                if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
-                                    if let Some(env_value) = self.define(&id, t, token) {
-                                        if env_value.defined {
-                                            self.errors.push(Error::Smntc(
-                                                SmntcError::VariableAlreadyDeclared(
-                                                    error_line,
-                                                    starts_at,
-                                                    ends_at,
-                                                    id.to_string(),
-                                                ),
-                                            ));
-                                        }
-                                    }
-                                } else {
-                                    let (error_line, starts_at, ends_at) = expr.placement();
-                                    self.errors.push(Error::Smntc(
-                                        SmntcError::IncompatibleDeclaration(
-                                            error_line,
-                                            starts_at,
-                                            ends_at,
-                                            var_type.clone().unwrap(),
-                                            t,
-                                        ),
-                                    ))
-                                }
-                            }
-                            (Some(VarType::Union(union)), Type::Literal(literal)) => {
-                                if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
-                                    let res = union.iter().any(|(var_type, _)| match var_type {
-                                        VarType::Literal(lit) => lit.clone() == literal,
-                                        _ => false,
-                                    });
-
-                                    if let Some(env_value) = self.define(
-                                        &id,
-                                        if res {
-                                            t.clone()
-                                        } else {
-                                            literal.to_primitive_type()
-                                        },
-                                        token,
-                                    ) {
-                                        if env_value.defined {
-                                            self.errors.push(Error::Smntc(
-                                                SmntcError::VariableAlreadyDeclared(
-                                                    error_line,
-                                                    starts_at,
-                                                    ends_at,
-                                                    id.to_string(),
-                                                ),
-                                            ));
-                                        }
-                                    }
-                                } else {
-                                    let (error_line, starts_at, ends_at) = expr.placement();
-                                    self.errors.push(Error::Smntc(
-                                        SmntcError::IncompatibleDeclaration(
-                                            error_line,
-                                            starts_at,
-                                            ends_at,
-                                            var_type.clone().unwrap(),
-                                            t,
-                                        ),
-                                    ))
-                                }
-                            }
                             (Some(VarType::Union(_)), _) => {
                                 if self.compare_types(&t, &var_type.as_ref().unwrap().into()) {
                                     if let Some(env_value) = self.define(&id, t, token) {
@@ -981,23 +757,6 @@ impl<'a> SemanticAnalyzer<'a> {
                                             t,
                                         ),
                                     ))
-                                }
-                            }
-
-                            (None, Type::Literal(x)) => {
-                                if let Some(env_value) =
-                                    self.define(&id, x.to_primitive_type(), token)
-                                {
-                                    if env_value.defined {
-                                        self.errors.push(Error::Smntc(
-                                            SmntcError::VariableAlreadyDeclared(
-                                                error_line,
-                                                starts_at,
-                                                ends_at,
-                                                id.to_string(),
-                                            ),
-                                        ));
-                                    }
                                 }
                             }
                             (None, _) => {

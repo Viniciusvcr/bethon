@@ -4,9 +4,7 @@ use crate::{
     common::{
         grammar::{expr::Expr, operations::*, stmt::Stmt},
         symbol::{token::Token, token_type::TokenType},
-        typings::{
-            literal_type::LiteralType, number_type::NumberType, value::Value, var_type::VarType,
-        },
+        typings::{value::Value, var_type::VarType},
     },
     error::{parser::ParserError, Error},
 };
@@ -81,15 +79,6 @@ impl<'a> Parser<'a> {
                 TokenType::Str => Some(VarType::Str),
                 TokenType::Bool => Some(VarType::Boolean),
                 TokenType::Identifier => Some(VarType::Class(token.clone())),
-                TokenType::True => Some(VarType::Literal(LiteralType::Boolean(true))),
-                TokenType::False => Some(VarType::Literal(LiteralType::Boolean(false))),
-                TokenType::String(s) => Some(VarType::Literal(LiteralType::Str(s.to_string()))),
-                TokenType::Number(NumberType::Float(x)) => {
-                    Some(VarType::Literal(LiteralType::Float(*x)))
-                }
-                TokenType::Number(NumberType::Integer(x)) => {
-                    Some(VarType::Literal(LiteralType::Integer(x.clone())))
-                }
                 _ => None,
             } {
                 self.advance();
