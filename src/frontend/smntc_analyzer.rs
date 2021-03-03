@@ -895,6 +895,22 @@ impl<'a> SemanticAnalyzer<'a> {
                         Ok(Type::Boolean) => {
                             // self.insert(condition, Type::Boolean(x));
 
+                            let _refined_types = match condition {
+                                Expr::IsInstance(test_expr, (test_type, _)) => {
+                                    Some(self.refine_type(test_expr, test_type))
+                                }
+                                Expr::LogicNot((expr, _)) => match *expr.clone() {
+                                    Expr::IsInstance(test_expr, (test_type, _)) => {
+                                        let (id, else_type, then_type) =
+                                            self.refine_type(&*test_expr, &test_type);
+
+                                        Some((id, then_type, else_type))
+                                    }
+                                    _ => None,
+                                },
+                                _ => None,
+                            };
+
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
                                 analyzer
                                     .analyze(
@@ -1190,6 +1206,71 @@ impl<'a> SemanticAnalyzer<'a> {
         } else {
             Err(self.errors.clone())
         }
+    }
+
+    fn refine_type(&self, test_expr: &Expr, test_type: &VarType) -> (String, Type, Type) {
+        fn refine(smntc: &SemanticAnalyzer, t: &Type, then_type: &Type) -> Type {
+            match t {
+                Type::Boolean
+                | Type::Integer
+                | Type::Float
+                | Type::Str
+                | Type::Null
+                | Type::Fun(_, _, _, _) => {
+                    if smntc.compare_types(then_type, t) {
+                        Type::Never
+                    } else {
+                        t.to_owned()
+                    }
+                }
+                Type::UserDefined(user_type) => {
+                    let complete_usertype = smntc.get_var(&user_type.name_token.lexeme).unwrap();
+
+                    if matches!(complete_usertype, Type::Alias(_, _)) {
+                        refine(smntc, &complete_usertype, then_type)
+                    } else if smntc.compare_types(then_type, &complete_usertype) {
+                        Type::Never
+                    } else {
+                        t.to_owned()
+                    }
+                }
+                Type::Union(union) => {
+                    let filtered_union: Vec<(Type, Token)> = union
+                        .iter()
+                        .filter(|(t, _)| !smntc.compare_types(then_type, t))
+                        .cloned()
+                        .collect();
+
+                    match filtered_union.len() {
+                        0 => Type::Never,
+                        1 => filtered_union.first().unwrap().0.clone(),
+                        _ => Type::Union(
+                            filtered_union
+                                .iter()
+                                .map(|(t, token)| (t.to_owned(), token.to_owned()))
+                                .collect(),
+                        ),
+                    }
+                }
+                Type::Alias(_, x) => refine(smntc, &*x, then_type),
+                Type::Never => Type::Never,
+            }
+        }
+
+        let id = match test_expr {
+            Expr::Variable(token) => token.lexeme(),
+            Expr::Get(_expr, _token) => unimplemented!("class field access in isinstance"),
+            _ => panic!("refine_type receiving incorrect data"),
+        };
+        let complete_variable_type = self.get_var(&id).unwrap();
+        let then_type: Type = test_type.into();
+        let else_type: Type = refine(self, &complete_variable_type, &then_type);
+
+        println!("Variable id: {}", id);
+        println!("Then type: {}", then_type);
+        println!("Else type: {}", else_type);
+
+        (id, then_type, else_type)
     }
 
     fn validate_return(&self, stmts: &[Stmt]) -> bool {

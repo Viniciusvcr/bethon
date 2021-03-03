@@ -37,6 +37,7 @@ impl From<Type> for VarType {
                     .collect(),
             ),
             Type::Alias(id, _) => VarType::Class(id),
+            Type::Never => Self::PythonNone,
         }
     }
 }
