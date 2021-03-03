@@ -561,6 +561,35 @@ impl<'a> SemanticAnalyzer<'a> {
                 let (line, starts_at, ends_at) = expr.placement();
                 Err(SmntcError::NotObject(line, starts_at, ends_at, expr_type))
             }
+            Expr::IsInstance(test_expr, (vt, vt_token)) => {
+                if !matches!(**test_expr, Expr::Variable(_) | Expr::Get(_, _)) {
+                    let (line, starts_at, ends_at) = test_expr.placement();
+                    return Err(SmntcError::ExprNotAllowedIsInstance(
+                        line, starts_at, ends_at,
+                    ));
+                }
+
+                if matches!(vt, VarType::Union(_)) {
+                    let (line, starts_at, ends_at) = vt_token.placement.as_tuple();
+                    return Err(SmntcError::IsInstanceUnion(line, starts_at, ends_at));
+                }
+
+                self.analyze_one(test_expr)?;
+
+                if !self.check_type(vt) {
+                    let (line, starts_at, ends_at) = vt_token.placement.as_tuple();
+                    let id_token = test_expr.get_token();
+
+                    Err(SmntcError::TypeNotDefined(
+                        line,
+                        starts_at,
+                        ends_at,
+                        id_token.lexeme(),
+                    ))
+                } else {
+                    Ok(Type::Boolean)
+                }
+            }
         }
     }
 
@@ -1306,6 +1335,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Variable(token) => vec![token.lexeme()],
             Expr::Call(callee, _params) => self.expr_keys(callee),
             Expr::Get(_, _token) => vec![],
+            Expr::IsInstance(exp, _) => self.expr_keys(exp),
         }
     }
 

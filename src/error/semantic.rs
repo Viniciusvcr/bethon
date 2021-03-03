@@ -1,3 +1,5 @@
+use std::usize;
+
 use crate::common::{
     grammar::operations::{BinaryCompOp, BinaryLogicOp, BinaryOp, UnaryOp},
     typings::{types::Type, var_type::VarType},
@@ -27,6 +29,8 @@ pub enum SmntcError {
     TypeNotDefined(usize, usize, usize, String),
     NoAttributeInType(usize, usize, usize, String, String),
     NotObject(usize, usize, usize, Type),
+    IsInstanceUnion(usize, usize, usize),
+    ExprNotAllowedIsInstance(usize, usize, usize),
 }
 
 impl SmntcError {
@@ -315,6 +319,30 @@ impl SmntcError {
                 Some(*starts_at),
                 Some(*ends_at),
                 format!("Primitive type {}'{}'{} has no attribute fields", Color::White, name, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    None))
+            ),
+            SmntcError::IsInstanceUnion(line, starts_at, ends_at) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "Unions are not allowed inside 'isinstance'".to_string(),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    None))
+            ),
+            SmntcError::ExprNotAllowedIsInstance(line, starts_at, ends_at) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                "'isinstance' expectes a variable or class field access".to_string(),
                 Some(print_marker(
                     *starts_at,
                     *ends_at,

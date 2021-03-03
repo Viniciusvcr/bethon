@@ -93,7 +93,25 @@ impl<'a> Parser<'a> {
         if let Some((var_type, token)) = self.is_type() {
             if self.next_is(single(Pipe)).is_some() {
                 let union = self.union((var_type, token.clone()));
-                Some((VarType::Union(union), token))
+                let mut new_token = token;
+
+                new_token.lexeme = "".to_string();
+                new_token.tt = TokenType::Union;
+                for (_, union_token) in &union {
+                    new_token
+                        .lexeme
+                        .push_str(&format!("{} | ", union_token.lexeme));
+                }
+
+                if let Some((_, union_last_token)) = union.last() {
+                    new_token.lexeme.pop();
+                    new_token.lexeme.pop();
+                    new_token.lexeme.pop();
+
+                    new_token.placement.ends_at = union_last_token.placement.ends_at;
+                }
+
+                Some((VarType::Union(union), new_token))
             } else {
                 Some((var_type, token))
             }
@@ -112,11 +130,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn consume_type(&mut self) -> Result<VarType, ParserError> {
+    fn consume_type(&mut self) -> Result<(VarType, Token), ParserError> {
         let current_line = self.current_line;
 
-        if let Some((var_type, _)) = self.next_is_type() {
-            Ok(var_type)
+        if let Some((var_type, token)) = self.next_is_type() {
+            Ok((var_type, token))
         } else {
             Err(ParserError::Expected(TokenType::Identifier, current_line))
         }
@@ -163,6 +181,15 @@ impl<'a> Parser<'a> {
             Ok(Expr::LogicNot((expr.into(), token)))
         } else if let Some((_, token)) = self.next_is(single(Identifier)) {
             Ok(Expr::Variable(token))
+        } else if self.next_is(single(IsInstance)).is_some() {
+            self.consume(LeftParen)?;
+            let test = self.expression()?;
+            self.consume(Comma)?;
+            // todo make consume_type return the type's token
+            let testing_type = self.consume_type()?;
+            self.consume(RightParen)?;
+
+            Ok(Expr::IsInstance(test.into(), testing_type))
         } else if let Some((_, indent_token)) = self.next_is(single(Indent)) {
             self.find_deindent();
             Err(ParserError::UnexpectedIdent(
@@ -363,7 +390,7 @@ impl<'a> Parser<'a> {
                 Ok(exp) => Ok(Stmt::VarStmt(token, None, exp)),
                 Err(err) => {
                     if let ParserError::MissingExpression(_) = err {
-                        Ok(Stmt::TypeAlias(token, self.consume_type()?))
+                        Ok(Stmt::TypeAlias(token, self.consume_type()?.0))
                     } else {
                         Err(err)
                     }
@@ -470,7 +497,7 @@ impl<'a> Parser<'a> {
         while self.next_is(single(Deindent)).is_none() {
             let attr_name = self.consume(Identifier)?;
             self.consume(Colon)?;
-            let attr_type = self.consume_type()?;
+            let (attr_type, _) = self.consume_type()?;
 
             attrs.push((attr_name, attr_type))
         }
@@ -550,7 +577,7 @@ fn single(tt: TokenType) -> impl Fn(&TokenType) -> Option<()> {
 fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result<(), ParserError> {
     let first_param_id = parser.consume(Identifier)?;
     let colon_token = parser.consume(Colon)?;
-    if let Ok(first_param_type) = parser.consume_type() {
+    if let Ok((first_param_type, _)) = parser.consume_type() {
         params.push((first_param_id, first_param_type));
     } else {
         let (line, starts_at, ends_at) = colon_token.placement.as_tuple();
@@ -560,7 +587,7 @@ fn get_params(parser: &mut Parser, params: &mut Vec<(Token, VarType)>) -> Result
     while parser.next_is(single(Comma)).is_some() {
         let param_id = parser.consume(Identifier)?;
         let colon_token = parser.consume(Colon)?;
-        if let Ok(param_type) = parser.consume_type() {
+        if let Ok((param_type, _)) = parser.consume_type() {
             params.push((param_id, param_type));
         } else {
             let (line, starts_at, ends_at) = colon_token.placement.as_tuple();

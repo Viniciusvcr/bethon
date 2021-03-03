@@ -10,6 +10,7 @@ use crate::{
             number_type::NumberType,
             user_type::{UserInstance, UserType},
             value::Value,
+            var_type::VarType,
         },
     },
     error::{runtime::RuntimeError, Error},
@@ -273,6 +274,27 @@ impl Interpreter {
                 } else {
                     panic!("no field {} in {}", field.lexeme, obj)
                 }
+            }
+            Expr::IsInstance(test_epxr, (vt, _)) => {
+                let test_value = self.eval_expr(test_epxr)?;
+
+                let result = match (&test_value, vt) {
+                    (Value::PythonNone, VarType::PythonNone) => Value::Bool(true),
+                    (Value::Bool(_), VarType::Boolean) => Value::Bool(true),
+                    (Value::Number(NumberType::Float(_)), VarType::Float) => Value::Bool(true),
+                    (Value::Number(NumberType::Integer(_)), VarType::Integer) => Value::Bool(true),
+                    (Value::Str(_), VarType::Str) => Value::Bool(true),
+                    (Value::Instance(x), VarType::Class(y)) => {
+                        if x.type_name.name_token.lexeme == y.lexeme {
+                            Value::Bool(true)
+                        } else {
+                            Value::Bool(false)
+                        }
+                    }
+                    _ => Value::Bool(false),
+                };
+
+                Ok(result)
             }
         }
     }

@@ -1,4 +1,7 @@
-use crate::common::{symbol::token::Token, typings::value::Value};
+use crate::common::{
+    symbol::token::Token,
+    typings::{value::Value, var_type::VarType},
+};
 
 use super::operations::BinaryOp;
 use super::operations::*;
@@ -21,6 +24,7 @@ pub enum Expr {
     Variable(Token),
     Call(Box<Expr>, Vec<Expr>),
     Get(Box<Expr>, Token),
+    IsInstance(Box<Expr>, (VarType, Token)),
 }
 
 impl Hash for &Expr {
@@ -45,6 +49,7 @@ impl Expr {
             Expr::Variable(token) => &token,
             Expr::Call(callee, _) => callee.get_token(),
             Expr::Get(_, token) => token,
+            Expr::IsInstance(expr, _) => expr.get_token(),
         }
     }
 
@@ -81,6 +86,7 @@ impl Expr {
                 (x, y + 1)
             }
             Expr::Get(_, token) => (token.placement.starts_at - 1, token.placement.ends_at),
+            Expr::IsInstance(expr, _) => expr.get_expr_placement(),
         }
     }
 
@@ -121,6 +127,7 @@ impl std::fmt::Display for Expr {
                 write!(f, ")")
             }
             Expr::Get(_, token) => write!(f, ".{}", token.lexeme),
+            Expr::IsInstance(expr, (vt, _)) => write!(f, "isinstance({}, {})", expr, vt),
         }
     }
 }

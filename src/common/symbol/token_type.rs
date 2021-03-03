@@ -65,6 +65,10 @@ pub enum TokenType {
     Decorator,
     From,
     Import,
+
+    // union refinement
+    Union,
+    IsInstance,
 }
 
 impl Default for TokenType {
