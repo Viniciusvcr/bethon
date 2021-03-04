@@ -895,16 +895,17 @@ impl<'a> SemanticAnalyzer<'a> {
                         Ok(Type::Boolean) => {
                             // self.insert(condition, Type::Boolean(x));
 
-                            let _refined_types = match condition {
+                            // todo in case of no else in IfStmt, else_type refinement should be on the outer scope
+                            let refined_types = match condition {
                                 Expr::IsInstance(test_expr, (test_type, _)) => {
                                     Some(self.refine_type(test_expr, test_type))
                                 }
                                 Expr::LogicNot((expr, _)) => match *expr.clone() {
                                     Expr::IsInstance(test_expr, (test_type, _)) => {
-                                        let (id, else_type, then_type) =
+                                        let (id, then_type, else_type) =
                                             self.refine_type(&*test_expr, &test_type);
 
-                                        Some((id, then_type, else_type))
+                                        Some((id, else_type, then_type))
                                     }
                                     _ => None,
                                 },
@@ -912,6 +913,14 @@ impl<'a> SemanticAnalyzer<'a> {
                             };
 
                             let mut if_declared_keys = self.with_new_env(|analyzer| {
+                                if let Some((id_token, then_type, _)) = &refined_types {
+                                    analyzer.define(
+                                        &id_token.lexeme,
+                                        then_type.to_owned(),
+                                        id_token,
+                                    );
+                                }
+
                                 analyzer
                                     .analyze(
                                         modules,
@@ -921,11 +930,24 @@ impl<'a> SemanticAnalyzer<'a> {
                                     )
                                     .ok();
 
+                                // removing because of later merge (would try to recreate 'id_token')
+                                if let Some((id_token, _, _)) = &refined_types {
+                                    analyzer.symbol_table.remove_from_current(&id_token.lexeme)
+                                }
+
                                 analyzer.symbol_table.current()
                             });
 
                             let else_declared_keys = if let Some(else_stmts) = else_branch {
                                 self.with_new_env(|analyzer| {
+                                    if let Some((id_token, _, else_type)) = &refined_types {
+                                        analyzer.define(
+                                            &id_token.lexeme,
+                                            else_type.to_owned(),
+                                            id_token,
+                                        );
+                                    }
+
                                     analyzer
                                         .analyze(
                                             modules,
@@ -934,6 +956,11 @@ impl<'a> SemanticAnalyzer<'a> {
                                             fun_params,
                                         )
                                         .ok();
+
+                                    // removing because of later merge (would try to recreate 'id_token')
+                                    if let Some((id_token, _, _)) = &refined_types {
+                                        analyzer.symbol_table.remove_from_current(&id_token.lexeme)
+                                    }
 
                                     analyzer.symbol_table.current()
                                 })
@@ -1208,7 +1235,7 @@ impl<'a> SemanticAnalyzer<'a> {
         }
     }
 
-    fn refine_type(&self, test_expr: &Expr, test_type: &VarType) -> (String, Type, Type) {
+    fn refine_type(&self, test_expr: &Expr, test_type: &VarType) -> (Token, Type, Type) {
         fn refine(smntc: &SemanticAnalyzer, t: &Type, then_type: &Type) -> Type {
             match t {
                 Type::Boolean
@@ -1257,20 +1284,16 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
 
-        let id = match test_expr {
-            Expr::Variable(token) => token.lexeme(),
+        let id_token = match test_expr {
+            Expr::Variable(token) => token.clone(),
             Expr::Get(_expr, _token) => unimplemented!("class field access in isinstance"),
             _ => panic!("refine_type receiving incorrect data"),
         };
-        let complete_variable_type = self.get_var(&id).unwrap();
+        let complete_variable_type = self.get_var(&id_token.lexeme).unwrap();
         let then_type: Type = test_type.into();
         let else_type: Type = refine(self, &complete_variable_type, &then_type);
 
-        println!("Variable id: {}", id);
-        println!("Then type: {}", then_type);
-        println!("Else type: {}", else_type);
-
-        (id, then_type, else_type)
+        (id_token, then_type, else_type)
     }
 
     fn validate_return(&self, stmts: &[Stmt]) -> bool {
@@ -1442,6 +1465,9 @@ fn merge(
 
             if &x_type != y_type {
                 let (line, starts_at, ends_at) = y_env_value.token.placement.as_tuple();
+                /* todo error should say something like
+                "var_id was declared as {x_type} in if and is being redeclared as {y_type} in else"
+                */
                 return Err(Error::Smntc(SmntcError::MismatchedTypes(
                     line,
                     starts_at,

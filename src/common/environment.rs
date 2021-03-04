@@ -43,6 +43,10 @@ where
     pub fn current(&self) -> HashMap<String, T> {
         self.env.current.borrow().clone()
     }
+
+    pub fn remove_from_current(&mut self, key: &str) {
+        self.env.remove(key)
+    }
 }
 
 #[derive(PartialEq, Clone, Default, Debug)]
@@ -70,6 +74,10 @@ where
         } else {
             None
         }
+    }
+
+    fn remove(&self, key: &str) {
+        self.current.borrow_mut().remove(key);
     }
 }
 
