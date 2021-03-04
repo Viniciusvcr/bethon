@@ -464,6 +464,7 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::TypeAlias(_, _) => Ok(()),
+            Stmt::Enum(_, _, _) => unimplemented!("interpretation of enum"),
         }
     }
 

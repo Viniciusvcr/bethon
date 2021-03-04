@@ -13,6 +13,7 @@ pub enum Stmt {
     FromImport(Token, Vec<Token>),
     Import(Token),
     Class(Token, Token, Vec<(Token, VarType)>),
+    Enum(Token, Token, Vec<(Token, Expr)>),
     Print(Token, Vec<Expr>),
     TypeAlias(Token, VarType),
 }

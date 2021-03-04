@@ -26,6 +26,11 @@ impl Import {
             vec![Import::new("dataclass", Type::Null, Value::PythonNone)],
         );
 
+        imports.insert(
+            "enum".to_string(),
+            vec![Import::new("Enum", Type::Null, Value::PythonNone)],
+        );
+
         imports
     }
 }

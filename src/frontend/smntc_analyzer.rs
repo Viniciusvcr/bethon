@@ -1211,6 +1211,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         )))
                     }
                 }
+                Stmt::Enum(_, _, _) => unimplemented!("semantics of enum"),
             }
         }
 
@@ -1408,6 +1409,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
                 }
                 Stmt::TypeAlias(_, _) => {}
+                Stmt::Enum(name, _, _) => declared_keys.push(name.lexeme()),
             }
         }
     }

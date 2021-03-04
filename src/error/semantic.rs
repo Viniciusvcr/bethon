@@ -31,6 +31,7 @@ pub enum SmntcError {
     NotObject(usize, usize, usize, Type),
     IsInstanceUnion(usize, usize, usize),
     ExprNotAllowedIsInstance(usize, usize, usize),
+    ExpectedEnum(usize, usize, usize, String),
 }
 
 impl SmntcError {
@@ -347,6 +348,18 @@ impl SmntcError {
                     *starts_at,
                     *ends_at,
                     None))
+            ),
+            SmntcError::ExpectedEnum(line, starts_at, ends_at, found) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Expected {}'Enum'{}, found {}'{}'{}", Color::White, Color::Yellow, Color::White, found, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("try changing this 'Enum'")))
             ),
         }
     }

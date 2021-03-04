@@ -140,6 +140,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // todo make better sync based on current failed stmt
     fn sync(&mut self, current_line: usize) {
         while let Some(token) = self.peek() {
             if token.placement.line == current_line + 1 || self.is_at_end() {
@@ -505,6 +506,27 @@ impl<'a> Parser<'a> {
         Ok(Stmt::Class(dataclass_token, identifier, attrs))
     }
 
+    fn enum_statement(&mut self, enum_name_token: Token) -> Result<Stmt, ParserError> {
+        self.consume(LeftParen)?;
+        let inheritance_token = self.consume(Identifier)?;
+        self.consume(RightParen)?;
+        self.consume(Colon)?;
+
+        self.consume(Indent)?;
+
+        let mut attrs = vec![];
+        while self.next_is(single(Deindent)).is_none() {
+            let attr_name = self.consume(Identifier)?;
+            self.consume(Equal)?;
+
+            let attr_expr = self.expression()?;
+
+            attrs.push((attr_name, attr_expr));
+        }
+
+        Ok(Stmt::Enum(enum_name_token, inheritance_token, attrs))
+    }
+
     fn print_statement(&mut self, print_token: Token) -> Result<Stmt, ParserError> {
         self.consume(LeftParen)?;
         let mut exprs = vec![];
@@ -532,8 +554,14 @@ impl<'a> Parser<'a> {
         } else if let Ok(dataclass_token) = self.consume(Decorator) {
             self.class_statement(dataclass_token)
         } else if let Ok(class_token) = self.consume(Class) {
-            let (line, starts_at, ends_at) = class_token.placement.as_tuple();
-            Err(ParserError::RegularClass(line, starts_at, ends_at))
+            let enum_name_token = self.consume(Identifier)?;
+
+            if self.next_is(single(Colon)).is_some() {
+                let (line, starts_at, ends_at) = class_token.placement.as_tuple();
+                Err(ParserError::RegularClass(line, starts_at, ends_at))
+            } else {
+                self.enum_statement(enum_name_token)
+            }
         } else if let Ok(print_token) = self.consume(Print) {
             self.print_statement(print_token)
         } else {
