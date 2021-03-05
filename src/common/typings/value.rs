@@ -15,6 +15,8 @@ pub enum Value {
     Fun(Callable),
     UserDefined(UserType),
     Instance(UserInstance),
+    EnumInstance(UserInstance),
+    EnumVariant(String, Box<Value>, String),
 }
 
 impl Default for Value {
@@ -40,6 +42,12 @@ impl std::fmt::Display for Value {
                     instance.type_name.name_token.lexeme,
                     format_attrs(instance)
                 )
+            }
+            Value::EnumInstance(instance) => {
+                write!(f, "<enum '{}'>", instance.type_name.name_token.lexeme)
+            }
+            Value::EnumVariant(enum_name, _enum_variant, rep) => {
+                write!(f, "{}.{}", enum_name, rep)
             }
         }
     }

@@ -355,7 +355,7 @@ impl SmntcError {
                 *line,
                 Some(*starts_at),
                 Some(*ends_at),
-                format!("Expected {}'Enum'{}, found {}'{}'{}", Color::White, Color::Yellow, Color::White, found, Color::Yellow),
+                format!("Expected {}'IntEnum'{}, found {}'{}'{}", Color::White, Color::Yellow, Color::White, found, Color::Yellow),
                 Some(print_marker(
                     *starts_at,
                     *ends_at,

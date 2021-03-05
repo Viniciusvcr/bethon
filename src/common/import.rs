@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::symbol::token::Token;
 use super::typings::{types::Type, value::Value};
 
 #[derive(PartialEq, Clone, Default, Debug)]
@@ -28,7 +29,11 @@ impl Import {
 
         imports.insert(
             "enum".to_string(),
-            vec![Import::new("Enum", Type::Null, Value::PythonNone)],
+            vec![Import::new(
+                "IntEnum",
+                Type::Enum(Token::default(), HashMap::default()),
+                Value::PythonNone,
+            )],
         );
 
         imports

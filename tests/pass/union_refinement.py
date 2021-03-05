@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import IntEnum
 
 
 @dataclass
@@ -29,3 +30,22 @@ z = f(p1)
 assert x == 1
 assert y == 0
 assert z == p1.x
+
+
+class Result(IntEnum):
+    Ok = 1
+    Err = 2
+
+
+enum_union = int | Result
+
+
+def g(x: enum_union) -> int:
+    if isinstance(x, Result):
+        return x.Ok
+    else:
+        return x
+
+
+assert g(10) == 10
+assert g(Result.Ok) == Result.Ok

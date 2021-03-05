@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::common::{environment::SemanticEnvironment, symbol::token::Token};
 
 use super::{user_type::UserType, var_type::VarType};
@@ -18,6 +20,7 @@ pub enum Type {
     UserDefined(UserType),
     Union(Vec<(Type, Token)>),
     Alias(Token, Box<Type>),
+    Enum(Token, HashMap<String, Type>),
     Never,
 }
 
@@ -82,6 +85,7 @@ impl std::fmt::Display for Type {
                 write!(f, "{}", str)
             }
             Type::Alias(id, _) => write!(f, "{}", id.lexeme),
+            Type::Enum(id, _) => write!(f, "<enum '{}'>", id.lexeme),
             Type::Never => write!(f, "Never"),
         }
     }

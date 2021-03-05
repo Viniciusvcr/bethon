@@ -176,6 +176,32 @@ impl Interpreter {
             (BinaryCompOp::GreaterEqual, Value::Str(a), Value::Str(b)) => {
                 Value::Bool(a.chars().count() >= b.chars().count())
             }
+            (
+                BinaryCompOp::NotEqual,
+                Value::EnumVariant(_, x, _),
+                Value::Number(NumberType::Integer(_)),
+            ) => self.binary_comp_op(x, op, right),
+            (
+                BinaryCompOp::Equal,
+                Value::EnumVariant(_, x, _),
+                Value::Number(NumberType::Integer(_)),
+            ) => self.binary_comp_op(x, op, right),
+            (
+                BinaryCompOp::NotEqual,
+                Value::Number(NumberType::Integer(_)),
+                Value::EnumVariant(_, x, _),
+            ) => self.binary_comp_op(left, op, x),
+            (
+                BinaryCompOp::Equal,
+                Value::Number(NumberType::Integer(_)),
+                Value::EnumVariant(_, x, _),
+            ) => self.binary_comp_op(left, op, x),
+            (BinaryCompOp::NotEqual, Value::EnumVariant(_, x, _), Value::EnumVariant(_, y, _)) => {
+                self.binary_comp_op(x, op, y)
+            }
+            (BinaryCompOp::Equal, Value::EnumVariant(_, x, _), Value::EnumVariant(_, y, _)) => {
+                self.binary_comp_op(x, op, y)
+            }
             _ => panic!("interpreter::binary_comp_op failed unexpectedly"),
         }
     }
@@ -269,11 +295,14 @@ impl Interpreter {
             Expr::Get(expr, field) => {
                 let obj = self.eval_expr(expr)?;
 
-                if let Value::Instance(instance) = obj {
-                    Ok(instance.attrs.get(&field.lexeme).unwrap().clone())
-                } else {
-                    panic!("no field {} in {}", field.lexeme, obj)
-                }
+                let value = match obj {
+                    Value::Instance(instance) | Value::EnumInstance(instance) => {
+                        instance.attrs.get(&field.lexeme).unwrap().clone()
+                    }
+                    _ => panic!("no field {} in {}", field.lexeme, obj),
+                };
+
+                Ok(value)
             }
             Expr::IsInstance(test_epxr, (vt, _)) => {
                 let test_value = self.eval_expr(test_epxr)?;
@@ -464,7 +493,23 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::TypeAlias(_, _) => Ok(()),
-            Stmt::Enum(_, _, _) => unimplemented!("interpretation of enum"),
+            Stmt::Enum(id, _, attrs) => {
+                let mut enumeration = vec![];
+                for (token, expr) in attrs {
+                    let value = Value::EnumVariant(
+                        id.lexeme(),
+                        self.eval_expr(expr)?.into(),
+                        token.lexeme(),
+                    );
+                    enumeration.push((token.clone(), value));
+                }
+
+                let instance = UserInstance::new(&UserType::from_var_type(id), &enumeration);
+                self.environment
+                    .define(id.lexeme(), Value::EnumInstance(instance));
+
+                Ok(())
+            }
         }
     }
 
@@ -477,6 +522,8 @@ impl Interpreter {
                 return Some(Error::Runtime(evaluation));
             }
         }
+
+        // println!("interpreter env: {:#?}", self.environment);
 
         None
     }

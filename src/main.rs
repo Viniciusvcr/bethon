@@ -19,7 +19,7 @@ fn run(filename: &str, source_code: &str) {
 
             match parser.parse() {
                 Ok(stmts) => {
-                    println!("parsed: {:#?}", stmts);
+                    // println!("parsed: {:#?}", stmts);
                     let mut pass = SemanticAnalyzer::default();
 
                     if let Err(errors) = pass.analyze(&Import::imports(), &stmts, None, None) {

@@ -108,7 +108,7 @@ impl<'a> SemanticAnalyzer<'a> {
         match var_type {
             VarType::Class(x) => matches!(
                 self.get_var(&x.lexeme),
-                Some(Type::UserDefined(_)) | Some(Type::Alias(_, _))
+                Some(Type::UserDefined(_)) | Some(Type::Alias(_, _)) | Some(Type::Enum(_, _))
             ),
             VarType::Union(union) => union.iter().all(|(t, _)| self.check_type(t)),
             _ => true,
@@ -393,6 +393,8 @@ impl<'a> SemanticAnalyzer<'a> {
             ),
             Value::UserDefined(t) => Type::UserDefined(t.clone()),
             Value::Instance(i) => Type::UserDefined(i.type_name.clone()),
+            Value::EnumInstance(_) => todo!("analyze_literal of enum"),
+            Value::EnumVariant(_, _, _) => todo!("analyze_literal of enum_variant"),
         }
     }
 
@@ -535,10 +537,10 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Get(expr, name) => {
                 let expr_type = self.analyze_one(expr)?;
 
-                if let Type::UserDefined(t) = expr_type.clone() {
-                    if let Some(Type::UserDefined(complete_type)) =
-                        self.get_var(&t.name_token.lexeme)
-                    {
+                if let Type::UserDefined(t) = &expr_type {
+                    let complete_t = self.get_var(&t.name_token.lexeme);
+
+                    if let Some(Type::UserDefined(complete_type)) = complete_t {
                         if let Some((_, var_type)) = complete_type
                             .attrs
                             .iter()
@@ -553,6 +555,40 @@ impl<'a> SemanticAnalyzer<'a> {
                                 ends_at,
                                 name.lexeme(),
                                 t.name_token.lexeme(),
+                            ));
+                        }
+                    } else if let Some(Type::Enum(id, _)) = complete_t {
+                        if let Some(Type::Enum(enum_id, attrs)) = self.get_var(&id.lexeme) {
+                            if let Some((_, t)) =
+                                attrs.iter().find(|(variant, _)| *variant == &name.lexeme)
+                            {
+                                return Ok(t.to_owned());
+                            } else {
+                                let (line, starts_at, ends_at) = name.placement.as_tuple();
+                                return Err(SmntcError::NoAttributeInType(
+                                    line,
+                                    starts_at,
+                                    ends_at,
+                                    name.lexeme(),
+                                    enum_id.lexeme(),
+                                ));
+                            }
+                        }
+                    }
+                } else if let Type::Enum(id, _) = &expr_type {
+                    if let Some(Type::Enum(enum_id, attrs)) = self.get_var(&id.lexeme) {
+                        if let Some((_, t)) =
+                            attrs.iter().find(|(variant, _)| *variant == &name.lexeme)
+                        {
+                            return Ok(t.to_owned());
+                        } else {
+                            let (line, starts_at, ends_at) = name.placement.as_tuple();
+                            return Err(SmntcError::NoAttributeInType(
+                                line,
+                                starts_at,
+                                ends_at,
+                                name.lexeme(),
+                                enum_id.lexeme(),
                             ));
                         }
                     }
@@ -1211,7 +1247,62 @@ impl<'a> SemanticAnalyzer<'a> {
                         )))
                     }
                 }
-                Stmt::Enum(_, _, _) => unimplemented!("semantics of enum"),
+                Stmt::Enum(id, inherit, attrs) => {
+                    if let Some(t) = self.get_var(&inherit.lexeme) {
+                        if !matches!(t, Type::Enum(_, _)) {
+                            let (line, starts_at, ends_at) = inherit.placement.as_tuple();
+                            self.errors.push(Error::Smntc(SmntcError::ExpectedEnum(
+                                line,
+                                starts_at,
+                                ends_at,
+                                inherit.lexeme(),
+                            )))
+                        }
+                    } else {
+                        let (line, starts_at, ends_at) = inherit.placement.as_tuple();
+                        self.errors.push(Error::Smntc(SmntcError::TypeNotDefined(
+                            line,
+                            starts_at,
+                            ends_at,
+                            inherit.lexeme(),
+                        )))
+                    }
+
+                    let mut attr_hash: HashMap<String, Type> = HashMap::default();
+                    for (token, expr) in attrs {
+                        match self.analyze_one(expr) {
+                            Ok(t) if t == Type::Integer => {
+                                attr_hash.insert(token.lexeme(), t);
+                            }
+                            Ok(t) => {
+                                let (line, starts_at, ends_at) = expr.placement();
+                                self.errors.push(Error::Smntc(SmntcError::MismatchedTypes(
+                                    line,
+                                    starts_at,
+                                    ends_at,
+                                    Type::Integer,
+                                    t,
+                                )))
+                            }
+                            Err(err) => self.errors.push(Error::Smntc(err)),
+                        }
+                    }
+
+                    if let Some(env_value) =
+                        self.define(&id.lexeme, Type::Enum(id.to_owned(), attr_hash), id)
+                    {
+                        if env_value.defined {
+                            let (error_line, starts_at, ends_at) = id.placement.as_tuple();
+                            self.errors
+                                .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                    error_line,
+                                    starts_at,
+                                    ends_at,
+                                    id.lexeme(),
+                                )));
+                        }
+                    }
+                }
             }
         }
 
@@ -1281,6 +1372,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     }
                 }
                 Type::Alias(_, x) => refine(smntc, &*x, then_type),
+                Type::Enum(_, _) => todo!("refinement of enum"),
                 Type::Never => Type::Never,
             }
         }
@@ -1293,6 +1385,11 @@ impl<'a> SemanticAnalyzer<'a> {
         let complete_variable_type = self.get_var(&id_token.lexeme).unwrap();
         let then_type: Type = test_type.into();
         let else_type: Type = refine(self, &complete_variable_type, &then_type);
+
+        // println!("complete variable type: {:#?}", complete_variable_type);
+        // println!("id: {}", id_token.lexeme);
+        // println!("then type: {}", then_type);
+        // println!("else type: {}", else_type);
 
         (id_token, then_type, else_type)
     }
@@ -1339,7 +1436,7 @@ impl<'a> SemanticAnalyzer<'a> {
             Stmt::Class(_, id, _) => id.lexeme == var_id,
             Stmt::Function(token, _, _, _) => token.lexeme() == var_id,
             Stmt::TypeAlias(id, _) => id.lexeme() == var_id,
-
+            Stmt::Enum(id, _, _) => id.lexeme == var_id,
             _ => false,
         }) || fun_params
             .unwrap_or(&vec![])
