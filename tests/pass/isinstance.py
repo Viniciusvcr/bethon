@@ -14,7 +14,7 @@ assert f(10) == 1
 assert f(10.0) == 0
 
 
-def f() -> int:
+def g() -> int:
     return 0
 
 
@@ -31,7 +31,7 @@ class APoint:
 
 
 a = 10
-b = f()
+b = g()
 p1 = Point(0, 0)
 ap1 = APoint(0, 10.0)
 ap2 = APoint(0.0, 10)

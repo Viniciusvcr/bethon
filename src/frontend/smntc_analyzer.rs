@@ -209,8 +209,8 @@ impl<'a> SemanticAnalyzer<'a> {
 
     fn get_var(&self, id: &str) -> Option<Type> {
         if let Some(env_value) = self.symbol_table.get(id) {
-            if self.analyzing_function.is_empty() && !self.hoisting {
-                if env_value.defined {
+            if !self.hoisting {
+                if env_value.defined || matches!(env_value.t, Type::Fun(_, _, _, _)) {
                     Some(env_value.t)
                 } else {
                     None
@@ -695,10 +695,7 @@ impl<'a> SemanticAnalyzer<'a> {
     ) -> Result<(), Vec<Error>> {
         self.hoist_classes(stmts);
         self.hoist_funcs(stmts);
-
-        if let Err(err) = self.hoist_vars(stmts) {
-            self.errors.push(Error::Smntc(err));
-        }
+        self.hoist_vars(stmts).ok();
 
         for stmt in stmts {
             match stmt {
@@ -1059,7 +1056,7 @@ impl<'a> SemanticAnalyzer<'a> {
                         )))
                     }
 
-                    self.declare(
+                    if let Some(env_value) = self.define(
                         &id_token.lexeme,
                         Type::Fun(
                             SemanticEnvironment::default(),
@@ -1068,7 +1065,17 @@ impl<'a> SemanticAnalyzer<'a> {
                             vec![],
                         ),
                         id_token,
-                    );
+                    ) {
+                        if env_value.defined {
+                            self.errors
+                                .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
+                                    id_token.placement.line,
+                                    id_token.placement.starts_at,
+                                    id_token.placement.ends_at,
+                                    id_token.lexeme(),
+                                )));
+                        }
+                    }
 
                     let (fun_env, declared_keys) = self.with_new_env(|analyzer| {
                         analyzer.analyzing_function.push(true);
@@ -1111,21 +1118,11 @@ impl<'a> SemanticAnalyzer<'a> {
                         (analyzer.symbol_table.clone(), declared_keys)
                     });
 
-                    if let Some(env_value) = self.define(
+                    self.define(
                         &id_token.lexeme,
                         Type::Fun(fun_env, params.clone(), ret_type.clone(), declared_keys),
                         id_token,
-                    ) {
-                        if env_value.defined {
-                            self.errors
-                                .push(Error::Smntc(SmntcError::VariableAlreadyDeclared(
-                                    id_token.placement.line,
-                                    id_token.placement.starts_at,
-                                    id_token.placement.ends_at,
-                                    id_token.lexeme(),
-                                )));
-                        }
-                    }
+                    );
 
                     self.analyzing_function.pop();
                 }
