@@ -32,6 +32,7 @@ pub enum SmntcError {
     IsInstanceUnion(usize, usize, usize),
     ExprNotAllowedIsInstance(usize, usize, usize),
     ExpectedEnum(usize, usize, usize, String),
+    EnumDuplicateKey(usize, usize, usize, String, String),
 }
 
 impl SmntcError {
@@ -360,6 +361,18 @@ impl SmntcError {
                     *starts_at,
                     *ends_at,
                     Some("try changing this 'Enum'")))
+            ),
+            SmntcError::EnumDuplicateKey(line, starts_at, ends_at, dup, enum_name) => static_error_template(
+                error_type,
+                source_vec,
+                *line,
+                Some(*starts_at),
+                Some(*ends_at),
+                format!("Key {}'{}'{} already exists in Enum {}'{}'{}", Color::White, dup, Color::Yellow, Color::White, enum_name, Color::Yellow),
+                Some(print_marker(
+                    *starts_at,
+                    *ends_at,
+                    Some("duplicate key")))
             ),
         }
     }

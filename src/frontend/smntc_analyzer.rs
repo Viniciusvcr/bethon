@@ -1269,7 +1269,16 @@ impl<'a> SemanticAnalyzer<'a> {
                     for (token, expr) in attrs {
                         match self.analyze_one(expr) {
                             Ok(t) if t == Type::Integer => {
-                                attr_hash.insert(token.lexeme(), t);
+                                if attr_hash.insert(token.lexeme(), t).is_some() {
+                                    let (line, starts_at, ends_at) = token.placement.as_tuple();
+                                    self.errors.push(Error::Smntc(SmntcError::EnumDuplicateKey(
+                                        line,
+                                        starts_at,
+                                        ends_at,
+                                        token.lexeme(),
+                                        id.lexeme(),
+                                    )))
+                                }
                             }
                             Ok(t) => {
                                 let (line, starts_at, ends_at) = expr.placement();
