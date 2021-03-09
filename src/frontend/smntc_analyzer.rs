@@ -998,6 +998,9 @@ impl<'a> SemanticAnalyzer<'a> {
                                     analyzer.symbol_table.current()
                                 })
                             } else {
+                                if let Some((id_token, _, else_type)) = &refined_types {
+                                    self.define(&id_token.lexeme, else_type.to_owned(), id_token);
+                                }
                                 HashMap::default()
                             };
                             if let Err(err) = merge(&mut if_declared_keys, &else_declared_keys) {

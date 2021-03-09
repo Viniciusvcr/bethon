@@ -21,6 +21,17 @@ def f(x: temperatura) -> int:
             return 0
 
 
+def h(x: int | Point) -> int:
+    if isinstance(x, int):
+        return x
+
+    return x.x + x.y
+
+
+assert h(10) == 10
+assert h(Point(1, 1)) == 2
+
+
 p1 = Point(20, 0)
 
 x = f(10)
