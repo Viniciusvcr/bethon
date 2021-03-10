@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
                 TokenType::Identifier => Some(VarType::Class(token.clone())),
                 _ => None,
             } {
-                let (_, rest) = self.tokens.clone().split_at(1);
+                let (_, rest) = <&[Token]>::clone(&self.tokens).split_at(1);
 
                 // println!("is_type: {:#?}", rest);
 
@@ -406,7 +406,7 @@ impl<'a> Parser<'a> {
                                 VarType::Union(mut vec) => {
                                     vec.push((VarType::Class(id.clone()), id.clone()));
 
-                                    return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                    Ok(Stmt::TypeAlias(token, VarType::Union(vec)))
                                 }
                                 x => {
                                     let vec = vec![
@@ -414,11 +414,11 @@ impl<'a> Parser<'a> {
                                         (x, rest_union.1),
                                     ];
 
-                                    return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                    Ok(Stmt::TypeAlias(token, VarType::Union(vec)))
                                 }
                             }
                         } else {
-                            return Ok(Stmt::VarStmt(token, None, value));
+                            Ok(Stmt::VarStmt(token, None, value))
                         }
                     }
                     Expr::Literal(op_with_token) => {
@@ -433,7 +433,7 @@ impl<'a> Parser<'a> {
                                             op_with_token.token.clone(),
                                         ));
 
-                                        return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                        Ok(Stmt::TypeAlias(token, VarType::Union(vec)))
                                     }
                                     x => {
                                         let vec = vec![
@@ -441,19 +441,17 @@ impl<'a> Parser<'a> {
                                             (x, rest_union.1),
                                         ];
 
-                                        return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                        Ok(Stmt::TypeAlias(token, VarType::Union(vec)))
                                     }
                                 }
                             } else {
-                                return Ok(Stmt::VarStmt(token, None, value));
+                                Ok(Stmt::VarStmt(token, None, value))
                             }
                         } else {
-                            return Ok(Stmt::VarStmt(token, None, value));
+                            Ok(Stmt::VarStmt(token, None, value))
                         }
                     }
-                    _ => {
-                        return Ok(Stmt::VarStmt(token, None, value));
-                    }
+                    _ => Ok(Stmt::VarStmt(token, None, value)),
                 },
                 Err(_err) => Ok(Stmt::TypeAlias(token, self.consume_type()?.0)),
             }
