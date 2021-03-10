@@ -106,10 +106,12 @@ impl<'a> SemanticAnalyzer<'a> {
 
     fn check_type(&self, var_type: &VarType) -> bool {
         match var_type {
-            VarType::Class(x) => matches!(
-                self.get_var(&x.lexeme),
-                Some(Type::UserDefined(_)) | Some(Type::Alias(_, _)) | Some(Type::Enum(_, _))
-            ),
+            VarType::Class(x) => {
+                matches!(
+                    self.get_var(&x.lexeme),
+                    Some(Type::UserDefined(_)) | Some(Type::Alias(_, _)) | Some(Type::Enum(_, _))
+                )
+            }
             VarType::Union(union) => union.iter().all(|(t, _)| self.check_type(t)),
             _ => true,
         }
@@ -210,7 +212,12 @@ impl<'a> SemanticAnalyzer<'a> {
     fn get_var(&self, id: &str) -> Option<Type> {
         if let Some(env_value) = self.symbol_table.get(id) {
             if !self.hoisting {
-                if env_value.defined || matches!(env_value.t, Type::Fun(_, _, _, _)) {
+                if env_value.defined
+                    || matches!(
+                        env_value.t,
+                        Type::Fun(_, _, _, _) | Type::UserDefined(_) | Type::Alias(_, _)
+                    )
+                {
                     Some(env_value.t)
                 } else {
                     None
