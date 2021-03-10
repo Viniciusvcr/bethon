@@ -325,13 +325,7 @@ impl<'a> Scanner<'a> {
                 ']' => RightSqBracket,
                 ',' => Comma,
                 '.' => Dot,
-                '-' => {
-                    if is_digit(self.peek().unwrap_or_default()) {
-                        self.parse_digit()?
-                    } else {
-                        self.match_or_else('>', TokenType::Arrow, TokenType::Minus)
-                    }
-                }
+                '-' => self.match_or_else('>', TokenType::Arrow, TokenType::Minus),
                 '%' => Mod,
                 '+' => Plus,
                 '/' => Slash,
