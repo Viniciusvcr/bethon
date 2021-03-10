@@ -206,6 +206,20 @@ impl<'a> SemanticAnalyzer<'a> {
             );
         }
 
+        let aliases = body.iter().filter_map(|stmt| match stmt {
+            Stmt::TypeAlias(token, t) => Some((token, t)),
+            _ => None,
+        });
+
+        for (token, t) in aliases {
+            let ty: Type = t.into();
+            self.declare(
+                &token.lexeme(),
+                Type::Alias(token.to_owned(), ty.into()),
+                &token,
+            );
+        }
+
         self.hoisting = false;
     }
 
@@ -612,9 +626,14 @@ impl<'a> SemanticAnalyzer<'a> {
                     ));
                 }
 
-                if matches!(vt, VarType::Union(_)) {
+                if matches!(vt, VarType::Union(_) | VarType::PythonNone) {
                     let (line, starts_at, ends_at) = vt_token.placement.as_tuple();
-                    return Err(SmntcError::IsInstanceUnion(line, starts_at, ends_at));
+                    return Err(SmntcError::IncompatibleRightIsInstance(
+                        line,
+                        starts_at,
+                        ends_at,
+                        vt.to_owned(),
+                    ));
                 }
 
                 self.analyze_one(test_expr)?;

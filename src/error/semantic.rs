@@ -29,7 +29,7 @@ pub enum SmntcError {
     TypeNotDefined(usize, usize, usize, String),
     NoAttributeInType(usize, usize, usize, String, String),
     NotObject(usize, usize, usize, Type),
-    IsInstanceUnion(usize, usize, usize),
+    IncompatibleRightIsInstance(usize, usize, usize, VarType),
     ExprNotAllowedIsInstance(usize, usize, usize),
     ExpectedEnum(usize, usize, usize, String),
     EnumDuplicateKey(usize, usize, usize, String, String),
@@ -326,13 +326,13 @@ impl SmntcError {
                     *ends_at,
                     None))
             ),
-            SmntcError::IsInstanceUnion(line, starts_at, ends_at) => static_error_template(
+            SmntcError::IncompatibleRightIsInstance(line, starts_at, ends_at, vt) => static_error_template(
                 error_type,
                 source_vec,
                 *line,
                 Some(*starts_at),
                 Some(*ends_at),
-                "Unions are not allowed inside 'isinstance'".to_string(),
+                format!("{}'{}'{} is not allowed inside {}'isinstance'{}", Color::White, vt, Color::Yellow, Color::White, Color::Yellow),
                 Some(print_marker(
                     *starts_at,
                     *ends_at,

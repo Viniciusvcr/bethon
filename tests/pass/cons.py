@@ -4,14 +4,14 @@ from dataclasses import dataclass
 @dataclass
 class Cons:
     first: int
-    rest: None | Cons  # todo mudar aqui
+    rest: List
 
 
-lista = Cons(10, Cons(20, None))
+List = None | Cons
 
 
-def sum(lst: None | Cons) -> int:
-    if isinstance(lst, None):
+def sum(lst: List) -> int:
+    if not isinstance(lst, Cons):
         return 0
     else:
         return lst.first + sum(lst.rest)

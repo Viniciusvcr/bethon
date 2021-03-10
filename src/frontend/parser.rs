@@ -81,6 +81,16 @@ impl<'a> Parser<'a> {
                 TokenType::Identifier => Some(VarType::Class(token.clone())),
                 _ => None,
             } {
+                let (_, rest) = self.tokens.clone().split_at(1);
+
+                // println!("is_type: {:#?}", rest);
+
+                if let Some(next) = rest.first() {
+                    if let TokenType::LeftParen = next.tt {
+                        return None;
+                    }
+                }
+
                 self.advance();
                 return Some((t, token.clone()));
             }
@@ -386,16 +396,66 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            // FIXME can't return TypeAlias if starts with Classes
             match self.expression() {
-                Ok(exp) => Ok(Stmt::VarStmt(token, None, exp)),
-                Err(err) => {
-                    if let ParserError::MissingExpression(_) = err {
-                        Ok(Stmt::TypeAlias(token, self.consume_type()?.0))
-                    } else {
-                        Err(err)
+                Ok(value) => match &value {
+                    Expr::Variable(id) => {
+                        if self.next_is(single(Pipe)).is_some() {
+                            let rest_union = self.consume_type()?;
+
+                            match rest_union.0 {
+                                VarType::Union(mut vec) => {
+                                    vec.push((VarType::Class(id.clone()), id.clone()));
+
+                                    return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                }
+                                x => {
+                                    let vec = vec![
+                                        (VarType::Class(id.clone()), id.to_owned()),
+                                        (x, rest_union.1),
+                                    ];
+
+                                    return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                }
+                            }
+                        } else {
+                            return Ok(Stmt::VarStmt(token, None, value));
+                        }
                     }
-                }
+                    Expr::Literal(op_with_token) => {
+                        if let Value::PythonNone = op_with_token.op {
+                            if self.next_is(single(Pipe)).is_some() {
+                                let rest_union = self.consume_type()?;
+
+                                match rest_union.0 {
+                                    VarType::Union(mut vec) => {
+                                        vec.push((
+                                            VarType::PythonNone,
+                                            op_with_token.token.clone(),
+                                        ));
+
+                                        return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                    }
+                                    x => {
+                                        let vec = vec![
+                                            (VarType::PythonNone, op_with_token.token.to_owned()),
+                                            (x, rest_union.1),
+                                        ];
+
+                                        return Ok(Stmt::TypeAlias(token, VarType::Union(vec)));
+                                    }
+                                }
+                            } else {
+                                return Ok(Stmt::VarStmt(token, None, value));
+                            }
+                        } else {
+                            return Ok(Stmt::VarStmt(token, None, value));
+                        }
+                    }
+                    _ => {
+                        return Ok(Stmt::VarStmt(token, None, value));
+                    }
+                },
+                Err(_err) => Ok(Stmt::TypeAlias(token, self.consume_type()?.0)),
             }
         } else {
             Ok(Stmt::ExprStmt(expr))
