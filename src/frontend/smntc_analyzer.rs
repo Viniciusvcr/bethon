@@ -994,7 +994,10 @@ impl<'a> SemanticAnalyzer<'a> {
                                     analyzer.symbol_table.remove_from_current(&id_token.lexeme)
                                 }
 
-                                analyzer.symbol_table.current()
+                                let mut declared_keys = HashMap::default();
+                                analyzer.declared_hashed_keys(then_branch, &mut declared_keys);
+
+                                declared_keys
                             });
 
                             let else_declared_keys = if let Some(else_stmts) = else_branch {
@@ -1021,12 +1024,16 @@ impl<'a> SemanticAnalyzer<'a> {
                                         analyzer.symbol_table.remove_from_current(&id_token.lexeme)
                                     }
 
-                                    analyzer.symbol_table.current()
+                                    let mut declared_keys = HashMap::default();
+                                    analyzer.declared_hashed_keys(else_stmts, &mut declared_keys);
+
+                                    declared_keys
                                 })
                             } else {
                                 if let Some((id_token, _, else_type)) = &refined_types {
                                     self.define(&id_token.lexeme, else_type.to_owned(), id_token);
                                 }
+
                                 HashMap::default()
                             };
                             if let Err(err) = merge(&mut if_declared_keys, &else_declared_keys) {
@@ -1039,6 +1046,7 @@ impl<'a> SemanticAnalyzer<'a> {
                                     if x.defined {
                                         let (error_line, starts_at, ends_at) =
                                             env_value.token.placement.as_tuple();
+                                        println!("here");
                                         self.errors.push(Error::Smntc(
                                             SmntcError::VariableAlreadyDeclared(
                                                 error_line,
@@ -1574,6 +1582,54 @@ impl<'a> SemanticAnalyzer<'a> {
             Expr::Call(callee, _params) => self.expr_keys(callee),
             Expr::Get(_, _token) => vec![],
             Expr::IsInstance(exp, _) => self.expr_keys(exp),
+        }
+    }
+
+    fn declared_hashed_keys(
+        &mut self,
+        stmts: &[Stmt],
+        declared_keys: &mut HashMap<String, SmntcEnvValue>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::VarStmt(name, _, _) => {
+                    declared_keys
+                        .insert(name.lexeme(), self.symbol_table.get(&name.lexeme).unwrap());
+                }
+                Stmt::IfStmt(_, then_branch, else_branch) => {
+                    self.declared_hashed_keys(then_branch, declared_keys);
+                    self.declared_hashed_keys(
+                        else_branch.as_ref().unwrap_or(&vec![]),
+                        declared_keys,
+                    );
+                }
+                Stmt::Function(token, _, _, _) => {
+                    declared_keys.insert(
+                        token.lexeme(),
+                        self.symbol_table.get(&token.lexeme).unwrap(),
+                    );
+                }
+
+                Stmt::Class(_, token, _) => {
+                    declared_keys.insert(
+                        token.lexeme(),
+                        self.symbol_table.get(&token.lexeme).unwrap(),
+                    );
+                }
+                Stmt::TypeAlias(token, _) => {
+                    declared_keys.insert(
+                        token.lexeme(),
+                        self.symbol_table.get(&token.lexeme).unwrap(),
+                    );
+                }
+                Stmt::Enum(token, _, _) => {
+                    declared_keys.insert(
+                        token.lexeme(),
+                        self.symbol_table.get(&token.lexeme).unwrap(),
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
