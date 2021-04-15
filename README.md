@@ -169,6 +169,50 @@ To create a new instance of your class, call it (C-style) with the attributes in
 Point(10.0, 20.0) # 10.0 will be set to 'x' and 20.0 to 'y'
 ```
 
+#### Enums
+
+Enumerations are based on Python's Enum library, therefore, it needs to be imported into the program with
+
+```python
+from enum import IntEnum
+```
+
+or
+
+```python
+import enum
+```
+
+To create a new enum, you need to create a simple class that inherits IntEnum's behavior:
+
+```python
+class CardinalDirection(IntEnum):
+    North = 1
+    South = 2
+    East = 3
+    West = 4
+```
+
+> The assignment of each variant to an integer is mandatory, but it's not necessary for each integer to be unique.
+
+#### Unions
+
+The declaration of Unions match the new sintax available from Python 3.10 onwards. You can put any valid type into an union and use them anywhere a type can be used:
+
+```python
+any_typed_var: int | float | str | bool = 10
+```
+
+#### Type Alias
+
+Aliasing works just like an assignment, but with a type:
+
+```python
+AnyPrimitiveType = int | float | str | bool
+
+any_typed_var: AnyPrimitiveType = 10
+```
+
 ### Constants
 
 Constants can be defined just by writing a name anywhere in the code followed by an equal (`=`) and anything that is or produces a value.
