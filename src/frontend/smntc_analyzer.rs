@@ -76,14 +76,17 @@ impl<'a> SemanticAnalyzer<'a> {
             }
             (Type::Union(a), Type::Union(b)) => {
                 for (t_a, _) in a {
-                    if !b.iter().any(|(t_b, _)| t_a == t_b) {
+                    if !b.iter().any(|(t_b, _)| self.compare_types(t_a, t_b)) {
                         return false;
                     }
                 }
 
                 true
             }
-            (_, Type::Union(union)) => union.iter().any(|(t, _)| self.compare_types(found, t)),
+            (_, Type::Union(union)) => {
+                let res = union.iter().any(|(t, _)| self.compare_types(found, t));
+                res
+            }
             (left, Type::UserDefined(id)) => {
                 // In this case, UserDefined will be representing a TypeAlias (VarType into Type)
                 if let Some(aliased) = self.get_var(&id.name_token.lexeme) {
@@ -458,7 +461,6 @@ impl<'a> SemanticAnalyzer<'a> {
                     let old_env = std::mem::replace(&mut self.symbol_table, env);
                     for (arg, (_param_name, param_var_type)) in args.iter().zip(&param_type) {
                         let arg_type = self.analyze_one(arg)?;
-
                         let param_type: Type = param_var_type.into();
 
                         if !self.compare_types(&arg_type, &param_type) {
@@ -626,7 +628,7 @@ impl<'a> SemanticAnalyzer<'a> {
                     ));
                 }
 
-                if matches!(vt, VarType::Union(_) | VarType::PythonNone) {
+                if matches!(vt, VarType::Union(_)) {
                     let (line, starts_at, ends_at) = vt_token.placement.as_tuple();
                     return Err(SmntcError::IncompatibleRightIsInstance(
                         line,
@@ -1046,7 +1048,6 @@ impl<'a> SemanticAnalyzer<'a> {
                                     if x.defined {
                                         let (error_line, starts_at, ends_at) =
                                             env_value.token.placement.as_tuple();
-                                        println!("here");
                                         self.errors.push(Error::Smntc(
                                             SmntcError::VariableAlreadyDeclared(
                                                 error_line,
